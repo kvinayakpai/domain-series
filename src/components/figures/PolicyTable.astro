@@ -1,0 +1,34 @@
+---
+// Static figure: the store's two changes, alone and together, on the same customers and banks.
+import data from '../../data/payments.json';
+const S = Object.fromEntries(data.scenarios.map((s) => [s.key, s]));
+const rows = [
+  ['As today', S['retry|manual']],
+  ['Wait for the status check', S['check|manual']],
+  ['Bill ID on every UPI request', S['retry|bill_ref']],
+  ['Both', S['check|bill_ref']],
+] as const;
+const base = S['retry|manual'].kpis.slowdown.till_minutes;
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="milk-table policy-table">
+      <caption>What each change does in June, on the same customers and the same banks</caption>
+      <thead>
+        <tr><th scope="col">The store</th><th scope="col">Customers charged twice</th><th scope="col">Median days to a refund</th><th scope="col">Not refunded at month end</th><th scope="col">Till time in the slowdown</th></tr>
+      </thead>
+      <tbody>
+        {rows.map(([label, s]) => (
+          <tr class={label === 'As today' ? 'today' : undefined}>
+            <th scope="row">{label}</th>
+            <td>{s.kpis.june.charged_twice}</td>
+            <td>{s.kpis.refunds.median_days_to_refund?.toFixed(1) ?? '–'}</td>
+            <td>{s.kpis.refunds.unrefunded_at_month_end}</td>
+            <td>{Math.round(s.kpis.slowdown.till_minutes)} min{s.kpis.slowdown.till_minutes > base ? ` (+${Math.round(s.kpis.slowdown.till_minutes - base)})` : ''}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Waiting for the 90-second status check stops most double charges and costs till time when the bank is slow. Putting the bill ID on every request does not stop them, but it finds every one the next morning.</figcaption>
+</figure>

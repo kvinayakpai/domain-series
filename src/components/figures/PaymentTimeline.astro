@@ -1,0 +1,31 @@
+---
+// Static figure: one customer's payment during the slowdown, in every record that holds it.
+import data from '../../data/payments.json';
+const sc = data.story.scene!;
+const [upi, second] = sc.attempts;
+const hms = (iso: string) => iso.slice(11, 19);
+const dayOf = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+const inr = (v: number) => `₹${v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const plus30 = new Date(Date.parse(`${upi.ts}Z`) + 30000).toISOString().slice(11, 19);
+const settled = new Date(Date.parse(`${sc.credited_ts.slice(0, 10)}T00:00:00Z`) + 864e5).toISOString().slice(0, 10);
+const rows = [
+  ['The till', `${hms(upi.ts)}  UPI ${inr(sc.amount_inr)}  … ${plus30}  failed: no response`],
+  ['The till', `${hms(second.ts)}  ${second.tender} ${inr(sc.amount_inr)}  approved`],
+  ['The provider’s report', `${hms(sc.credited_ts)}  UPI ${sc.rrn}  ${inr(sc.amount_inr)}  success`],
+  ['The settlement', `${dayOf(settled)}: credited with the rest of ${dayOf(sc.credited_ts)}’s UPI payments`],
+  ['Customer support', `${dayOf(sc.complaint!.complaint_ts)}, ${hms(sc.complaint!.complaint_ts).slice(0, 5)}: “charged twice”`],
+  ['The refund', `${dayOf(sc.refunded_ts!)}, ${hms(sc.refunded_ts!).slice(0, 5)}: ${inr(sc.amount_inr)} back by UPI`],
+];
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="docs">
+      <caption>One basket on {dayOf(upi.ts)}, in every record that holds it</caption>
+      <tbody>
+        {rows.map(([a, b]) => <tr><th scope="row">{a}</th><td class="rec">{b}</td></tr>)}
+        <tr class="truth"><th scope="row">Her money</th><td><span class="gap">Taken twice: {inr(sc.amount_inr)} by UPI at {hms(upi.ts)}, and again by {second.tender} at {hms(second.ts)}</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Each record is right about what it saw. The till never saw the credit, the provider never saw the card payment, and nobody but the customer saw both debits.</figcaption>
+</figure>

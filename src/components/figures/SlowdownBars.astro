@@ -1,0 +1,70 @@
+---
+// Static figure: UPI payments each hour on Saturday 20 June, approved at the till against
+// credited by the bank. Two drawings for wide and narrow screens; no JavaScript.
+import data from '../../data/payments.json';
+const hours = data.story.slowdown_day_by_hour.filter((x) => x.hour >= 15);
+const yMax = Math.ceil(Math.max(...hours.map((x) => x.upi_attempts)) / 20) * 20;
+const yTicks = Array.from({ length: yMax / 20 + 1 }, (_, k) => k * 20);
+const series = [
+  { key: 'approved_at_till', label: 'Approved at the till', color: 'var(--c-record)' },
+  { key: 'credited', label: 'Credited by the bank', color: 'var(--c-reality)' },
+] as const;
+function geometry(W: number, H: number) {
+  const m = { l: 30, r: 8, t: 10, b: 26 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const band = iw / hours.length;
+  const bw = Math.min(22, (band - 8) / 2 - 2);
+  const y = (v: number) => ih - (v / yMax) * ih;
+  const bars = hours.flatMap((hr, i) => series.map((s, k) => {
+    const v = hr[s.key];
+    const x0 = i * band + band / 2 - (2 * bw + 2) / 2 + k * (bw + 2);
+    const top = y(v);
+    const r = Math.min(4, bw / 2, ih - top);
+    return { d: `M${x0},${ih}V${top + r}Q${x0},${top} ${x0 + r},${top}H${x0 + bw - r}Q${x0 + bw},${top} ${x0 + bw},${top + r}V${ih}Z`, color: s.color };
+  }));
+  const ticks = hours.map((hr, i) => ({ x: i * band + band / 2, text: `${String(hr.hour).padStart(2, '0')}:00` }));
+  return { W, H, m, iw, ih, y, bars, ticks };
+}
+const views = [{ cls: 'fig-wide', g: geometry(640, 230) }, { cls: 'fig-narrow', g: geometry(340, 250) }];
+---
+<figure class="figure">
+  {views.map(({ cls, g }) => (
+    <div class={`chart ${cls}`}>
+      <svg viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="UPI payments approved at the till and credited by the bank, each hour from 15:00 to 21:00 on Saturday 20 June 2026">
+        <g transform={`translate(${g.m.l},${g.m.t})`}>
+          {yTicks.map((v) => (
+            <g>
+              <line class="grid" x1="0" x2={g.iw} y1={g.y(v)} y2={g.y(v)} />
+              <text class="tick" x="-6" y={g.y(v) + 4} text-anchor="end">{v}</text>
+            </g>
+          ))}
+          <line class="axis" x1="0" x2={g.iw} y1={g.ih} y2={g.ih} />
+          {g.bars.map((b) => <path class="bar" d={b.d} style={`fill: ${b.color}`} />)}
+          {g.ticks.map((t) => <text class="tick" x={t.x} y={g.ih + 18} text-anchor="middle">{t.text}</text>)}
+        </g>
+      </svg>
+    </div>
+  ))}
+  <ul class="chart-legend">
+    {series.map((s) => <li><span class="key-rect" style={`background: ${s.color}`}></span>{s.label}</li>)}
+  </ul>
+  <figcaption>UPI payments at Store 014’s tills on Saturday 20 June, by hour. In the two slow hours the bank credited the store for more payments than the tills approved: each gap is a customer who was asked to pay again.</figcaption>
+  <details class="table-view">
+    <summary>Show the numbers</summary>
+    <div class="table-wrap">
+      <table>
+        <caption>UPI payments by hour, 20 June</caption>
+        <thead><tr><th scope="col">Hour</th><th scope="col">Attempts</th><th scope="col">Approved at the till</th><th scope="col">Credited by the bank</th></tr></thead>
+        <tbody>{hours.map((x) => <tr><th scope="row">{String(x.hour).padStart(2, '0')}:00</th><td>{x.upi_attempts}</td><td>{x.approved_at_till}</td><td>{x.credited}</td></tr>)}</tbody>
+      </table>
+    </div>
+  </details>
+</figure>
+
+<style>
+  .fig-narrow { display: none; }
+  @media (max-width: 540px) {
+    .fig-wide { display: none; }
+    .fig-narrow { display: block; }
+  }
+</style>

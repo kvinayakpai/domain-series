@@ -1,0 +1,88 @@
+---
+import data from '../data/payments.json';
+const base = import.meta.env.BASE_URL;
+const files = `${base}data/india-grocery/`;
+const st = data.story;
+const personas = [
+  ['cashier', 'Cashier'],
+  ['ops', 'Payments operations'],
+  ['recon', 'Reconciliation analyst'],
+  ['support', 'Customer support'],
+  ['finance', 'Finance controller'],
+  ['truth', 'What actually happened'],
+];
+---
+<section id="payments" class="demo" data-payments-demo aria-labelledby="payments-title">
+  <header class="demo-head">
+    <h2 id="payments-title">Payments: the money</h2>
+    <dl class="pair">
+      <div><dt>The record says</dt><dd class="rec">Payment failed.</dd></div>
+      <div><dt>What actually happened</dt><dd><span class="gap">The customer’s account was debited.</span></dd></div>
+    </dl>
+    <p class="demo-intro">Store 014’s tills through June 2026, and one Saturday evening when the store’s acquiring bank slowed down. Pick whose view you want, then change what the cashier does when a UPI payment hangs and how the back office matches payments, and watch every view update.</p>
+  </header>
+
+  <form class="controls" aria-label="What the store changes" onsubmit="return false">
+    <fieldset>
+      <legend>At the till</legend>
+      <div class="seg">
+        <label><input type="radio" name="till" value="retry" checked /><span>As today: ask for another payment</span></label>
+        <label><input type="radio" name="till" value="check" /><span>Wait for the status check</span></label>
+      </div>
+      <p class="hint">Today the till gives up on a UPI payment after 30 seconds and the cashier takes another payment. NPCI allows the first status check 90 seconds after a payment.</p>
+    </fieldset>
+    <fieldset>
+      <legend>In the back office</legend>
+      <div class="seg">
+        <label><input type="radio" name="recon" value="manual" checked /><span>As today: match by hand</span></label>
+        <label><input type="radio" name="recon" value="bill_ref" /><span>Put the bill ID on every UPI request</span></label>
+      </div>
+      <p class="hint">Today UPI credits are matched to bills by amount and time, and a late credit is refunded when the customer complains. With the bill ID on each request, the next morning’s match finds it.</p>
+    </fieldset>
+  </form>
+
+  <div class="outcome" data-outcome aria-live="polite"></div>
+
+  <div class="personas">
+    <div class="tabs" role="tablist" aria-label="Whose view">
+      {personas.map(([key, label], i) => (
+        <button type="button" role="tab" id={`py-tab-${key}`} data-persona={key} aria-selected={i === 0 ? 'true' : 'false'}
+          aria-controls="py-panel" tabindex={i === 0 ? 0 : -1} class={key === 'truth' ? 'tab-truth' : undefined}>{label}</button>
+      ))}
+    </div>
+    <div id="py-panel" class="panel" role="tabpanel" data-panel tabindex="0">
+      <noscript>
+        <p>This demo needs JavaScript. In short: on Saturday 20 June the store’s acquiring bank slowed down for 90 minutes. The tills gave up on {st.slowdown.upi_timeouts} UPI payments and took second payments, and {st.slowdown.charged_twice} customers were charged twice. The records are linked below.</p>
+      </noscript>
+    </div>
+  </div>
+
+  <details class="drawer">
+    <summary>The records behind it</summary>
+    <div class="drawer-bar">
+      <div class="seg buttons" role="group" aria-label="Which records">
+        <button type="button" data-rec="till" aria-pressed="true">Till payments, 20 June 18:00–20:30</button>
+        <button type="button" data-rec="psp" aria-pressed="false">Provider’s UPI report</button>
+        <button type="button" data-rec="settle" aria-pressed="false">Daily settlements</button>
+      </div>
+      <label class="reveal"><input type="checkbox" name="py-reveal" /> Show what the records hide</label>
+    </div>
+    <div data-records></div>
+    <p class="downloads">
+      Download June’s payment records as CSV:
+      <a href={`${files}pos-payments-june.csv`} download>till payments</a>,
+      <a href={`${files}psp-upi-report-june.csv`} download>provider’s UPI report</a>,
+      <a href={`${files}upi-settlements-june.csv`} download>settlements</a>,
+      <a href={`${files}upi-refunds-june.csv`} download>refunds</a>,
+      <a href={`${files}customer-complaints-june.csv`} download>complaints</a>.
+      <a href={`${base}data/#payments-records`}>What each file holds, and four exercises</a>.
+      <a href={`${files}answer-key-payments.json`} download>Answer key</a> (spoilers).
+    </p>
+  </details>
+</section>
+
+<script>
+  import { mountPaymentsDemo } from '../lib/payments-demo';
+  const root = document.querySelector<HTMLElement>('[data-payments-demo]');
+  if (root) mountPaymentsDemo(root);
+</script>
