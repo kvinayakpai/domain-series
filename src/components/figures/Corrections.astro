@@ -1,0 +1,28 @@
+---
+// Static figure: the four stock corrections one mis-picked line caused, and their net.
+import data from '../../data/logistics.json';
+const st = data.story;
+const cost = data.costs as Record<string, number>;
+const name: Record<string, string> = { 'ATTA-WW-5KG': 'Atta 5 kg', 'ATTA-WW-1KG': 'Atta 1 kg' };
+const when = (iso: string) => new Date(`${iso}:00+05:30`).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+const plus = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(Math.round(x)).toLocaleString('en-IN')}`;
+const inr = (x: number) => `${x < 0 ? '−' : ''}₹${Math.abs(Math.round(x)).toLocaleString('en-IN')}`;
+const rows = [
+  ...st.dc_adjustments.map((a) => [`Warehouse, ${when(a.adjusted_ts)}`, name[a.sku], plus(a.units), inr(a.value_at_cost_inr), `${a.reason} (${plus(a.cases)} cases)`]),
+  ...st.corrections.map((c) => [`Store, ${when(c.count_ts)}`, name[c.sku], plus(c.adjustment), inr(c.adjustment * cost[c.sku]), 'count after customer complaints']),
+];
+const net = st.adjustments_net.value_at_cost_inr;
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger net">
+      <caption>Stock corrections for atta, 22 to 28 June</caption>
+      <thead><tr><th scope="col">Where and when</th><th scope="col">Item</th><th scope="col">Units</th><th scope="col">At cost</th><th scope="col" class="why">Recorded as</th></tr></thead>
+      <tbody>
+        {rows.map((r) => <tr><th scope="row">{r[0]}</th><td>{r[1]}</td><td class="n">{r[2]}</td><td class="n">{r[3]}</td><td class="why">{r[4]}</td></tr>)}
+        <tr><th scope="row">Net, across the company</th><td></td><td></td><td class="n">{inr(net)}</td><td class="why"></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Two corrections at the warehouse and two at the store, made between Tuesday and Friday, each closed on its own. Together they are one mis-pick, and they net to almost nothing.</figcaption>
+</figure>

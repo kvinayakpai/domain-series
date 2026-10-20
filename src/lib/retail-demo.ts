@@ -1,6 +1,7 @@
 // Retail demo: one store, one month, six ways of looking at the same 5 kg atta shelf.
 import data from '../data/retail.json';
 import { barChart, lineChart, tableView, type Tooltip } from './charts';
+import { bands, day, h, inr, num, pct, recordBlock, says, signed, tiles, when } from './demo-kit';
 
 type Data = typeof data;
 type Scn = Data['scenarios'][number];
@@ -11,30 +12,9 @@ const HOURS = data.meta.hours as number[];
 const DAYS = data.meta.days as string[];
 const NH = HOURS.length;
 
-// ---------- formatting ----------
-const day = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
-const time = (iso: string) => iso.slice(11, 16);
-const when = (iso: string) => `${day(iso)}, ${time(iso)}`;
-const pct = (x: number) => `${Math.round(x * 100)}%`;
-const num = (x: number) => Math.round(x).toLocaleString('en-IN');
-const inr = (x: number) => `₹${Math.round(x).toLocaleString('en-IN')}`;
-const signed = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(Math.round(x * 100))}%`;
 const hourLabel = (i: number) => `${day(DAYS[Math.floor(i / NH)])}, ${String(HOURS[i % NH]).padStart(2, '0')}:00`;
 // Events before opening (a 06:17 delivery) sit on the first open hour of that day.
 const idxOf = (iso: string) => DAYS.indexOf(iso.slice(0, 10)) * NH + Math.min(NH - 1, Math.max(0, Number(iso.slice(11, 13)) - HOURS[0]));
-
-function bands(empty: number[]) {
-  const out: { from: number; to: number }[] = [];
-  let start = -1;
-  empty.forEach((v, i) => {
-    if (v > 0 && start < 0) start = i;
-    if ((v <= 0 || i === empty.length - 1) && start >= 0) {
-      out.push({ from: start, to: v > 0 ? i : i - 1 });
-      start = -1;
-    }
-  });
-  return out;
-}
 
 const weekTick = (i: number) => (i % (7 * NH) === 0 ? day(DAYS[i / NH]) : null);
 const dayTick = (i: number) => (i % 7 === 0 ? day(DAYS[i]) : null);
@@ -42,39 +22,6 @@ const dayTick = (i: number) => (i % 7 === 0 ? day(DAYS[i]) : null);
 function big(eps: Episode[], from: string, to: string) {
   return eps.filter((e) => e.start >= from && e.start < to && e.empty_open_hours >= 5)
     .sort((a, b) => b.empty_open_hours - a.empty_open_hours)[0];
-}
-
-// ---------- DOM helpers ----------
-function h<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: string): HTMLElementTagNameMap[K] {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text != null) n.textContent = text;
-  return n;
-}
-
-function tiles(items: { label: string; value: string; note?: string }[]) {
-  const wrap = h('div', 'tiles');
-  for (const t of items) {
-    const d = h('div', 'tile');
-    d.append(h('span', 'tile-label', t.label), h('span', 'tile-value', t.value));
-    if (t.note) d.append(h('span', 'tile-note', t.note));
-    wrap.append(d);
-  }
-  return wrap;
-}
-
-function recordBlock(lines: string[], caption: string) {
-  const fig = h('figure', 'record');
-  const pre = h('pre', 'rec');
-  pre.textContent = lines.join('\n');
-  fig.append(pre, h('figcaption', '', caption));
-  return fig;
-}
-
-function says(text: string, voice: 'person' | 'record' = 'person') {
-  const p = h('p', voice === 'record' ? 'says rec' : 'says');
-  p.textContent = text;
-  return p;
 }
 
 // ---------- state ----------
