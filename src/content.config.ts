@@ -26,4 +26,20 @@ const posts = defineCollection({
   }),
 });
 
-export const collections = { posts };
+/** Technical companions: the practitioner's version of a post, at /<post>/technical/. */
+const companions = defineCollection({
+  loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/companions' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    /** The slug of the post this companion belongs to. */
+    post: z.string(),
+    pubDate: z.coerce.date(),
+    updatedDate: z.coerce.date().optional(),
+    /** Path under public/ for the notebook, e.g. 'notebooks/retail.ipynb'. */
+    notebook: z.string().optional(),
+    image: z.string().optional(),
+  }),
+});
+
+export const collections = { posts, companions };

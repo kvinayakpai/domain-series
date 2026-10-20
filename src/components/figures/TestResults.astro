@@ -1,0 +1,67 @@
+---
+// The pipeline's data tests (they pass) against four tests that ask about the world (they fail).
+// With `sql`, each test shows its query.
+import ai from '../../data/retail-ai.json';
+
+interface Props { sql?: boolean }
+const { sql = false } = Astro.props;
+const g = ai.tests.generic;
+const d = ai.tests.domain;
+const names: Record<string, string> = { 'ATTA-WW-5KG': '5 kg atta', 'ATTA-WW-1KG': '1 kg atta', 'ATTA-WW-10KG': '10 kg atta',
+  'RICE-SM-5KG': 'rice', 'DAL-TOOR-1KG': 'dal', 'OIL-SUN-1L': 'oil', 'SUGAR-1KG': 'sugar', 'MILK-FC-500ML': 'full-cream milk',
+  'MILK-TONED-500ML': 'toned milk', 'CURD-500G': 'curd', 'BREAD-WHITE-400G': 'bread' };
+const when = (iso: string) => new Date(`${iso.slice(0, 16)}:00+05:30`).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+
+const generic = g.map((t) => {
+  let result = 'Pass';
+  if (!t.pass) {
+    const items = [...new Set((t.examples as { sku?: string }[]).map((e) => e.sku).filter(Boolean))] as string[];
+    result = `Fails: ${t.failing_rows} rows${items.length ? `, all ${items.map((s) => names[s] ?? s).join(', ')} below zero` : ''}`;
+  }
+  return { name: t.name, result, pass: t.pass, sql: t.sql };
+});
+const [gaps, audits, counts, halving] = d;
+const heroGap = (gaps.failing as { sku: string; open_hours: number; start: string }[]).filter((r) => r.sku === 'ATTA-WW-5KG').sort((a, b) => b.open_hours - a.open_hours)[0];
+const heroAudit = (audits.failing as { sku: string; audit_ts: string; book: number }[]).find((r) => r.sku === 'ATTA-WW-5KG');
+const half = (halving.failing as { sku: string; week1: number; week2: number }[])[0];
+const world = [
+  { name: gaps.name, result: `Fails: ${gaps.failing.length} runs, among them 5 kg atta, ${heroGap.open_hours} open hours from ${when(heroGap.start)}` },
+  { name: audits.name, result: `Fails: ${audits.failing.length} audits, among them 5 kg atta at ${when(heroAudit!.audit_ts)} with ${heroAudit!.book} on the books` },
+  { name: counts.name, result: `Fails: ${counts.failing.length} count lines` },
+  { name: halving.name, result: `Fails: ${names[half.sku]}, ${half.week1} bags then ${half.week2}` },
+];
+const passed = generic.filter((t) => t.pass).length;
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger tests">
+      <caption>Store 014's records for June, tested two ways</caption>
+      <tbody>
+        <tr class="group"><th colspan="2" scope="colgroup">The pipeline's data tests: {passed} of {generic.length} pass</th></tr>
+        {generic.map((t) => (
+          <tr>
+            <th scope="row">{t.name}{sql && <details class="sql"><summary>SQL</summary><code>{t.sql}</code></details>}</th>
+            <td class={t.pass ? 'ok' : 'no'}>{t.result}</td>
+          </tr>
+        ))}
+        <tr class="group"><th colspan="2" scope="colgroup">Tests that ask about the world: 0 of {world.length} pass</th></tr>
+        {world.map((t) => (
+          <tr><th scope="row">{t.name}</th><td class="no">{t.result}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>The data tests check that the records agree with each other: keys, values, reconciliations, and the book against its own ledger. The four below check the records against how a store works. All four use only the records.</figcaption>
+</figure>
+
+<style>
+  .tests tr.group th { font-size: 0.9rem; color: var(--muted); font-weight: 600; padding-top: 1rem; }
+  .tests th[scope='row'] { font-weight: 450; }
+  .tests td { white-space: normal; }
+  .tests td.ok { color: var(--ok); font-weight: 600; }
+  .tests td.no { color: var(--correction); }
+  .tests details.sql { margin-top: 0.2rem; font-size: 0.8rem; }
+  .tests details.sql summary { cursor: pointer; color: var(--record); font-family: var(--font-sign); }
+  .tests details.sql code { display: block; margin-top: 0.3rem; font-family: var(--font-record); font-size: 0.74rem; color: var(--muted); white-space: normal; word-break: break-word; }
+  .tests td { min-width: 9rem; }
+</style>

@@ -7,4 +7,7 @@ export default defineConfig({
   base: '/domain-series/',
   trailingSlash: 'always',
   integrations: [mdx(), sitemap()],
+  markdown: {
+    shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' }, wrap: false },
+  },
 });

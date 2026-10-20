@@ -1,13 +1,15 @@
 # Why Domain Matters
 
-A blog series on why domain knowledge matters. Each post takes one real operational failure from Indian grocery retail, follows it through the people who see it differently, and ships with a demo scenario, downloadable records, a slide deck and a captioned video.
+A blog series on why domain knowledge matters to data and AI work. Each post takes one operational failure from Indian grocery retail, shows what the pipeline, the dashboard, the models and an AI assistant made of it, and measures what changes when the domain is built in, scored against the synthetic world's answer key. Each ships with a demo scenario, downloadable records, a slide deck and a captioned video. Retail, reworked first for data and AI readers, also has a technical companion with SQL, Python and a notebook.
 
 Live site: https://kvinayakpai.github.io/domain-series/
 
 ## Layout
 
 - `src/content/posts/`: one file per post (`.mdx` when the post uses figure components, `.md` otherwise). Front matter holds the title, the "record says" and "what actually happened" lines, dates and draft status.
-- `src/pages/`: home (audit table of the posts), one route per post, the demo, the downloadable records (`data/`), RSS (`rss.xml`). The sitemap is generated at build time.
+- `src/content/companions/`: technical companions, one per post that has one, served at `/<post>/technical/` and linked from the post's header. Front matter names the post and the notebook.
+- `src/pages/`: home (audit table of the posts), one route per post (`[slug]/index.astro`) and per companion (`[slug]/technical.astro`), the demo, the downloadable records (`data/`), RSS (`rss.xml`). The sitemap is generated at build time.
+- `scripts/analysis/`: the data work behind the retail post. `retail.py` reads the downloadable records with DuckDB and pandas and writes `src/data/retail-ai.json`: the data tests, the gap detector, the unconstrained forecast, availability five ways and the scripted assistant, each scored against the answer key. `make_retail_notebook.py` builds `public/notebooks/retail.ipynb` from the same steps.
 - `src/components/`: the retail, logistics and payments demos and the post figures. Figures are static SVG with a table view, so they read without JavaScript. The demos' logic lives in `src/lib/` (`demo-kit.ts` holds what they share).
 - `src/styles/global.css`: design tokens. Blue monospace is what a system records, serif ink is what happened, yellow marks the gap.
 - `public/og/`: link-preview images, rendered by `npm run og` from the post front matter.
@@ -24,6 +26,8 @@ Demo data comes from the India grocery world in the Domain Explorer project (`sy
 
     python synthetic-data/india_grocery/export_blog.py --out ../domain-series
 
+`src/data/retail-ai.json` is computed from the downloadable records, not exported: after a re-export, run `npm run analysis` (needs `duckdb`, `numpy`, `pandas`, `nbformat`, `nbconvert`, `ipykernel` and `matplotlib`). It rewrites the JSON, rebuilds the notebook, runs it on the local records and fails if the notebook's numbers disagree with the JSON.
+
 The Playwright suite checks the numbers quoted in each post against the exported data, so a re-export that changes the story fails the build until the prose is updated. The videos and the decks are not checked this way: their captions and slides are generated from the same data, but if the story numbers change, re-render the videos with `npm run video` and regenerate the decks and their PDFs.
 
 ## Develop
@@ -32,6 +36,7 @@ The Playwright suite checks the numbers quoted in each post against the exported
     npm run dev          # local server
     npm run build        # static build into dist/
     npm run og           # re-render link-preview images
+    npm run analysis     # recompute src/data/retail-ai.json and rebuild and check the retail notebook
     npm run test:e2e     # build first; runs the Playwright suite against the built site
     npm run video        # build first; re-renders the captioned videos
     npm run decks        # regenerates and checks the slide decks (add -- --pdf to reprint the PDFs)

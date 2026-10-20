@@ -1,0 +1,49 @@
+---
+// One question's plan: every query the scripted assistant ran, what it returned, and its answer.
+import ai from '../../data/retail-ai.json';
+
+interface Props { id: string; side: 'naive' | 'domain' }
+const { id, side } = Astro.props;
+const q = ai.assistant.questions.find((x) => x.id === id)!;
+const s = q[side];
+const fmt = (v: unknown) => {
+  if (v == null) return '–';
+  if (typeof v === 'number') return Number.isInteger(v) ? v.toLocaleString('en-IN') : String(Math.round(v * 1000) / 1000);
+  const t = String(v);
+  return /^\d{4}-\d\d-\d\dT/.test(t) ? t.slice(0, 16).replace('T', ' ') : t;
+};
+const label = side === 'naive' ? 'Schema only' : 'With the domain layer';
+const steps = s.plan as { sql: string; result: Record<string, unknown>[] }[];
+---
+<figure class={`plan ${side}`}>
+  <p class="who">{label}: {q.question}</p>
+  <ol>
+    {steps.map((step) => (
+      <li>
+        <code class="sql">{step.sql}</code>
+        {step.result.length > 0 && (
+          <div class="table-wrap">
+            <table>
+              <thead><tr>{Object.keys(step.result[0]).map((k) => <th scope="col">{k}</th>)}</tr></thead>
+              <tbody>{step.result.slice(0, 4).map((r) => <tr>{Object.values(r).map((v) => <td>{fmt(v)}</td>)}</tr>)}</tbody>
+            </table>
+          </div>
+        )}
+      </li>
+    ))}
+  </ol>
+  <p class="says"><strong>{s.right ? 'Right' : 'Wrong'}.</strong> {s.answer}</p>
+</figure>
+
+<style>
+  .plan { margin: 1.4rem 0; padding: 0.9rem 1.1rem; background: var(--panel); border-left: 3px solid var(--record); }
+  .plan.domain { border-left-color: var(--c-misplaced); }
+  .plan .who { margin: 0 0 0.5rem; font-family: var(--font-sign); font-weight: 600; }
+  .plan ol { margin: 0; padding-left: 1.2rem; }
+  .plan li { margin: 0.5rem 0 0.8rem; }
+  .plan code.sql { display: block; font-family: var(--font-record); font-size: 0.78rem; color: var(--record); white-space: pre-wrap; word-break: break-word; }
+  .plan table { font-family: var(--font-sign); font-size: 0.85rem; margin-top: 0.35rem; }
+  .plan th, .plan td { padding: 0.2rem 0.8rem 0.2rem 0; text-align: left; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+  .plan th { color: var(--muted); font-weight: 500; }
+  .plan .says { margin: 0.6rem 0 0; font-family: var(--font-sign); font-size: 1rem; line-height: 1.5; }
+</style>

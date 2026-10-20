@@ -6,7 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "decks" / "payments" / "project"
 (OUT / "slides").mkdir(parents=True, exist_ok=True)
-d = json.load(open(ROOT / "src" / "data" / "payments.json"))
+d = json.loads((ROOT / "src" / "data" / "payments.json").read_text())
 S = {s["key"]: s for s in d["scenarios"]}
 A, CHK, BREF = S["retry|manual"], S["check|manual"], S["retry|bill_ref"]
 st = d["story"]
@@ -31,8 +31,8 @@ def inr_in(v, dec=False):
     """Indian digit grouping."""
     neg = v < 0
     v = abs(v)
-    whole = int(round(v * 100)) // 100 if dec else int(round(v))
-    frac = f".{int(round(v * 100)) % 100:02d}" if dec else ""
+    whole = round(v * 100) // 100 if dec else round(v)
+    frac = f".{round(v * 100) % 100:02d}" if dec else ""
     s = str(whole)
     if len(s) > 3:
         head, tail = s[:-3], s[-3:]
@@ -139,7 +139,7 @@ for i, (a, b) in enumerate(boxes):
         flow.append(f'<p style="{SIGN};font-size:44px;color:{MUTED};align-self:center">→</p>')
 flow.append('</div>')
 slides["happened"] = section("happened", "\n".join([h2("A slow answer is not a failed payment"), *flow,
-    f'<p style="font-size:32px;line-height:1.45;width:1550px">When the debit has happened and the answer is late, UPI settles it afterwards: the store’s bank confirms the credit, or the money goes back. RBI requires it back within five days of the payment, with ₹100 a day after that. The money is never lost. For a while it is in two places, and the till is the last to know.</p>',
+    '<p style="font-size:32px;line-height:1.45;width:1550px">When the debit has happened and the answer is late, UPI settles it afterwards: the store’s bank confirms the credit, or the money goes back. RBI requires it back within five days of the payment, with ₹100 a day after that. The money is never lost. For a while it is in two places, and the till is the last to know.</p>',
     foot("40% of UPI attempts at Store 014 got no answer within 30 seconds between 18:20 and 19:50. RBI/2019-20/67 (2019): merchant payments reversed within T+5.")]),
     "A UPI payment at a till passes through several systems: the customer’s app, NPCI’s switch, her bank, which debits her account, and the store’s bank, which credits the store and sends the answer back to the till. On Saturday evening the store’s bank was slow. A slow answer is not a failed payment. When the debit has happened and the answer is late, UPI settles it afterwards: the store’s bank confirms the credit or returns the money, and RBI requires the money back within five days for a payment to a merchant, with a hundred rupees a day in compensation after that. The money is never lost; for a while it is in two places, and the till is the last to know.",
     gap=48)
@@ -252,7 +252,7 @@ slides["mdr"] = section("mdr", "\n".join([
     '<div style="display:flex;flex-direction:column;gap:24px">',
     f'<p style="{SIGN};font-size:120px;font-weight:700;line-height:1">{inr_in(mdr["fee_inr"])}</p>',
     f'<p style="{SIGN};font-size:32px;color:{MUTED}">a month for Store 014 at June’s mix: 0.4% on {mdr["bills_above"]} UPI bills above ₹2,000</p>',
-    f'<p style="font-size:30px;line-height:1.45">From 15 October 2026: 0.4% on payments to a merchant above ₹2,000, capped at ₹300. Merchants receiving up to ₹1 lakh a month through UPI QR are exempt.</p>',
+    '<p style="font-size:30px;line-height:1.45">From 15 October 2026: 0.4% on payments to a merchant above ₹2,000, capped at ₹300. Merchants receiving up to ₹1 lakh a month through UPI QR are exempt.</p>',
     '</div>',
     '<div style="display:flex;flex-direction:column;gap:24px">',
     f'<h3 style="{SIGN};font-size:36px;font-weight:600;line-height:1.2">The fee on one payment</h3>',

@@ -27,6 +27,7 @@ interface Common {
 export interface LineOpts extends Common {
   series: Series[];
   bands?: { from: number; to: number }[];
+  bandLabel?: string; // legend label for the bands; "Shelf empty" unless given
   refs?: { values: (number | null)[]; label: string }[];
   markers?: { at: number; label: string }[];
 }
@@ -232,7 +233,7 @@ export function lineChart(host: HTMLElement, o: LineOpts): void {
     host.onblur = hide;
     legend(host, o.series, 'line', [
       ...(o.refs ?? []).map((r) => ({ label: r.label, swatch: 'key-ref' })),
-      ...((o.bands ?? []).length ? [{ label: 'Shelf empty', swatch: 'key-band' }] : []),
+      ...((o.bands ?? []).length ? [{ label: o.bandLabel ?? 'Shelf empty', swatch: 'key-band' }] : []),
     ]);
   };
   draw();

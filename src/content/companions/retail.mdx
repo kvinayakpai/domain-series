@@ -1,0 +1,263 @@
+---
+title: "Sales are not demand"
+description: "The technical companion to the retail post: Store 014's records, the data tests that pass and the domain tests that fail, an hourly gap detector scored against ground truth, a forecast on unconstrained demand, five definitions of availability, and an assistant with and without a domain layer. SQL, Python and a notebook."
+post: retail
+pubDate: 2026-10-20
+notebook: notebooks/retail.ipynb
+---
+
+import ai from '../../data/retail-ai.json';
+import TestResults from '../../components/figures/TestResults.astro';
+import DetectorTable from '../../components/figures/DetectorTable.astro';
+import CensoredForecast from '../../components/figures/CensoredForecast.astro';
+import ForecastErrors from '../../components/figures/ForecastErrors.astro';
+import AvailabilityWays from '../../components/figures/AvailabilityWays.astro';
+import AssistantScore from '../../components/figures/AssistantScore.astro';
+import AssistantPlan from '../../components/figures/AssistantPlan.astro';
+import DomainLayer from '../../components/figures/DomainLayer.astro';
+import MilkTable from '../../components/figures/MilkTable.astro';
+
+This is the practitioner's half of [Retail and grocery](../). Everything below runs on Store 014's downloadable records with DuckDB and pandas, and the notebook runs it end to end in a few seconds. The answer key is read only to score results, the way you would use a labelled holdout set. Nothing that builds a test, a detector, a forecast or an answer is allowed to look at it.
+
+## The records
+
+The store's systems keep these tables. Each records something real, and each is blind to something.
+
+<div class="table-wrap">
+<table class="ledger records-map">
+<thead><tr><th scope="col">Table</th><th scope="col">Grain</th><th scope="col">Records</th><th scope="col">Cannot know</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>pos_lines</code></th><td>One line per item per bill, every item, 4 May to 28 June</td><td>Every scan: time, barcode, quantity, price</td><td>Whether the shelf had stock; whether the scan was the right pack</td></tr>
+<tr><th scope="row"><code>daily_sales</code></th><td>Item, day</td><td>The scans, summed</td><td>Demand</td></tr>
+<tr><th scope="row"><code>inventory_book</code></th><td>Item, day</td><td>Stock on the books at close</td><td>Where the stock is</td></tr>
+<tr><th scope="row"><code>forecasts</code></th><td>Item, night</td><td>The 28-day mean of recorded sales, the reorder point and the order</td><td>Anything sales did not see</td></tr>
+<tr><th scope="row"><code>goods_receipts</code></th><td>Pallet line</td><td>What the shipping notice said, and what was booked</td><td>What was on the pallet</td></tr>
+<tr><th scope="row"><code>fresh_deliveries</code></th><td>Delivery</td><td>Milk, curd and bread from the morning routes, with use-by dates</td><td>What sold out, and when</td></tr>
+<tr><th scope="row"><code>stock_counts</code></th><td>Count line</td><td>Counted against the book, and the adjustment</td><td>The days between counts</td></tr>
+<tr><th scope="row"><code>shelf_audits</code></th><td>Item, audit</td><td>A person looked at the shelf: on shelf or empty</td><td>The hours between audits</td></tr>
+<tr><th scope="row"><code>write_offs</code></th><td>Item, day</td><td>Recorded damage and expiry</td><td>Damage nobody recorded, and theft</td></tr>
+</tbody>
+</table>
+</div>
+
+The answer key, `answer-key-retail.json`, holds what the systems could not see: every run of open hours with an empty shelf, each day's demand, and what was really scanned.
+
+## Tests that pass
+
+Twelve tests, the kind a dbt project ships on day one: uniqueness, nulls, accepted values, relationships, and reconciliations. The strongest is the book stock against its own ledger:
+
+```sql
+-- close = last close + receipts - sales - write-offs + adjustments
+WITH rcv AS (
+  SELECT date, sku, sum(u) AS u FROM (
+    SELECT CAST(received_ts AS DATE) AS date, sku_booked AS sku,
+           units_booked AS u FROM goods_receipts
+    UNION ALL
+    SELECT CAST(delivery_ts AS DATE), sku, units FROM fresh_deliveries)
+  GROUP BY ALL),
+sold AS (SELECT CAST(bill_ts AS DATE) AS date, sku_scanned AS sku,
+                sum(qty) AS u FROM pos_lines GROUP BY ALL),
+wo AS (SELECT date, sku, sum(units) AS u FROM write_offs GROUP BY ALL),
+adj AS (SELECT CAST(count_ts AS DATE) AS date, sku, sum(adjustment) AS u
+        FROM stock_counts WHERE hour(count_ts) < 22 GROUP BY ALL)
+SELECT b.date, b.sku, b.book_on_hand_close AS book,
+       prev.book_on_hand_close + coalesce(rcv.u, 0) - coalesce(sold.u, 0)
+         - coalesce(wo.u, 0) + coalesce(adj.u, 0) AS rebuilt
+FROM inventory_book b
+JOIN inventory_book prev ON prev.sku = b.sku AND prev.date = b.date - 1
+LEFT JOIN rcv  ON rcv.date  = b.date AND rcv.sku  = b.sku
+LEFT JOIN sold ON sold.date = b.date AND sold.sku = b.sku
+LEFT JOIN wo   ON wo.date   = b.date AND wo.sku   = b.sku
+LEFT JOIN adj  ON adj.date  = b.date AND adj.sku  = b.sku
+WHERE book <> rebuilt;
+```
+
+It returns no rows, for all eleven items on every day. The book is exactly what its ledger says it is, which is the problem: a ledger cannot see a bay. The notebook goes one step further and rebuilds the book hour by hour from receipts, sales and counts; the rebuild matches every close, and it is the `hourly_book` the domain tests and the detector use.
+
+## Tests that ask about the world
+
+Four more tests, each encoding how a store works rather than how its data is shaped. All four fail.
+
+```sql
+-- A person found the shelf empty while the books showed stock.
+SELECT a.audit_ts, a.sku, b.book
+FROM shelf_audits a
+JOIN hourly_book b              -- the book at the end of the hour before
+  ON b.sku = a.sku AND b.date = CAST(a.audit_ts AS DATE)
+ AND b.hour = hour(a.audit_ts) - 1
+WHERE a.status = 'empty' AND b.book > 0;
+```
+
+<TestResults sql />
+
+## Finding the censored hours
+
+A till that records nothing for an hour might mean nobody wanted the item. It might mean nobody could find it. The way to tell is to ask how unlikely the silence is. If an item usually sells at a known rate, the chance of a run of open hours with no sales is the Poisson probability of zero: e raised to minus the sales expected over the run. When that falls below a threshold while the books show stock, the run is probably a gap.
+
+The detector learns each item's pattern from May, before the story starts: the share of a day's sales in each open hour, and how weekdays and weekends compare with the average day. The expected sales in an hour are last night's forecast times that pattern.
+
+```python
+import math
+import numpy as np
+
+def learn_patterns(may):
+    """may[sku]: May's till units, shape (28 days, 15 open hours)."""
+    weekend = np.array([d.weekday() >= 5 for d in MAY_DAYS])
+    out = {}
+    for sku, a in may.items():
+        per_day = a.sum(axis=1)
+        out[sku] = {
+            # share of a day's sales in each open hour, lightly smoothed
+            "profile": (a.sum(axis=0) + 0.5) / (a.sum() + 0.5 * 15),
+            "weekday": per_day[~weekend].mean() / per_day.mean(),
+            "weekend": per_day[weekend].mean() / per_day.mean(),
+        }
+    return out
+
+def detect(sales, book, forecast, patterns, alpha=0.001):
+    """Runs of open hours with no sales while the books show stock,
+    flagged once the chance of no sales falls below alpha."""
+    limit, runs = -math.log(alpha), []
+    for sku, p in patterns.items():
+        run, expected, flagged, lone = [], 0.0, None, False
+        for d, day in enumerate(JUNE_DAYS):
+            level = p["weekend"] if day.weekday() >= 5 else p["weekday"]
+            for h in range(15):
+                units = sales[sku][d, h]
+                e = forecast[sku][d] * level * p["profile"][h]
+                if flagged and units == 1 and not lone:
+                    lone = True                 # one lone scan inside a gap
+                    run.append((d, h, e, 1))
+                    expected += e
+                    continue
+                if units > 0 or book[sku][d, h] <= 0:
+                    if flagged:                 # a sale, or the books know
+                        runs.append(flagged | {"hours": run})
+                    run, expected, flagged, lone = [], 0.0, None, False
+                    continue
+                run.append((d, h, e, 0))
+                expected += e
+                if flagged is None and expected > limit:  # P(0) < alpha
+                    flagged = {"sku": sku, "start": run[0][:2],
+                               "flag": (d, h + 1)}
+        if flagged:
+            runs.append(flagged | {"hours": run})
+    return runs
+```
+
+Three details matter. The forecast is the store's own, made the night before, so the detector uses nothing the store did not have. Overnight closure does not end a run, so a gap that starts at 16:00 carries into the next morning. And the lone-scan rule comes from looking at the data: at 09:30 on Thursday 11 June the tills recorded one 5 kg bag in the middle of the gap, and the answer key says it was a 1 kg bag scanned as 5 kg. Inside a long silence, one unit is as likely to be a scan error as a sale.
+
+Scored against the answer key, an alert counts as real if the shelf was empty when it fired, and a gap counts as found if an alert fired inside it. Only gaps of three open hours or more are counted, since a shorter one ends before anyone could act.
+
+<DetectorTable />
+
+At 1 in 1,000 the detector raises 10 alerts in June and 6 are real. The 4 that are not, for sugar, oil twice and 1 kg atta, came in runs of five to eight quiet open hours with the shelf stocked. Real demand is noisier than a Poisson process: some days an item simply sells less, so long silences happen more often than the model expects. A detector that allows for that would raise fewer false alarms; that is exercise three. The column on the right comes from rerunning June in the simulation with someone checking the shelf within an hour of each alert, on the same shoppers. It is the number the store would feel.
+
+## Unconstraining demand
+
+The store's forecast is the 28-day mean of recorded sales. The fix keeps the rule and changes its input: add to each day the sales expected in its censored hours. Those are the runs the detector flagged, and the hours the books show no stock, which the detector skips because the records already know.
+
+```python
+# daily[sku]: units the tills recorded per day, May and June
+unconstrained = {sku: daily[sku].copy() for sku in daily}
+for r in runs:
+    for d, h, expected, recorded in r["hours"]:
+        day = len(MAY_DAYS) + d
+        unconstrained[r["sku"]][day] += max(0.0, expected - recorded)
+# hours with no stock on the books are censored too
+for sku, d, h in stockouts:
+    gap = expected_sales(sku, d, h) - sales[sku][d, h]
+    unconstrained[sku][len(MAY_DAYS) + d] += max(0.0, gap)
+# the store's rule, a 28-day mean, now on demand instead of sales
+forecast_aware = {s: rolling_mean(a, 28) for s, a in unconstrained.items()}
+```
+
+Scoring needs care, because the obvious target is censored too.
+
+<ForecastErrors />
+
+Against recorded sales the store's forecast looks 13% too high, and a tuning loop scored that way would push it down; scored the same way, the unconstrained forecast looks worse still, 22% high. Against the shoppers who came for 5 kg atta the store's forecast is 8% too low, and the unconstrained version is 1% low. Across all seven warehouse items the bias falls from −3.7% to −1.5%: most items had only short gaps, and the forecast only changes where the data was censored.
+
+On 28 June the unconstrained forecast stands at 25.6 bags a day, a little above the 24.9 shoppers came for. Some shoppers who found the shelf empty came back later and bought: the imputation counts them once in the gap, and the tills count them again on their return. Over June the unconstrained series comes to 716 bags. The answer key has 717 bags asked for, counting every visit, and 698 counting each shopper once. The estimate recovers the asks, not the shoppers; netting out the returns is a good extension.
+
+<CensoredForecast />
+
+The same fix applies to anything trained on sales. A price elasticity estimated across these weeks would read the empty shelf as shoppers leaving at the same price. A pack-mix model would read it as a shift to 1 kg. Conlon and Mortimer (2013) show the bias in demand estimates from vending machines with and without availability data; Chen and Mersereau (2015) survey the methods for censored demand and record inaccuracy in stores.
+
+## Availability, five definitions
+
+On-shelf availability is a metric that only means something once you define it. In a semantic layer that is a choice someone makes, usually without seeing the alternatives side by side:
+
+```yaml
+metrics:
+  - name: osa_book            # 97% for 5 kg atta in June
+    description: Open hours with at least one unit in book stock
+    measure: avg(hourly_book.book > 0)
+  - name: osa_audit           # 75%, from 8 audits
+    description: Shelf audits that found the item on the shelf
+    measure: avg(shelf_audits.status = 'on shelf')
+  - name: osa_books_tills     # 79%
+    description: Open hours with stock on the books, outside the
+      gaps the till lines show
+    measure: 1 - count(censored_hours) / count(open_hours)
+```
+
+<AvailabilityWays />
+
+The book says 97%. The answer key says 77% of open hours had a bag on the shelf, and 78% of the bags shoppers wanted were there. The two record-based measures that come closest use an independent observation (the audits) or a model of the observation process (the tills). Neither appears in the store's dashboard.
+
+## The assistant, with and without a domain layer
+
+The assistant is scripted so the comparison is reproducible: for each question it runs a fixed plan of SQL and composes the answer from the results. The plans are the queries the question calls for, given what each assistant has. With the schema only it has `daily_sales`, `inventory_book`, `forecasts`, `store_orders` and `products`. With the domain layer it also has this:
+
+<DomainLayer />
+
+The domain layer changes the plan more than the model. Here is the question at the heart of the post, both ways:
+
+<AssistantPlan id="why" side="naive" />
+
+<AssistantPlan id="why" side="domain" />
+
+Every step in the second plan is a query any analyst could write. What makes it possible is knowing which questions to ask of the data: whether a silence is plausible, whether a person saw the shelf, whether stock arrived before sales resumed. That is the domain knowledge, and the domain layer is how you hand it to an assistant.
+
+<AssistantScore />
+
+Answers are checked against the answer key with fixed rules: the numbers within a tolerance (10% for demand, 5 points for availability, 20% for lost bags), the claims as stated. Published benchmarks find the same lever. BIRD (Li and others, 2023) pairs its questions with the external knowledge needed to map them to the data, and names that mapping as one of the benchmark's main challenges; Sequeda, Allemang and Jacob (2023) found GPT-4 three times as accurate on enterprise questions asked over a knowledge graph as over the SQL schema it was built from. The notebook prints both prompts, schema only and with the domain layer, so you can run the seven questions on your own model.
+
+## Same store, different item: milk
+
+Milk is censored every evening it sells out. Pouch milk arrives at 05:30 on a standing order and is good for 48 hours, so the store sees sales up to the moment the crate empties and nothing after. Choosing the order is a newsvendor problem: order too much and pouches expire, too little and shoppers leave without milk. Both sides of the trade need demand above the sell-out point, which the tills never record. Here is the trade, from the answer key:
+
+<MilkTable />
+
+The order that earns the most on milk itself is 5% below today's, and the records can show that: sales and expired pouches are both recorded. What they cannot show is the other column, the pouches shoppers wanted and did not find, and whether those shoppers took the rest of their basket elsewhere. Estimating demand above the sell-out from the time each day's last pouch sold is exercise four.
+
+## Exercises
+
+1. Rebuild the hourly book from the records and check it against every close. Then find the hours when an item sold nothing while the books showed a full shelf's worth.
+2. Run the detector at 1 in 100 and 1 in 10,000. Plot alerts in real gaps against gaps found, and pick a threshold for a store with one person free to check shelves.
+3. Replace the Poisson zero with a negative binomial whose dispersion you estimate from May's daily sales. Does it cut the false alarms without missing the 5 kg gaps?
+4. Estimate toned milk's demand above the sell-out, from the time of each day's last sale in the till lines and the morning's delivery in the fresh deliveries. How far does the best standing order move?
+5. Give the domain layer to a model of your choice and ask the seven questions. How many does it answer correctly without the scripted plans, and which ones does it miss?
+
+The [answer key](../../data/india-grocery/answer-key-retail.json) scores each one.
+
+## How to learn this domain, for data people
+
+1. **How stock moves in a store.** Receiving, put-away, backroom, shelf, counts; book against physical. Read DeHoratius and Raman (2008) for how wrong records get, then Chen and Mersereau (2015) for the analytics that compensate.
+2. **Forecasting, and scoring it honestly.** [Forecasting: Principles and Practice](https://otexts.com/fpp3/) (Hyndman and Athanasopoulos, free online) for the methods and their evaluation. Then Conlon and Mortimer (2013) for demand when availability changes.
+3. **Data quality past the schema.** dbt's [data tests](https://docs.getdbt.com/docs/build/data-tests) check that data agrees with itself. Write the second kind as well: tests that encode how the world works, like the four above.
+4. **Giving an assistant the domain.** The BIRD benchmark (Li and others, 2023) for what text-to-SQL gets wrong, and Sequeda, Allemang and Jacob (2023) for what a knowledge graph adds.
+5. **Practice.** Store 014's records and the notebook here; then the [M5 data](https://www.kaggle.com/competitions/m5-forecasting-accuracy) from Walmart, which has unit sales, prices and a calendar but no stock records. Find the runs of zeros that are stock-outs, not demand.
+
+## Sources
+
+- Christopher T. Conlon and Julie Holland Mortimer (2013), [Demand Estimation under Incomplete Product Availability](https://www.nber.org/papers/w14315), *American Economic Journal: Microeconomics* 5(4); NBER working paper 14315
+- Li Chen and Adam J. Mersereau (2015), [Analytics for Operational Visibility in the Retail Store: The Cases of Censored Demand and Inventory Record Inaccuracy](https://ideas.repec.org/h/spr/isochp/978-1-4899-7562-1_5.html), in *Retail Supply Chain Management*, 2nd edition, Springer
+- Nicole DeHoratius and Ananth Raman (2008), [Inventory Record Inaccuracy: An Empirical Analysis](https://ideas.repec.org/a/inm/ormnsc/v54y2008i4p627-641.html), *Management Science* 54(4), 627–641
+- Rob J Hyndman and George Athanasopoulos (2021), [Forecasting: Principles and Practice](https://otexts.com/fpp3/), 3rd edition, OTexts
+- dbt Labs, [data tests](https://docs.getdbt.com/docs/build/data-tests)
+- Jinyang Li and others (2023), [Can LLM Already Serve as A Database Interface? A BIg Bench for Large-Scale Database Grounded Text-to-SQLs](https://arxiv.org/abs/2305.03111), NeurIPS 2023
+- Juan Sequeda, Dean Allemang and Bryon Jacob (2023), [A Benchmark to Understand the Role of Knowledge Graphs on Large Language Model's Accuracy for Question Answering on Enterprise SQL Databases](https://arxiv.org/abs/2311.07509)
+- Kaggle, [M5 Forecasting – Accuracy](https://www.kaggle.com/competitions/m5-forecasting-accuracy)
+- Amul, [Amul Taaza product page](https://amul.com/products/amul-taaza-info.php): 48 hours from packing under refrigeration below 8 °C

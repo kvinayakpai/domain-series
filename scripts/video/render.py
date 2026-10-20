@@ -35,14 +35,26 @@ FADE = 0.6
 FPS = 30
 
 D = json.loads((ROOT / "src" / "data" / "retail.json").read_text())
+AI = json.loads((ROOT / "src" / "data" / "retail-ai.json").read_text())
 S = {s["key"]: s for s in D["scenarios"]}
-ASIS, ALERT, BINS = S["off|today"], S["1d|today"], S["off|scanned"]
+ASIS, GAP, BINS = S["off|today"], S["gap|today"], S["off|scanned"]
 EP = D["story"]["episode"]
 W = D["story"]["kpis"]["weekly"]
 REC5 = W["recorded_sales"]["ATTA-WW-5KG"]
 SHARE = [REC5[k] / (REC5[k] + W["recorded_sales"]["ATTA-WW-1KG"][k] + W["recorded_sales"]["ATTA-WW-10KG"][k]) for k in range(4)]
 OSA = ASIS["kpis"]["osa"]
-MILK = {m["factor"]: m for m in D["milk"]}
+HERO = AI["forecast"]["by_sku"]["ATTA-WW-5KG"]
+FLAG = AI["detector"]["hero_flags"][0]
+OPT = {o["label"]: o for o in AI["detector"]["options"]}
+SCORE = AI["assistant"]["score"]
+AVAIL = AI["availability"]
+PASSED = sum(t["pass"] for t in AI["tests"]["generic"])
+FALL = round((1 - REC5[1] / REC5[0]) * 100)
+
+
+def signed(x: float) -> str:
+    return f"{'−' if x < 0 else '+'}{round(abs(x) * 100)}%"
+
 
 L = json.loads((ROOT / "src" / "data" / "logistics.json").read_text())
 LS = {s["key"]: s for s in L["scenarios"]}
@@ -148,75 +160,73 @@ class Shot:
 
 # ---------- the two videos ----------
 TITLE = ("Why Domain Matters, part 1", "Retail and grocery",
-         [["The record says", "On hand: 55 bags. No reorder needed.", "record"],
-          ["What actually happened", "The shelf has been empty since Wednesday.", "reality"]],
-         "A synthetic, seeded world. kvinayakpai.github.io/domain-series")
-END = ("Why Domain Matters", "Every system keeps a record.",
-       [["Domain knowledge is", "knowing when the record is wrong.", "reality"]],
-       "Run the scenarios and download the records: kvinayakpai.github.io/domain-series")
+         [["The record says", f"5 kg atta: sales −{FALL}% week on week.", "record"],
+          ["What actually happened", f"The shelf was empty for {round(EP['empty_open_hours'])} open hours.", "reality"]],
+         "A synthetic, seeded world with an answer key. kvinayakpai.github.io/domain-series")
+END = ("Why Domain Matters", "Sales are not demand.",
+       [["And book stock is", "a belief, not the shelf.", "reality"]],
+       "The SQL, the models and a notebook: kvinayakpai.github.io/domain-series/retail/technical")
+WHY = "retailDemo.select('assistant'); retailDemo.ask('why')"
 
 
 def short_scenes() -> list[dict]:
+    o = OPT["hourly, 1 in 1,000"]
     return [
-        {"card": TITLE, "dur": 4.5, "srt": "The record says: on hand, 55 bags, no reorder needed. What actually happened: the shelf has been empty since Wednesday."},
+        {"card": TITLE, "dur": 4.5, "srt": f"The record says: 5 kg atta sales down {FALL}% week on week. What actually happened: the shelf was empty for {round(EP['empty_open_hours'])} open hours."},
         {"go": "demo/", "to": "#retail", "dur": 6.0,
-         "cap": "A supermarket in Bengaluru, June 2026. A synthetic world, calibrated against studies of real stores."},
-        {"go": "demo/", "js": "retailDemo.select('store')", "to": ".tabs", "off": 8, "dur": 7.0,
-         "cap": f"Thursday, 7:40 pm. The 5 kg atta shelf has been empty since Wednesday afternoon. The handheld says {EP['book_on_hand_min']}."},
-        {"js": "retailDemo.select('system')", "to": ".tabs", "off": 8, "dur": 7.0,
-         "cap": f"Every night the reorder system sees {EP['book_on_hand_min']} bags, above its reorder point of {EP['reorder_point'][-1]}. It orders nothing."},
-        {"js": "retailDemo.select('planner')", "to": ".tabs", "off": 8, "dur": 6.5,
-         "cap": f"The demand planner sees sales fall {round((1 - REC5[1] / REC5[0]) * 100)}% in a week, and trims the forecast."},
-        {"js": "retailDemo.select('category')", "to": ".tabs", "off": 8, "dur": 6.0,
-         "cap": f"The category manager sees 5 kg’s share of atta fall from {pct(SHARE[0])} to {pct(SHARE[1])}."},
-        {"js": "retailDemo.select('truth')", "to": ".tabs", "off": 8, "dur": 7.5,
-         "cap": f"What actually happened: {D['story']['misplaced']['units']} bags were put away behind the rice. The books were right that the stock existed. Nobody could find it."},
-        {"js": "retailDemo.select('truth')", "to": "#persona-panel h4", "off": 40, "dur": 7.0,
-         "cap": f"{round(EP['empty_open_hours'])} open hours with an empty shelf. {EP['lost_units']} bags customers wanted and could not buy."},
-        {"js": "retailDemo.select('truth')", "to": "table.four-ways", "off": 120, "dur": 7.0,
-         "cap": f"Availability that month: {pct(OSA['system_in_stock'])}, {pct(OSA['shelf_audit'])}, {pct(OSA['open_hours_on_shelf'])} or {pct(OSA['demand_served'])}. It depends who you ask."},
-        {"js": "retailDemo.set('routine','scanned'); retailDemo.select('store')", "to": "[data-outcome]", "off": 210, "dur": 7.0,
-         "cap": f"Scan every case into a backroom bin, and June’s lost bags fall from {ASIS['kpis']['lost_units']} to {BINS['kpis']['lost_units']}."},
-        {"card": END, "dur": 5.0, "srt": "Every system keeps a record. Domain knowledge is knowing when the record is wrong."},
+         "cap": "A supermarket in Bengaluru, June 2026. A synthetic world with an answer key, read the way a data team reads it."},
+        {"js": "retailDemo.select('dashboard')", "to": "#persona-panel", "off": 60, "dur": 7.0,
+         "cap": f"Monday’s dashboard: 5 kg atta sales down {FALL}%, availability {pct(OSA['system_in_stock'])}. {PASSED} of 12 data tests passed."},
+        {"js": WHY, "to": ".run", "off": 60, "dur": 7.0,
+         "cap": "Asked why, the AI assistant, given the warehouse schema, blames shoppers switching to other packs."},
+        {"js": "retailDemo.select('truth')", "to": "#persona-panel .story", "off": 60, "dur": 7.5,
+         "cap": f"What happened: {D['story']['misplaced']['cases']} cases behind the rice. The shelf was empty {round(EP['empty_open_hours'])} open hours while the books showed {EP['book_on_hand_max']}."},
+        {"js": "retailDemo.select('detector')", "to": "table.hours tbody tr:nth-child(8)", "off": 120, "dur": 7.5,
+         "cap": f"A gap detector on the till lines flags the silence at {FLAG['flag_ts'][11:16]} on Wednesday, three open hours in. {o['true']} of its {o['flags']} alerts were real."},
+        {"js": "retailDemo.set('forecast','unconstrained'); retailDemo.select('forecast')", "to": "#persona-panel .tiles", "off": 60, "dur": 7.0,
+         "cap": f"Unconstrain demand and the forecast holds: {HERO['month_end']['aware']} bags a day, not {HERO['month_end']['naive']}. Shoppers came for {HERO['month_end']['true_june_mean']}."},
+        {"js": "retailDemo.set('grounding','domain'); " + WHY, "to": ".run", "off": 60, "dur": 7.0,
+         "cap": f"Give the assistant a domain layer: {SCORE['domain']} of {SCORE['of']} answers right, not {SCORE['naive']}. It finds the empty shelf."},
+        {"js": "retailDemo.set('detect','gap')", "to": "[data-outcome]", "off": 150, "dur": 6.5,
+         "cap": f"Rerun June with a shelf check at each alert: {GAP['kpis']['lost_units']} bags lost instead of {ASIS['kpis']['lost_units']}."},
+        {"card": END, "dur": 5.0, "srt": "Sales are not demand. And book stock is a belief, not the shelf."},
     ]
 
 
 def walkthrough_scenes() -> list[dict]:
-    m1, m95 = MILK[1.0], MILK[0.95]
+    o1, o100 = OPT["hourly, 1 in 1,000"], OPT["hourly, 1 in 100"]
     return [
-        {"card": TITLE, "dur": 5.0, "srt": "Why Domain Matters, part 1: Retail and grocery. The record says 55 bags on hand; the shelf has been empty since Wednesday."},
-        {"go": "", "to": "table.audit", "off": 140, "dur": 7.0,
-         "cap": "Each post takes one real failure and follows it through the people who see it differently."},
-        {"go": "retail/", "to": "article", "off": 90, "dur": 7.0,
-         "cap": "A fictional supermarket in Jayanagar, Bengaluru. Every number comes from a synthetic, seeded world."},
-        {"go": "retail/", "to": "figure.figure", "off": 60, "dur": 8.0,
-         "cap": "The cases sat behind the rice. The books never fell to the reorder point, so nothing was ordered."},
-        {"to": "table.four-ways", "off": 160, "dur": 7.0,
-         "cap": f"One name, four numbers: availability of {pct(OSA['system_in_stock'])}, {pct(OSA['shelf_audit'])}, {pct(OSA['open_hours_on_shelf'])} or {pct(OSA['demand_served'])}."},
+        {"card": TITLE, "dur": 5.0, "srt": f"Why Domain Matters, part 1: Retail and grocery. 5 kg atta sales fell {FALL}% in a week; the shelf was empty for {round(EP['empty_open_hours'])} open hours."},
+        {"go": "", "to": "table.audit", "off": 140, "dur": 6.5,
+         "cap": "Each post takes one failure, shows what the data made of it, and scores it against what really happened."},
+        {"go": "retail/", "to": "#monday-9-am-the-weekly-review", "off": 24, "dur": 7.5,
+         "cap": f"Monday’s review: sales down {FALL}%. The AI assistant, given the warehouse schema, blames shoppers switching packs."},
+        {"to": "table.tests", "off": 60, "dur": 7.0,
+         "cap": f"{PASSED} of 12 data tests pass. Four tests about how a store works all fail, on the same records."},
+        {"to": "#what-actually-happened", "off": 24, "dur": 7.5,
+         "cap": f"What happened: the cases sat behind the rice for {round(EP['empty_open_hours'])} open hours. The books never fell to the reorder point."},
         {"go": "demo/", "to": "#retail .controls", "off": 30, "dur": 7.0,
-         "cap": "The demo runs the same month on the same customers. Change what the store does and every view updates."},
-        {"js": "retailDemo.select('store')", "to": "#persona-panel", "off": 70, "dur": 7.0,
-         "cap": "The store manager sees an empty bay, and a handheld that says 55."},
-        {"js": "retailDemo.select('system')", "to": "#persona-panel", "off": 70, "dur": 7.0,
-         "cap": "The reorder system sees 55 bags above its reorder point. In stock, no reorder needed, three nights running."},
-        {"js": "retailDemo.select('planner')", "to": "#persona-panel", "off": 70, "dur": 7.0,
-         "cap": f"The planner sees sales fall {round((1 - REC5[1] / REC5[0]) * 100)}%, and the forecast slides to {D['story']['forecast']['end_recorded_sales']} bags a day."},
-        {"js": "retailDemo.select('supplier')", "to": "#persona-panel", "off": 70, "dur": 6.0,
-         "cap": f"The supplier sees orders drop from {W['store_orders_units'][0]} to {W['store_orders_units'][1]} bags a week."},
-        {"js": "retailDemo.select('truth')", "to": "#persona-panel", "off": 70, "dur": 8.0,
-         "cap": f"What actually happened: {D['story']['misplaced']['cases']} cases behind the rice, {round(EP['empty_open_hours'])} open hours with an empty shelf, {EP['lost_units']} bags not sold."},
-        {"js": "retailDemo.set('alert','1d')", "to": "[data-outcome]", "off": 180, "dur": 7.0,
-         "cap": f"A low-sales alert, checked next morning: lost bags fall from {ASIS['kpis']['lost_units']} to {ALERT['kpis']['lost_units']}."},
-        {"js": "retailDemo.set('alert','off'); retailDemo.set('routine','scanned')", "to": "[data-outcome]", "off": 180, "dur": 7.0,
-         "cap": f"Scanned backroom bins prevent it: {ASIS['kpis']['lost_units']} lost bags become {BINS['kpis']['lost_units']}."},
-        {"js": "retailDemo.set('routine','today'); document.querySelector('.drawer').open = true; document.querySelector('input[name=reveal]').click()",
-         "to": ".drawer", "off": 20, "dur": 8.0,
-         "cap": "The records behind it. Nothing says “misplaced”. Download them and find the gap yourself."},
-        {"js": "retailDemo.milk(2)", "to": ".milk", "off": 20, "dur": 8.5,
-         "cap": f"Milk carries the opposite risk. A 5% leaner order lifts milk’s margin from {inr(m1['net_inr'])} to {inr(m95['net_inr'])}, and {m95['lost'] - m1['lost']} more pouches go unfound."},
-        {"go": "retail/", "to": "#how-to-learn-this-domain", "off": 30, "dur": 7.0,
-         "cap": "Each post ends with a learning path: real books, real datasets, and practice on the store’s records."},
-        {"card": END, "dur": 5.5, "srt": "Every system keeps a record. Domain knowledge is knowing when the record is wrong."},
+         "cap": "The demo: change what the data team does with June’s records, or rerun June with the store acting on what it finds."},
+        {"js": "retailDemo.select('detector')", "to": "table.hours tbody tr:nth-child(8)", "off": 160, "dur": 8.0,
+         "cap": f"The gap detector, hour by hour: blue hours are censored, yellow is the answer key’s empty shelf. It flags 5 kg atta at {FLAG['flag_ts'][11:16]} on Wednesday."},
+        {"js": "retailDemo.alpha('0.01'); retailDemo.item('OIL-SUN-1L')", "to": "table.alerts", "off": 120, "dur": 7.5,
+         "cap": f"At 1 in 100 it finds {o100['caught']} of {o100['gaps']} gaps, but only {o100['true']} of {o100['flags']} alerts are real. At 1 in 1,000: {o1['caught']} gaps, {o1['true']} of {o1['flags']}. The threshold is a business decision."},
+        {"js": "retailDemo.alpha('0.001'); retailDemo.item('ATTA-WW-5KG'); retailDemo.set('forecast','unconstrained'); retailDemo.select('forecast')",
+         "to": "#persona-panel .tiles", "off": 60, "dur": 8.0,
+         "cap": f"Unconstrained, the forecast holds at {HERO['month_end']['aware']} bags a day. Scored on recorded sales it looks worse: {signed(HERO['aware_vs_recorded']['bias'])} against {signed(HERO['naive_vs_recorded']['bias'])}."},
+        {"js": "retailDemo.set('grounding','domain'); " + WHY, "to": ".run", "off": 60, "dur": 8.0,
+         "cap": f"With a domain layer the assistant answers {SCORE['domain']} of {SCORE['of']}, and finds the silence, the audit that saw the empty bay, and no delivery."},
+        {"js": "retailDemo.set('detect','gap'); retailDemo.select('truth')", "to": "#persona-panel .story", "off": 60, "dur": 7.5,
+         "cap": f"Rerun June with a check at every alert: the gap ends the same evening, and {GAP['kpis']['lost_units']} bags are lost instead of {ASIS['kpis']['lost_units']}."},
+        {"js": "retailDemo.set('detect','off')", "to": "table.four-ways", "off": 120, "dur": 7.0,
+         "cap": f"One name, five numbers: availability of {pct(AVAIL['on_the_books'])}, {pct(AVAIL['shelf_audits'])} or {pct(AVAIL['books_and_tills'])} from the records; {pct(AVAIL['true_open_hours'])} or {pct(AVAIL['true_demand_served'])} from the answer key."},
+        {"js": "retailDemo.set('routine','scanned')", "to": "[data-outcome]", "off": 150, "dur": 6.5,
+         "cap": f"Or capture the missing event: scan every case into a backroom bin, and {BINS['kpis']['lost_units']} bag is lost instead of {ASIS['kpis']['lost_units']}."},
+        {"go": "retail/technical/", "to": "#finding-the-censored-hours", "off": 24, "dur": 7.0,
+         "cap": "The technical companion: the tests in SQL, the detector and the forecast in Python, every query the assistant ran, and a notebook."},
+        {"go": "retail/", "to": "#for-data-and-ai-leaders-five-questions-to-ask-your-team", "off": 24, "dur": 7.0,
+         "cap": "For data and AI leaders: five questions to ask your team."},
+        {"card": END, "dur": 5.5, "srt": "Sales are not demand. And book stock is a belief, not the shelf."},
     ]
 
 

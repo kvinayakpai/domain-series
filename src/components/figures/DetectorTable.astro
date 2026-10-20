@@ -1,0 +1,62 @@
+---
+// Ways of finding an empty shelf, scored two ways: alerts against June's records as they are
+// (did each alert fall in a real gap, and how many gaps were found), and bags lost when June is
+// rerun with the store acting on every alert.
+import ai from '../../data/retail-ai.json';
+import world from '../../data/retail.json';
+
+const offline = Object.fromEntries(ai.detector.options.map((o) => [o.label, o]));
+const rerun = Object.fromEntries(world.detectors.map((o) => [o.label, o]));
+const scn = (k: string) => world.scenarios.find((s) => s.key === k)!;
+const asIs = scn('off|today');
+const bins = scn('off|scanned');
+const chosen = `hourly, 1 in ${Math.round(1 / ai.alpha).toLocaleString('en-IN')}`;
+const gaps = ai.detector.options[0].gaps;
+const hours = (v: number | null) => (v == null ? '–' : v >= 10 ? Math.round(v).toString() : v.toFixed(1).replace(/\.0$/, ''));
+const rows = [
+  { label: 'Not at all, as today', alerts: '–', real: '–', found: `0 of ${gaps}`, to: '–', hero: asIs.kpis.lost_units, all: asIs.dc.lost_units },
+  ...['daily rule, 2 days', 'daily rule, 1 day', 'hourly, 1 in 100', 'hourly, 1 in 1,000', 'hourly, 1 in 10,000'].map((k) => ({
+    label: k.startsWith('daily') ? `Nightly rule, after ${k.endsWith('2 days') ? 'two days' : 'one day'}` : `Hourly detector, ${k.slice(8)}`,
+    key: k,
+    alerts: String(offline[k].flags), real: String(offline[k].true), found: `${offline[k].caught} of ${gaps}`,
+    to: hours(offline[k].median_open_hours_to_flag), hero: rerun[k].hero_lost_units, all: rerun[k].lost_units,
+  })),
+  { label: 'Scan every case into a backroom bin', alerts: '–', real: '–', found: '–', to: '–', hero: bins.kpis.lost_units, all: bins.dc.lost_units },
+];
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger detectors">
+      <caption>Finding the empty shelves, June: seven warehouse items, {gaps} gaps of three open hours or more</caption>
+      <thead>
+        <tr>
+          <th scope="col">How the store looks for gaps</th>
+          <th scope="col" class="n">Alerts</th>
+          <th scope="col" class="n">In a real gap</th>
+          <th scope="col" class="n">Gaps found</th>
+          <th scope="col" class="n">Open hours to alert</th>
+          <th scope="col" class="n">5 kg bags lost in June</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r) => (
+          <tr class={r.key === chosen ? 'chosen' : undefined}>
+            <th scope="row">{r.label}</th>
+            <td class="n">{r.alerts}</td><td class="n">{r.real}</td><td class="n">{r.found}</td><td class="n">{r.to}</td>
+            <td class="n">{r.hero}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Alerts are scored on June's till lines as they were recorded, against the answer key: an alert counts as real if the shelf was empty when it fired. Bags lost come from rerunning June on the same shoppers with someone checking the shelf within an open hour of each alert (the nightly rule's check is next morning). Across all seven items, June's lost bags fall from {asIs.dc.lost_units} to {rerun[chosen].lost_units} with the highlighted detector, the one used in this post, and to {bins.dc.lost_units} with bin scans.</figcaption>
+</figure>
+
+<style>
+  .detectors tr.chosen th, .detectors tr.chosen td { background: var(--c-band); }
+  .detectors td.n { text-align: right; padding-left: 0.8rem; white-space: nowrap; }
+  .detectors th.n { text-align: right; padding-left: 0.8rem; }
+  .detectors thead th { font-weight: 500; color: var(--muted); font-size: 0.88rem; vertical-align: bottom; white-space: normal; }
+  .detectors tbody th { min-width: 11rem; }
+  @media (max-width: 540px) { .detectors tbody th { min-width: 8.5rem; } }
+</style>

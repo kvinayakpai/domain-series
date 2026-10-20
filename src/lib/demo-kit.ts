@@ -81,15 +81,21 @@ export function recordsTable(head: string[], rows: { cells: (string | number)[];
   return wrap;
 }
 
-/** A small static table (caption, header row, body rows) for panels. */
+/** A small static table (caption, header row, body rows) for panels. Numbers, and the dash that
+ * stands in for one, align right, and so does the header of a column that holds only those. */
 export function smallTable(cls: string, caption: string, head: string[] | null, rows: (string | number)[][]) {
   const wrap = h('div', 'table-wrap');
   const table = h('table', cls);
   table.append(h('caption', '', caption));
+  const numeric = (c: string | number) => typeof c === 'number' || /^[−+₹\d–]/.test(String(c));
   if (head) {
     const thead = h('thead');
     const tr = h('tr');
-    for (const c of head) { const th = h('th', '', c); th.scope = 'col'; tr.append(th); }
+    head.forEach((c, i) => {
+      const th = h('th', i > 0 && rows.length && rows.every((r) => numeric(r[i])) ? 'n' : '', c);
+      th.scope = 'col';
+      tr.append(th);
+    });
     thead.append(tr);
     table.append(thead);
   }
@@ -97,7 +103,7 @@ export function smallTable(cls: string, caption: string, head: string[] | null, 
   for (const r of rows) {
     const tr = h('tr');
     r.forEach((c, i) => {
-      const cell = h(i === 0 ? 'th' : 'td', i === 0 ? '' : typeof c === 'number' || /^[−+₹\d]/.test(String(c)) ? 'n' : '', String(c));
+      const cell = h(i === 0 ? 'th' : 'td', i === 0 ? '' : numeric(c) ? 'n' : '', String(c));
       if (i === 0) (cell as HTMLTableCellElement).scope = 'row';
       tr.append(cell);
     });

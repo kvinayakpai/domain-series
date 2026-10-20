@@ -3,6 +3,7 @@ import { test, expect } from '@playwright/test';
 const pages = [
   { path: './', og: 'home' },
   { path: 'retail/', og: 'retail' },
+  { path: 'retail/technical/', og: 'retail' },
   { path: 'logistics/', og: 'logistics' },
   { path: 'payments/', og: 'payments' },
   { path: 'demo/', og: 'demo' },
@@ -35,7 +36,7 @@ for (const p of pages) {
 }
 
 test('link-preview images are served', async ({ request }) => {
-  for (const p of pages.filter((x) => x.path !== 'data/')) {
+  for (const p of pages.filter((x) => x.path !== 'data/' && !x.path.endsWith('technical/'))) {
     const res = await request.get(`og/${p.og}.png`);
     expect(res.status(), p.og).toBe(200);
     expect(res.headers()['content-type']).toContain('image/png');
@@ -62,6 +63,18 @@ test('posts show a byline and link to their demo scenario', async ({ page }) => 
   for (const slug of ['retail', 'logistics', 'payments']) {
     await expect(page.locator(`#${slug}`)).toHaveCount(1);
   }
+});
+
+test('the records page lists every retail file, and each is served', async ({ page, request }) => {
+  await page.goto('data/');
+  const links = await page.locator('#retail-records + .table-wrap a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')));
+  expect(links).toContain('/domain-series/data/india-grocery/pos-lines-may-june.csv');
+  expect(links).toContain('/domain-series/data/india-grocery/fresh-deliveries-june.csv');
+  for (const href of links) {
+    const res = await request.head(href!.replace('/domain-series/', ''));
+    expect(res.status(), href!).toBe(200);
+  }
+  await expect(page.locator('a[href$="/retail/technical/"]')).toHaveCount(1);
 });
 
 test('RSS feed and sitemap are served', async ({ request }) => {

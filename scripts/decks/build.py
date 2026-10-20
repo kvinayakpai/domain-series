@@ -4,9 +4,9 @@
     python3 scripts/decks/build.py --pdf    # also print public/media/<post>-slides.pdf
 
 Each deck's source is decks/<post>/project: the Slides artifact's own files (deck.json and one
-HTML file per slide, speaker notes included). The logistics and payments slides are generated
-from src/data/*.json by make_<post>.py, so their numbers follow the world; the retail slides were
-written by hand. After a change, publish the changed files to the deck's Slides artifact.
+HTML file per slide, speaker notes included). Every deck is generated from src/data/*.json by
+make_<post>.py, so its numbers follow the world and the analysis. After a change, publish the
+changed files to the deck's Slides artifact.
 """
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HERE = ROOT / "scripts" / "decks"
 POSTS = ["retail", "logistics", "payments"]
-GENERATED = ["logistics", "payments"]
+GENERATED = ["retail", "logistics", "payments"]
 
 
 def run(*args: str) -> None:

@@ -1,48 +1,72 @@
 ---
 import data from '../data/retail.json';
+import ai from '../data/retail-ai.json';
 const base = import.meta.env.BASE_URL;
 const files = `${base}data/india-grocery/`;
-const asIs = data.scenarios.find((s) => s.key === 'off|today')!;
 const ep = data.story.episode!;
 const milk = data.milk.find((m) => m.factor === 1)!;
 const fmt = (n: number) => n.toFixed(2);
+const repo = 'kvinayakpai/domain-series';
 const personas = [
-  ['store', 'Store manager'],
-  ['system', 'Reorder system'],
-  ['planner', 'Demand planner'],
-  ['category', 'Category manager'],
-  ['supplier', 'Supplier'],
+  ['dashboard', 'Dashboard'],
+  ['tests', 'Data tests'],
+  ['forecast', 'Forecast'],
+  ['assistant', 'AI assistant'],
+  ['detector', 'Gap detector'],
   ['truth', 'What actually happened'],
 ];
+const alpha = Math.round(1 / ai.alpha).toLocaleString('en-IN');
 ---
 <section id="retail" class="demo" data-retail-demo aria-labelledby="retail-title">
   <header class="demo-head">
     <h2 id="retail-title">Retail: the shelf</h2>
     <dl class="pair">
-      <div><dt>The record says</dt><dd class="rec">In stock. No reorder needed.</dd></div>
-      <div><dt>What actually happened</dt><dd><span class="gap">The shelf has been empty for days.</span></dd></div>
+      <div><dt>The record says</dt><dd class="rec">5 kg atta: sales −59% week on week.</dd></div>
+      <div><dt>What actually happened</dt><dd><span class="gap">The shelf was empty for 39 open hours.</span></dd></div>
     </dl>
-    <p class="demo-intro">Whole wheat atta in 5 kg bags at Store 014, Jayanagar, through June 2026. Pick whose view you want, then change what the store does and watch every view update.</p>
+    <p class="demo-intro">Store 014's June as a data team reads it: data tests, a dashboard, a forecast, an AI assistant and a gap detector. Change what the data team does with the records, or rerun June with the store acting on what it finds, and see each result scored against the answer key.</p>
   </header>
 
-  <form class="controls" aria-label="What the store changes" onsubmit="return false">
-    <fieldset>
-      <legend>Low-sales alert</legend>
-      <div class="seg">
-        <label><input type="radio" name="alert" value="off" checked /><span>Off, as today</span></label>
-        <label><input type="radio" name="alert" value="2d" /><span>After 2 days</span></label>
-        <label><input type="radio" name="alert" value="1d" /><span>Next morning</span></label>
-      </div>
-      <p class="hint">Flags an item selling under a quarter of its forecast while the books show stock, and sends someone to count it.</p>
-    </fieldset>
-    <fieldset>
-      <legend>Backroom</legend>
-      <div class="seg">
-        <label><input type="radio" name="routine" value="today" checked /><span>As today</span></label>
-        <label><input type="radio" name="routine" value="scanned" /><span>Scan every case into a bin</span></label>
-      </div>
-      <p class="hint">Each case is scanned into a numbered bin when it is put away, and the shelf is refilled on a fixed schedule.</p>
-    </fieldset>
+  <form class="controls split" aria-label="What changes" onsubmit="return false">
+    <div class="control-group">
+      <p class="group-head">The data team <span>works on June's records as they happened</span></p>
+      <fieldset>
+        <legend>What the forecast learns from</legend>
+        <div class="seg">
+          <label><input type="radio" name="forecast" value="recorded" checked /><span>Recorded sales, as today</span></label>
+          <label><input type="radio" name="forecast" value="unconstrained" /><span>Unconstrained demand</span></label>
+        </div>
+        <p class="hint">The store forecasts each item as the 28-day mean. Unconstrained demand adds the sales expected in every censored hour: the ones the gap detector flagged, and the ones with no stock on the books.</p>
+      </fieldset>
+      <fieldset>
+        <legend>What the AI assistant is given</legend>
+        <div class="seg">
+          <label><input type="radio" name="grounding" value="schema" checked /><span>The schema</span></label>
+          <label><input type="radio" name="grounding" value="domain" /><span>The schema and a domain layer</span></label>
+        </div>
+        <p class="hint">The domain layer adds definitions, three rules, the till lines, shelf audits, receipts and counts, and four views built from them.</p>
+      </fieldset>
+    </div>
+    <div class="control-group">
+      <p class="group-head">The store <span>reruns June on the same shoppers</span></p>
+      <fieldset>
+        <legend>Acting on empty shelves</legend>
+        <div class="seg">
+          <label><input type="radio" name="detect" value="off" checked /><span>Nothing, as today</span></label>
+          <label><input type="radio" name="detect" value="1d" /><span>Nightly low-sales rule</span></label>
+          <label><input type="radio" name="detect" value="gap" /><span>Hourly gap detector</span></label>
+        </div>
+        <p class="hint">The nightly rule flags a day of sales under a quarter of the forecast while the books show stock, and a count follows next morning. The hourly detector flags a silence less likely than 1 in {alpha}, and someone checks the shelf within an open hour.</p>
+      </fieldset>
+      <fieldset>
+        <legend>Backroom</legend>
+        <div class="seg">
+          <label><input type="radio" name="routine" value="today" checked /><span>As today</span></label>
+          <label><input type="radio" name="routine" value="scanned" /><span>Scan every case into a bin</span></label>
+        </div>
+        <p class="hint">With a scan at put-away, the records know which bay every case is in.</p>
+      </fieldset>
+    </div>
   </form>
 
   <div class="outcome" data-outcome aria-live="polite"></div>
@@ -56,7 +80,7 @@ const personas = [
     </div>
     <div id="persona-panel" class="panel" role="tabpanel" data-panel tabindex="0">
       <noscript>
-        <p>This demo needs JavaScript. In short: on {ep.start.slice(8, 10)} June the 5 kg shelf ran out while the books still showed {ep.book_on_hand_max} bags, above the reorder point, so nothing was reordered for {ep.empty_open_hours} open hours. The records are linked below.</p>
+        <p>This demo needs JavaScript. In short: on {Number(ep.start.slice(8, 10))} June the 5 kg shelf ran out while the books still showed {ep.book_on_hand_max} bags, and it stayed empty for {Math.round(ep.empty_open_hours)} open hours. Sales fell 59% on the week. The data tests passed, bar one about milk; the forecast learned the gap as falling demand, and an AI assistant given only the schema blamed shoppers switching packs. The records and a notebook are linked below.</p>
       </noscript>
     </div>
   </div>
@@ -74,24 +98,26 @@ const personas = [
     </div>
     <div data-records></div>
     <p class="downloads">
-      Download June's records as CSV:
-      <a href={`${files}pos-lines-atta-june.csv`} download>till lines</a>,
+      Download the records as CSV:
+      <a href={`${files}pos-lines-may-june.csv`} download>till lines, May and June</a>,
       <a href={`${files}daily-sales-june.csv`} download>daily sales</a>,
       <a href={`${files}inventory-book-june.csv`} download>book stock</a>,
       <a href={`${files}forecasts-june.csv`} download>reorder runs</a>,
       <a href={`${files}store-orders-june.csv`} download>orders</a>,
       <a href={`${files}goods-receipts-june.csv`} download>receipts</a>,
+      <a href={`${files}fresh-deliveries-june.csv`} download>fresh deliveries</a>,
       <a href={`${files}stock-counts-june.csv`} download>counts</a>,
       <a href={`${files}shelf-audits-june.csv`} download>shelf audits</a>,
       <a href={`${files}write-offs-june.csv`} download>write-offs</a>.
-      <a href={`${base}data/#retail-records`}>What each file holds, and four exercises</a>.
+      <a href={`${base}data/#retail-records`}>What each file holds, and the exercises</a>.
+      <a href={`https://colab.research.google.com/github/${repo}/blob/main/public/notebooks/retail.ipynb`}>Open the notebook in Colab</a>.
       <a href={`${files}answer-key-retail.json`} download>Answer key</a> (spoilers).
     </p>
   </details>
 
   <section class="milk" aria-labelledby="milk-title">
     <h3 id="milk-title">Same store, different item: milk</h3>
-    <p>Milk never passes through the warehouse. The dairy's truck drops a standing order at 05:30, and each pouch can be sold that day and the next. Change the order and watch the trade-off.</p>
+    <p>Milk is censored every evening it sells out. The dairy's truck drops a standing order at 05:30, each pouch can be sold that day and the next, and the tills see sales only until the crate is empty. Change the order and watch the trade-off.</p>
     <label class="slider">
       <span>Toned milk standing order</span>
       <input type="range" name="milk" min="0" max={data.milk.length - 1} step="1" value={data.milk.indexOf(milk)} aria-describedby="milk-label" />
@@ -100,7 +126,7 @@ const personas = [
     <div data-milk-out></div>
     <h4>Pouches thrown away and pouches customers could not find, by standing order</h4>
     <div data-milk-chart></div>
-    <p class="note">In this world each pouch earns the store ₹{fmt(milk.margin_per_unit_inr)} and costs ₹{fmt(milk.cost_per_unit_inr)} when it expires, so the order that makes the most money on milk is leaner than today's and runs out more often. Milk is also why many people walk in at all, which is why the margin view and the store manager's view disagree.</p>
+    <p class="note">In this world each pouch earns the store ₹{fmt(milk.margin_per_unit_inr)} and costs ₹{fmt(milk.cost_per_unit_inr)} when it expires. The records show sales and expired pouches, so the margin can be computed from them; the pouches customers wanted and could not find come only from the answer key.</p>
   </section>
 </section>
 

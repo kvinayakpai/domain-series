@@ -5,7 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "decks" / "logistics" / "project"
 (OUT / "slides").mkdir(parents=True, exist_ok=True)
-d = json.load(open(ROOT / "src" / "data" / "logistics.json"))
+d = json.loads((ROOT / "src" / "data" / "logistics.json").read_text())
 S = {s["key"]: s for s in d["scenarios"]}
 A = S["none|label"]
 st = d["story"]
@@ -56,7 +56,7 @@ def foot(text):
 slides = {}
 
 slides["cover"] = section("cover", "\n".join([
-    f'<div style="display:flex;flex-direction:column;gap:16px">',
+    '<div style="display:flex;flex-direction:column;gap:16px">',
     f'<p style="{SIGN};font-size:32px;font-weight:600;color:{MUTED}">Why Domain Matters, part 2</p>',
     f'<h1 style="{SIGN};font-size:120px;font-weight:700;line-height:1;color:{INK}">Logistics and supply chain</h1>',
     '</div>',
@@ -75,7 +75,7 @@ slides["cover"] = section("cover", "\n".join([
 slides["scene"] = section("scene", "\n".join([
     f'<p style="{SIGN};font-size:32px;font-weight:500;color:#a3adb8">Monday 22 June, 6:12 am. Store 014, Jayanagar.</p>',
     f'<h2 style="{SIGN};font-size:72px;font-weight:700;line-height:1.1;color:#e6eaee">The truck made its slot. Every record says the delivery was in full.</h2>',
-    f'<div style="background:#222c37;border-left:6px solid #8db0f0;padding:32px 40px;width:1100px">',
+    '<div style="background:#222c37;border-left:6px solid #8db0f0;padding:32px 40px;width:1100px">',
     f'<p style="{MONO};font-size:32px;line-height:1.5;color:#8db0f0">Goods receipt {st["receipt"]["grn_id"]}, 06:12<br>Pallet …{st["line"]["sscc"][-4:]} scanned, notice matched<br>Line 1: atta 5 kg, {st["line"]["cases"]} cases, {st["line"]["units"]} bags<br>Discrepancies: none</p>',
     '</div>',
     f'<p style="font-size:32px;line-height:1.45;color:#e6eaee;width:1400px">On line 1, the {st["line"]["cases"]} bales hold 1 kg packs, {st["actual"]["units_actual"]} of them. The 5 kg bags are still in the warehouse.</p>',
@@ -171,10 +171,10 @@ slides["cost"] = section("cost", "\n".join([
 ]), f"The 5 kg shelf was empty for {ep['empty_open_hours']} open hours. Customers wanted {ep['lost_units']} bags they could not buy, {inr(ep['lost_value_inr'])} at the shelf price. {r['elsewhere']} of those became trips to another store, {r['other_pack']} a different pack size and {r['other_brand']} another brand; {r['delay']} shoppers came back later and {r['skip']} bags were never bought.",
     bg=PANEL)
 
-ledger = [(f"Warehouse, Tue 23 Jun 14:20", "Atta 1 kg", "−160 (−16 cases)", inr(-7920), "slot count variance"),
-          (f"Warehouse, Thu 25 Jun 10:00", "Atta 5 kg", "+64 (+16 cases)", inr(14592), "cycle count variance"),
-          (f"Store, Fri 26 Jun 09:00", "Atta 5 kg", plus(five["adjustment"]), inr(five["adjustment"] * cost["ATTA-WW-5KG"]), "count after complaints"),
-          (f"Store, Fri 26 Jun 09:00", "Atta 1 kg", plus(one["adjustment"]), inr(one["adjustment"] * cost["ATTA-WW-1KG"]), "count after complaints")]
+ledger = [("Warehouse, Tue 23 Jun 14:20", "Atta 1 kg", "−160 (−16 cases)", inr(-7920), "slot count variance"),
+          ("Warehouse, Thu 25 Jun 10:00", "Atta 5 kg", "+64 (+16 cases)", inr(14592), "cycle count variance"),
+          ("Store, Fri 26 Jun 09:00", "Atta 5 kg", plus(five["adjustment"]), inr(five["adjustment"] * cost["ATTA-WW-5KG"]), "count after complaints"),
+          ("Store, Fri 26 Jun 09:00", "Atta 1 kg", plus(one["adjustment"]), inr(one["adjustment"] * cost["ATTA-WW-1KG"]), "count after complaints")]
 assert [a["units"] for a in st["dc_adjustments"]] == [-160, 64]
 ltab = [f'<table style="font-size:28px;color:{INK}">',
         f'<tr><th style="width:30%;text-align:left;font-weight:600;color:{MUTED}">Where and when</th><th style="width:15%;text-align:left;font-weight:600;color:{MUTED}">Item</th><th style="width:20%;text-align:right;font-weight:600;color:{MUTED}">Units</th><th style="width:15%;text-align:right;font-weight:600;color:{MUTED}">At cost</th><th style="width:20%;text-align:left;font-weight:600;color:{MUTED}">Recorded as</th></tr>']
@@ -182,7 +182,7 @@ ltab += [f'<tr><td>{a}</td><td>{b}</td><td style="text-align:right">{c}</td><td 
 ltab.append(f'<tr style="background:#dfe3dd"><td>Net, across the company</td><td></td><td></td><td style="text-align:right">{inr(st["adjustments_net"]["value_at_cost_inr"])}</td><td></td></tr>')
 ltab.append('</table>')
 slides["corrections"] = section("corrections", "\n".join([h2("Four corrections, one mistake"), *ltab,
-    f'<p style="font-size:32px;line-height:1.45;width:1500px">Equal and opposite variances in neighbouring slots, mirrored at a store that got a truck from them, is the signature of a mis-pick.</p>']),
+    '<p style="font-size:32px;line-height:1.45;width:1500px">Equal and opposite variances in neighbouring slots, mirrored at a store that got a truck from them, is the signature of a mis-pick.</p>']),
     f"The mis-pick left four records wrong, two in each building, and each was fixed on its own. The warehouse found the 1 kg slot sixteen cases short on Tuesday and the 5 kg slot sixteen cases over on Thursday, and closed both as count variances. The store found its two in a single count on Friday, after complaints. Across the company they net to about {inr(st['adjustments_net']['value_at_cost_inr'])}, which is why nobody chases them. Read together, they are the signature of a mis-pick, and the pick confirmations would name the truck in a minute.",
     gap=40)
 

@@ -1,143 +1,137 @@
 ---
 title: "Retail and grocery"
-description: "A supermarket's system showed 55 bags of atta in stock, so it never reordered. The shelf had been empty since Wednesday. Four people and a reorder system read the same records and reached five wrong conclusions."
+description: "Store 014's data said 5 kg atta sales fell 59% in a week. The data tests passed, the forecast eased, and the AI assistant blamed shoppers switching packs. The shelf had been empty for 39 open hours. Five readings of one week of data, and what domain knowledge changes, scored against ground truth."
 order: 1
 slug: "retail"
 demoAnchor: "retail"
-record: "On hand: 55 bags. No reorder needed."
-reality: "The shelf has been empty since Wednesday."
+record: "5 kg atta: sales −59% week on week."
+reality: "The shelf was empty for 39 open hours."
 pubDate: 2026-10-20
 draft: false
 image: "og/retail.png"
 ---
 
+import ai from '../../data/retail-ai.json';
 import BookVsShelf from '../../components/figures/BookVsShelf.astro';
-import FourWays from '../../components/figures/FourWays.astro';
-import Record from '../../components/figures/Record.astro';
-import MilkTable from '../../components/figures/MilkTable.astro';
+import TestResults from '../../components/figures/TestResults.astro';
+import DetectorTable from '../../components/figures/DetectorTable.astro';
+import CensoredForecast from '../../components/figures/CensoredForecast.astro';
+import AssistantScore from '../../components/figures/AssistantScore.astro';
+import AvailabilityWays from '../../components/figures/AvailabilityWays.astro';
+import Answer from '../../components/figures/Answer.astro';
 import Media from '../../components/figures/Media.astro';
 
-Every number in this post comes from a synthetic world built for this series: one fictional supermarket in Jayanagar, Bengaluru, the warehouse that supplies it and the dairy route that delivers its milk, simulated hour by hour through June 2026. The store and its people are invented. How the numbers behave is calibrated against published studies of real stores, and the [demo](../demo/#retail) lets you change what the store does and watch what follows.
+export const why = ai.assistant.questions.find((q) => q.id === 'why');
+
+This series looks at domain knowledge from the side of the people who build on a business's data: the pipelines, the metrics, the models and, now, the AI assistants. Each post takes one failure that only domain knowledge explains, shows what each data product made of it, and measures what changes when the domain is built in.
+
+The numbers come from a synthetic world built for the series: one fictional supermarket in Jayanagar, Bengaluru, its warehouse and its dairy route, simulated hour by hour through June 2026 and calibrated against published studies of real stores. Being synthetic, it has what real data never has: ground truth. Every model here is scored against it.
+
+This post makes the argument. Its [technical companion](./technical/) is for the people who will build the fix: the tests in SQL, the models in Python, and a notebook that runs on the store's records.
 
 <Media kind="links" />
 
-## Thursday, 7:40 in the evening
+## Monday, 9 a.m.: the weekly review
 
-It is the evening rush at Store 014. The bay for 5 kg bags of whole wheat atta is empty, and has been since 3:48 on Wednesday afternoon.
+It is Monday 15 June, and Store 014's weekly trading review opens on the sales dashboard. Whole wheat atta in 5 kg bags is down 59% on the week: 88 bags against 217. The overnight pipeline ran green. The demand forecast has eased, and the replenishment plan follows it.
 
-A customer asks for it. A staff member checks the handheld: 55 bags on hand. They look in the backroom, find nothing, and tell the customer it must be on the next truck.
+Someone asks the store's AI assistant why sales fell. It queries the warehouse and answers in seconds:
 
-No truck is coming. Every night at ten, the store's reorder system compares the stock on its books with a reorder point. On Wednesday, Thursday and Friday nights it saw 55 or 56 bags against a reorder point of 39 or 40, and ordered nothing. The shelf stays empty until Saturday morning.
+<Answer who="AI assistant, given the warehouse schema" text={why.naive.answer} caption="Its queries: weekly sales of 5 kg atta, book stock that week, and 5 kg's share of atta sales." />
 
-## Five readings of one shelf
+Every number in that answer is right. The conclusion is not.
 
-Nobody in this story is careless. Four people and one system each read the record in front of them and reach a reasonable conclusion. Each conclusion is wrong.
+## Five readings of one week
 
-**The store manager** sees an empty bay and a handheld that says otherwise. The stock must be in transit.
+Nobody here is careless. Each data product reads its inputs correctly.
 
-**The reorder system** sees 55 bags on the books and a reorder point of 40. In stock, no reorder needed, three nights running.
+**The pipeline.** Twelve data tests run every night: keys unique, values present, every barcode in the product master, daily sales reconciled to the till lines, and book stock reconciled to its own ledger, each night's close equal to the last close plus receipts, minus sales and write-offs, plus count adjustments. Eleven pass. The twelfth flags full-cream milk below zero on six days, a familiar symptom of scan errors. Nothing flags 5 kg atta.
 
-**The demand planner** sees the weekly sales report. The store sold 217 bags in the first week of June and 88 in the second, down 59%. The forecast, a 28-day average of recorded sales, slides from 24.3 bags a day before the gap to 20.2 by the end of June. Demand for 5 kg looks like it is falling and getting erratic, so the order should come down.
+**The dashboard.** June's on-shelf availability for 5 kg atta, computed from book stock, is 97%. Sales are down 59%.
 
-**The category manager** sees the pack mix. The 5 kg pack was 40% of atta units sold in the first week and 25% in the second. Shoppers seem to be moving to other pack sizes, so perhaps 5 kg should give some of its shelf to 1 kg.
+**The forecast.** The store forecasts each item as the 28-day mean of recorded sales: 24.3 bags a day on 9 June, 23.6 by 14 June, 20.2 by the end of the month. Scored against what the tills recorded, it looks 13% too high over June, so the obvious tuning would lower it further.
 
-**The atta supplier's sales rep** sees orders from Store 014 fall from 172 bags to 112 in a week. A competitor must be taking the space.
+**The mix analysis.** 5 kg's share of atta units fell from 40% to 25% in a week. Read as a preference, that says give the 1 kg pack more shelf.
+
+**The AI assistant.** Asked seven questions about the first half of June, it gets one right: the one about what the tills scanned.
+
+<TestResults />
 
 ## What actually happened
 
-On Tuesday 9 June at 06:17, the warehouse truck delivered 14 cases of 5 kg atta, 56 bags. The receiving clerk scanned the pallet label, the books went up by 56, and the cases were put away behind the rice stack, in the wrong bay.
+On Tuesday 9 June at 06:17, fourteen cases of 5 kg atta from the morning truck were put away behind the rice stack, in the wrong bay. On Wednesday at 15:48 the shelf ran out. The books said 56 bags, above the reorder point of 40, so nothing was ordered. The shelf stood empty for 39 open hours while the system showed stock, until staff restacking the rice found the cases on Saturday morning. Shoppers asked for 71 bags they could not find.
 
-The shelf sold through what it had and ran out at 3:48 on Wednesday afternoon. From then on, every bag the system counted was sitting behind the rice. The books still said 55 or 56, so the reorder system had no reason to act, and the shelf stayed empty for 39 open hours, until staff restacking the rice found the cases at ten on Saturday morning.
+Demand did ease that week, after the first week of the month, when households stock up: shoppers came for 224 bags in the first week of June and 148 in the second. That explains part of the drop in sales. The rest was a shelf with nothing on it. Across the month, demand was flat: 24.7 bags a day in May, 24.9 in June.
 
 <BookVsShelf />
 
-Customers wanted about 157 bags that week. The tills recorded 88. Of the 71 bags customers wanted during the gap and could not buy, 26 became sales of another brand and 13 a different pack size. 19 became trips to another store, 8 shoppers came back later, and 5 bags were never bought at all.
+## Why the data could not say so
 
-Demand never fell. Customers wanted 24.7 bags a day on average in May and 24.9 in June. What fell was the shelf.
+Three traps sit under this week, and anyone who has built on transaction data has stepped in at least one.
 
-## This is the normal case
+**Sales are censored demand.** A till records a sale, not a shopper. When the shelf is empty, sales measure the shelf. Every model trained on sales inherits the gap: forecasts, price elasticities, mix shares, recommendations. Economists who tracked stock in 54 vending machines found that ignoring stock-outs can bias demand estimates and understate what stock-outs cost (Conlon and Mortimer, 2013).
 
-It would be comforting to call this a freak event. The research says otherwise.
+**Book stock is a belief, not an observation.** It is computed: the last count plus every receipt, minus every sale and recorded write-off. That is why every reconciliation test passes. It agreed with every transaction and was wrong about the shelf for three days. A data test is an assertion about your data; none of them looks at the shelf. In a study of nearly 370,000 inventory records from 37 stores of one retailer, 65% were wrong (DeHoratius and Raman, 2008).
 
-- A worldwide study of grocery out-of-stocks for FMI, GMA and CIES put the average out-of-stock rate at 8.3%. It traced about 47% of out-of-stocks to store ordering and forecasting and 25% to shelf management. Most empty shelves start inside the store, not at the warehouse.
-- DeHoratius and Raman examined nearly 370,000 inventory records from 37 stores of one retailer and found 65% of them inaccurate.
-- Kang and Gershwin showed how small, unrecorded losses can stall replenishment. When the records show stock that is not there, automatic reordering waits for sales that cannot happen until someone corrects the record.
+**Your evaluation data is censored too.** Scored against recorded sales, the store's forecast for 5 kg atta looks 13% too high over June. Scored against the shoppers who came for it, it is 8% too low. The holdout set has the same hole as the training set, so the better a model fits it, the worse the model gets.
 
-The world behind this post is calibrated to those figures. Across the store's seven warehouse items, shelves stood empty for 5% of open hours in June, 74% of those hours started in the store, and 8 of 11 items had wrong records at the month-end count.
+None of this is rare. A worldwide study of grocery out-of-stocks put the average rate at 8.3% and traced most of them to the store itself (FMI, GMA and CIES, 2002). The world behind this post is calibrated to those figures: across its seven warehouse items, shelves stood empty for 5% of open hours in June.
 
-## One name, four numbers
+## What domain knowledge changes in the data work
 
-Ask how available 5 kg atta was at Store 014 in June and you can get four honest answers.
+Each of the five changes below uses only the store's own records, and each is scored against the answer key.
 
-<FourWays />
+**Model how the data is observed.** A gap detector learns each item's usual hourly sales from May's till lines. It adds up the sales it expects over every run of open hours with no sales while the books show stock, and raises an alert once a zero that long is less likely than 1 in 1,000. On June's records it flags 5 kg atta at 19:00 on Wednesday, three open hours after the shelf emptied. Across the seven warehouse items it raises 10 alerts; 6 fall in real gaps, and it finds 6 of the 10 gaps that lasted three open hours or more. Rerun June with someone checking the shelf within an hour of each alert, and 5 kg atta loses 35 bags instead of 157.
 
-The system counts hours with stock on the books, so the cases behind the rice count as available. The shelf audit visits twice a week at 11:00; it happened to catch the empty bay on Friday 12 June and again on 26 June, so two of eight visits found it empty. The hourly view counts open hours with a bag on the shelf. The customer view weights each hour by how many people wanted a bag. None of these is wrong. A dashboard that shows one without saying which one it is, is.
+<DetectorTable />
 
-The forecast has the same problem in a quieter form. It learns from recorded sales, and recorded sales are capped by what was on the shelf. Against recorded sales, the forecast was off by 54% in June. Against what customers actually wanted, it was off by 33%. The demand planner sees a volatile item, but the truth is a steady item with a broken shelf. Filling the empty-shelf hours with expected sales would have left the forecast at 25.7 bags a day at the end of June, not 20.2.
+The threshold is a business decision. One in a hundred finds more gaps and sends staff to more full shelves; one in ten thousand rarely bothers them and finds gaps later. The nightly rule a BI team might ship first, sales under a quarter of the forecast for a day while the books show stock, never cried wolf in June, but it found 2 of the 10 gaps, a median 14 open hours in.
 
-## Same store, different item: milk
+**Unconstrain demand before you train.** Fill every censored hour with the sales the detector expected (the runs it flagged, and the hours the books show no stock), and the 28-day forecast holds: 25.6 bags a day at the end of June instead of 20.2, against the 24.9 that shoppers came for. Its bias over June falls from −8% to −1%, and the order-up-to level the reorder rule would set rises from 84 bags to 93.
 
-Milk breaks the pattern, which is the point. It never passes through the warehouse. The dairy's truck drops a standing order at 05:30. Pouch milk is short-lived: Amul's Taaza, for example, is good for 48 hours from packing, so in practice a pouch can be sold on the day it arrives and the next. There is no reorder point to freeze. The risk runs the other way: order too much and pouches expire, order too little and the shelf is empty by evening.
+<CensoredForecast />
 
-<MilkTable />
+**Join the observation you already have.** The store audits its shelves at 11:00 every Tuesday and Friday. On Friday 12 June the audit found the 5 kg bay empty while the books showed 55. The audit table was in the warehouse all along; no pipeline, dashboard or model joined it.
 
-In this world we assume each pouch of toned milk earns the store ₹1.30 and costs it ₹24.70 when it expires. At today's standing order, 291 pouches expired in June, eating ₹7,188 of the ₹11,309 the store made on milk. Cut the order by 5% and what milk earns more than doubles, to ₹10,810, while the pouches customers wanted and could not find rise from 119 to 269, and the milk shelf runs dry on 6 evenings in June instead of 2.
+**Give the assistant a domain layer.** Ask the same seven questions of the same assistant, now given definitions ("sales measure demand only while the item is on the shelf"; "book stock is a belief, not an observation"), the till lines, the shelf audits, and four views built from them: hourly sales, the hourly book, the censored hours and a demand estimate. It answers all seven.
 
-Which order is right depends on something no margin report shows: how many of those shoppers came in for milk and would have bought a basket. The category view and the store manager's view disagree, and both are reading their numbers correctly.
+<Answer who="AI assistant, given the domain layer" grounded text={why.domain.answer} />
 
-## What would have helped
+<AssistantScore />
 
-The demo lets you try two changes the store could make from 1 June, with exactly the same customers.
+Published work points the same way. On the BIRD text-to-SQL benchmark, linking questions to what the data actually holds is one of the hard parts, and the best model of 2023 reached 40% execution accuracy against 93% for people (Li and others, 2023). On enterprise questions over an insurance database, GPT-4 answered 16% correctly from the SQL schema and 54% from a knowledge graph of the same data (Sequeda, Allemang and Jacob, 2023). The model matters less than what it is given about the domain. The assistant here is scripted so the run can be repeated; the companion shows every query, and the notebook prints a prompt to try on your own model.
 
-- **A low-sales alert.** It flags an item selling under a quarter of its forecast while the books show stock, and sends someone to count it the next morning. With it, the 5 kg shelf's empty hours in June fall from 97 to 59, and bags customers could not buy fall from 157 to 90. It still waits a day, and a single mis-scanned pack can hide an empty shelf from it.
-- **Scanning every case into a numbered backroom bin.** Cases are scanned into a bin at put-away, and refill rounds run on a fixed schedule. Nothing goes missing behind the rice. The second incident of the month, on 22 June, never reaches the shelf either: the put-away scan catches a pallet line labelled 5 kg that holds 1 kg packs. Unmet demand for the month falls to a single bag.
+**Or capture the missing event.** If every case is scanned into a numbered backroom bin at put-away, the record knows where the stock is, and 5 kg atta loses 1 bag in June instead of 157. Sometimes the best model is a barcode scan.
 
-Detection helps, and prevention helps more. Telling which one a given failure needs is what domain knowledge is for.
+## One name, five numbers
 
-## What the data looks like
+"On-shelf availability" sounds like one number. Store 014's records give three honest answers for 5 kg atta in June, and the answer key two more. Whichever one your semantic layer encodes is the one the business will see.
 
-If you work with retail data, this is the part worth slowing down for. Nothing in the store's records says "misplaced". Here is the nightly reorder run for those nights:
+<AvailabilityWays />
 
-<Record caption="The reorder run at 22:00, from the store's forecast table. The books never fall to the reorder point, so the system orders nothing until the cases are found." lines={[
-  'Night     On hand  Reorder point  Ordered',
-  ' 9 June        78             39        0',
-  '10 June        56             39        0',
-  '11 June        55             40        0',
-  '12 June        55             40        0',
-  '13 June        33             40       56',
-]} />
+## For data and AI leaders: five questions to ask your team
 
-The signal is a pattern across tables. Book stock stops moving at the same moment sales stop, with no delivery, write-off or count in between. The till lines show no 5 kg sales; the Friday audit records an empty bay; the book stays at 55. Each table is consistent on its own, and the story only appears when you join them. Knowing which join to make comes from knowing how a store runs.
+1. Which of our tables are observations, and which are beliefs computed from other tables?
+2. Where does our data stop recording what we are trying to measure?
+3. Which independent observation do we have, and does anything join to it?
+4. What do we score our models against, and does it share their blind spot?
+5. What does our AI assistant know about how the business works, and how do we test that?
 
-The world uses real retail identifiers: GTIN-13 product codes, SSCC pallet labels and GLN location codes. All of them sit under GS1 prefix 29, which GS1 sets aside for restricted circulation within a company or a region, so none of them can be mistaken for a globally issued product barcode.
+## Go deeper
 
-## How to learn this domain
-
-A rough plan for a few evenings a week over about two months:
-
-1. **How stores actually run.** Read *Execution: The Missing Link in Retail Operations* by Raman, DeHoratius and Ton, and the abstract of DeHoratius and Raman's study of record accuracy. Then walk a supermarket and note where stock lives: shelf, backroom, receiving bay.
-2. **Inventory policy.** Reorder points, min/max rules, safety stock and service levels; any operations-management textbook covers them. Then read about stock loss stalling replenishment, starting with Yun Kang's MIT thesis.
-3. **Forecasting retail demand.** Work through Hyndman and Athanasopoulos's *Forecasting: Principles and Practice*, free online, then try the M5 competition's Walmart unit-sales data on Kaggle. Pay attention to zero-sales days: which mean no demand, and which mean an empty shelf?
-4. **Store data.** Learn the tables (till lines, book stock, receipts, counts, shelf audits) and the identifiers that join them: GTIN, GLN and SSCC.
-5. **Practice.** [Download June's records from Store 014](../data/) and try the four exercises before opening the answer key.
-
-## Try it
-
-- Open the [demo](../demo/#retail) as the reorder system, then turn on the low-sales alert and watch the nightly log change.
-- Switch to the demand planner and compare the forecast with and without scanned bins.
-- Open "What actually happened" and find the second gap on 22 June. It starts at the warehouse, and it is the subject of the [logistics post](../logistics/).
-- Download the records and find the empty shelf without opening the answer key.
+- The [technical companion](./technical/): the tests in SQL, the gap detector and the unconstrained forecast in Python, every query the assistant ran, and a notebook on Store 014's records.
+- The [demo](../demo/#retail): the same month through the pipeline, the dashboard, the forecast and the assistant. Change the detector, the forecast's input and what the assistant is given, and see each scored against ground truth.
+- The [records](../data/#retail-records): June's tables and two months of till lines, with exercises and an answer key.
 
 <Media kind="walkthrough" />
 
 ## Sources
 
-- FMI newsroom (14 October 2002), [New industry study explores root causes of global out-of-stock dilemma](https://www.fmi.org/newsroom/news-archive/view/2002/10/14/new-industry-study-explores-root-causes-of-global-out-of-stock-dilemma)
+- Christopher T. Conlon and Julie Holland Mortimer (2013), [Demand Estimation under Incomplete Product Availability](https://www.nber.org/papers/w14315), *American Economic Journal: Microeconomics* 5(4); NBER working paper 14315
 - Nicole DeHoratius and Ananth Raman (2008), [Inventory Record Inaccuracy: An Empirical Analysis](https://ideas.repec.org/a/inm/ormnsc/v54y2008i4p627-641.html), *Management Science* 54(4), 627–641
-- Ananth Raman, Nicole DeHoratius and Zeynep Ton (2001), [Execution: The Missing Link in Retail Operations](https://cmr.berkeley.edu/2001/05/43-3-execution-the-missing-link-in-retail-operations/), *California Management Review* 43(3)
-- Yun Kang (2004), [Information inaccuracy in inventory systems](https://dspace.mit.edu/handle/1721.1/36193), PhD thesis, MIT; and Yun Kang and Stanley B. Gershwin (2005), "Information inaccuracy in inventory systems: stock loss and stockout", *IIE Transactions* 37, 843–859
-- Shopper responses to out-of-stocks, from Gruen, Corsten and Bharadwaj (2002), as charted in [Penn's SAEA paper on out-of-stocks](https://ageconsearch.umn.edu/record/56487/files/SAEA_Penn_Out_of_Stock.pdf)
-- Amul, [Amul Taaza product page](https://amul.com/products/amul-taaza-info.php): 48 hours from packing under refrigeration below 8 °C
-- GS1, [GSCN 23-006: Restricted circulation numbers](https://www.gs1.org/docs/barcodes/GSCN-23-006-RCN.pdf)
-- Rob J Hyndman and George Athanasopoulos, [Forecasting: Principles and Practice](https://otexts.com/fpp3/), 3rd edition
-- Kaggle, [M5 Forecasting – Accuracy](https://www.kaggle.com/competitions/m5-forecasting-accuracy)
+- FMI newsroom (14 October 2002), [New industry study explores root causes of global out-of-stock dilemma](https://www.fmi.org/newsroom/news-archive/view/2002/10/14/new-industry-study-explores-root-causes-of-global-out-of-stock-dilemma)
+- Li Chen and Adam J. Mersereau (2015), [Analytics for Operational Visibility in the Retail Store: The Cases of Censored Demand and Inventory Record Inaccuracy](https://ideas.repec.org/h/spr/isochp/978-1-4899-7562-1_5.html), in *Retail Supply Chain Management*, 2nd edition, Springer
+- dbt Labs, [Add data tests to your DAG](https://docs.getdbt.com/docs/build/data-tests): "assertions you make about your models"
+- Jinyang Li and others (2023), [Can LLM Already Serve as A Database Interface? A BIg Bench for Large-Scale Database Grounded Text-to-SQLs](https://arxiv.org/abs/2305.03111) (BIRD), NeurIPS 2023
+- Juan Sequeda, Dean Allemang and Bryon Jacob (2023), [A Benchmark to Understand the Role of Knowledge Graphs on Large Language Model's Accuracy for Question Answering on Enterprise SQL Databases](https://arxiv.org/abs/2311.07509)
+- Shopper responses to out-of-stocks, from Gruen, Corsten and Bharadwaj (2002), as charted in [Penn's SAEA paper on out-of-stocks](https://ageconsearch.umn.edu/record/56487/files/SAEA_Penn_Out_of_Stock.pdf), used to calibrate the world

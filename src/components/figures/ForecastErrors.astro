@@ -1,0 +1,41 @@
+---
+// The store's forecast against the one trained on unconstrained demand, scored two ways.
+import ai from '../../data/retail-ai.json';
+
+const f = ai.forecast;
+const h = f.by_sku['ATTA-WW-5KG'];
+const pct = (v: number) => `${v > 0 ? '+' : v < 0 ? '−' : ''}${Math.abs(Math.round(v * 1000) / 10).toFixed(1)}%`;
+const share = (v: number) => `${(Math.round(v * 1000) / 10).toFixed(1)}%`;
+const rows = [
+  ['The store’s forecast, on recorded sales', h.naive_vs_recorded.bias, h.naive_vs_true.bias, h.naive_vs_true.wape, h.month_end.naive, f.all_items.naive_vs_true.bias],
+  ['On unconstrained demand', h.aware_vs_recorded.bias, h.aware_vs_true.bias, h.aware_vs_true.wape, h.month_end.aware, f.all_items.aware_vs_true.bias],
+] as const;
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger forecast-errors">
+      <caption>5 kg atta, June: the 28-day forecast for each day, made the night before</caption>
+      <thead>
+        <tr>
+          <th scope="col">Forecast</th>
+          <th scope="col" class="n">Bias against recorded sales</th>
+          <th scope="col" class="n">Bias against shoppers</th>
+          <th scope="col" class="n">WAPE against shoppers</th>
+          <th scope="col" class="n">On 28 June</th>
+          <th scope="col" class="n why">All seven items, bias against shoppers</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map(([a, b, c, d, e, g]) => (
+          <tr><th scope="row">{a}</th><td class="n">{pct(b)}</td><td class="n">{pct(c)}</td><td class="n">{share(d)}</td><td class="n">{e}</td><td class="n why">{pct(g)}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Shoppers means base demand from the answer key: the people who came for the item each day, not counting those who came back after finding it gone. Shoppers wanted {h.month_end.true_june_mean} bags a day on average in June. WAPE barely moves because daily noise dominates it; bias is what the order quantity feels.</figcaption>
+</figure>
+
+<style>
+  .forecast-errors td.n, .forecast-errors th.n { text-align: right; padding-left: 0.8rem; }
+  .forecast-errors thead th { font-weight: 500; color: var(--muted); font-size: 0.88rem; vertical-align: bottom; white-space: normal; }
+</style>
