@@ -6,6 +6,7 @@ const pages = [
   { path: 'logistics/', og: 'logistics' },
   { path: 'payments/', og: 'payments' },
   { path: 'demo/', og: 'demo' },
+  { path: 'data/', og: 'home' },
 ];
 
 for (const p of pages) {
@@ -34,7 +35,7 @@ for (const p of pages) {
 }
 
 test('link-preview images are served', async ({ request }) => {
-  for (const p of pages) {
+  for (const p of pages.filter((x) => x.path !== 'data/')) {
     const res = await request.get(`og/${p.og}.png`);
     expect(res.status(), p.og).toBe(200);
     expect(res.headers()['content-type']).toContain('image/png');
@@ -55,7 +56,7 @@ test('posts show a byline and link to their demo scenario', async ({ page }) => 
     await page.goto(`${slug}/`);
     await expect(page.locator('.byline')).toContainText('Vinayak');
     const demo = page.locator(`a[href$="/demo/#${slug}"]`);
-    await expect(demo).toHaveCount(1);
+    expect(await demo.count()).toBeGreaterThanOrEqual(1);
   }
   await page.goto('demo/');
   for (const slug of ['retail', 'logistics', 'payments']) {

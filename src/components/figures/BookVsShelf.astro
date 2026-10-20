@@ -1,0 +1,100 @@
+---
+// Static figure: the week of 8 June, hour by hour. What the books said, what was on the
+// shelf, and what sat in the wrong bay. Rendered at build time; no JavaScript needed.
+// Two drawings (wide and narrow) so labels stay readable on a phone.
+import data from '../../data/retail.json';
+
+const s = data.scenarios.find((x) => x.key === 'off|today')!;
+const days = data.meta.days as string[];
+const NH = (data.meta.hours as number[]).length;
+const first = days.indexOf('2026-06-08');
+const last = days.indexOf('2026-06-14');
+const lo = first * NH;
+const hi = (last + 1) * NH;
+const pick = (a: number[]) => a.slice(lo, hi);
+const book = pick(s.hourly.book);
+const shelf = pick(s.hourly.shelf);
+const lost = pick(s.hourly.misplaced);
+const empty = pick(s.hourly.empty);
+const n = book.length;
+const yMax = Math.ceil(Math.max(...book, ...shelf, ...lost) / 20) * 20;
+const yTicks = Array.from({ length: yMax / 20 + 1 }, (_, k) => k * 20);
+const label = (iso: string) => new Date(`${iso}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' });
+const weekDays = days.slice(first, last + 1);
+
+function geometry(W: number, H: number, tickEvery: number) {
+  const m = { l: 30, r: 8, t: 10, b: 26 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const x = (i: number) => (i / (n - 1)) * iw;
+  const y = (v: number) => ih - (v / yMax) * ih;
+  const path = (vals: number[]) => vals.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  const step = iw / (n - 1);
+  const bands: { x: number; w: number }[] = [];
+  let start = -1;
+  empty.forEach((v, i) => {
+    if (v > 0 && start < 0) start = i;
+    if ((v <= 0 || i === n - 1) && start >= 0) {
+      const end = v > 0 ? i : i - 1;
+      bands.push({ x: x(start) - step / 2, w: x(end) - x(start) + step });
+      start = -1;
+    }
+  });
+  const ticks = weekDays.map((d, k) => ({ x: x(k * NH), text: label(d), show: k % tickEvery === 0 }));
+  return { W, H, m, iw, ih, y, bands, ticks, paths: { book: path(book), shelf: path(shelf), lost: path(lost) } };
+}
+const views = [
+  { cls: 'fig-wide', g: geometry(640, 230, 1) },
+  { cls: 'fig-narrow', g: geometry(340, 250, 2) },
+];
+const rows = weekDays.map((d, k) => {
+  const i = k * NH + 12; // 19:00
+  return [label(d), book[i], shelf[i], lost[i]];
+});
+---
+<figure class="figure">
+  {views.map(({ cls, g }) => (
+    <div class={`chart ${cls}`}>
+      <svg viewBox={`0 0 ${g.W} ${g.H}`} role="img" aria-label="Book stock, shelf stock and misplaced stock for 5 kg atta, hour by hour, 8 to 14 June 2026">
+        <g transform={`translate(${g.m.l},${g.m.t})`}>
+          {g.bands.map((b) => <rect class="band" x={b.x} y="0" width={b.w} height={g.ih} />)}
+          {yTicks.map((v) => (
+            <g>
+              <line class="grid" x1="0" x2={g.iw} y1={g.y(v)} y2={g.y(v)} />
+              <text class="tick" x="-6" y={g.y(v) + 4} text-anchor="end">{v}</text>
+            </g>
+          ))}
+          <line class="axis" x1="0" x2={g.iw} y1={g.ih} y2={g.ih} />
+          {g.ticks.filter((t) => t.show).map((t) => <text class="tick" x={t.x} y={g.ih + 18} text-anchor="start">{t.text}</text>)}
+          <path class="line" d={g.paths.lost} style="stroke: var(--c-misplaced)" />
+          <path class="line" d={g.paths.shelf} style="stroke: var(--c-reality)" />
+          <path class="line" d={g.paths.book} style="stroke: var(--c-record)" />
+        </g>
+      </svg>
+    </div>
+  ))}
+  <ul class="chart-legend">
+    <li><span class="key-line" style="background: var(--c-record)"></span>On the books</li>
+    <li><span class="key-line" style="background: var(--c-reality)"></span>On the shelf</li>
+    <li><span class="key-line" style="background: var(--c-misplaced)"></span>Behind the rice</li>
+    <li><span class="key-band"></span>Shelf empty</li>
+  </ul>
+  <figcaption>5 kg atta at Store 014, every open hour from Monday 8 to Sunday 14 June. The books never dropped below the reorder point, so nothing was ordered while the shelf stood empty.</figcaption>
+  <details class="table-view">
+    <summary>Show the numbers</summary>
+    <div class="table-wrap">
+      <table>
+        <caption>Bags at 19:00 each day</caption>
+        <thead><tr><th scope="col">Day</th><th scope="col">On the books</th><th scope="col">On the shelf</th><th scope="col">Behind the rice</th></tr></thead>
+        <tbody>{rows.map((r) => <tr><th scope="row">{r[0]}</th><td>{r[1]}</td><td>{r[2]}</td><td>{r[3]}</td></tr>)}</tbody>
+      </table>
+    </div>
+  </details>
+</figure>
+
+<style>
+  .fig-narrow { display: none; }
+  @media (max-width: 540px) {
+    .fig-wide { display: none; }
+    .fig-narrow { display: block; }
+  }
+</style>

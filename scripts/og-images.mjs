@@ -30,7 +30,7 @@ const esc = (s = '') => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;'
 
 function readPosts() {
   const dir = path.join(root, 'src', 'content', 'posts');
-  return readdirSync(dir).filter((f) => f.endsWith('.md')).map((f) => {
+  return readdirSync(dir).filter((f) => /\.mdx?$/.test(f)).map((f) => {
     const fm = readFileSync(path.join(dir, f), 'utf8').split('---')[1];
     const get = (k) => (fm.match(new RegExp(`^${k}:\\s*"(.*)"\\s*$`, 'm')) || [])[1];
     return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality') };
