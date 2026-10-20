@@ -6,8 +6,9 @@ Live site: https://kvinayakpai.github.io/domain-series/
 
 ## Layout
 
-- `src/content/posts/*.md`: one file per post. Front matter holds the title, the "record says" and "what actually happened" lines, dates and draft status.
-- `src/pages/`: home (audit table of the posts), one route per post, the demo, RSS (`rss.xml`). The sitemap is generated at build time.
+- `src/content/posts/`: one file per post (`.mdx` when the post uses figure components, `.md` otherwise). Front matter holds the title, the "record says" and "what actually happened" lines, dates and draft status.
+- `src/pages/`: home (audit table of the posts), one route per post, the demo, the downloadable records (`data/`), RSS (`rss.xml`). The sitemap is generated at build time.
+- `src/components/`: the retail demo and the post figures. Figures are static SVG with a table view, so they read without JavaScript.
 - `src/styles/global.css`: design tokens. Blue monospace is what a system records, serif ink is what happened, yellow marks the gap.
 - `public/og/`: link-preview images, rendered by `npm run og` from the post front matter.
 - `tests/e2e/`: Playwright tests run on desktop and mobile in CI before every deploy.
@@ -19,7 +20,11 @@ Live site: https://kvinayakpai.github.io/domain-series/
 
 ## Data
 
-Demo data comes from the India grocery world in the Domain Explorer project (`synthetic-data/india_grocery/`, seed 42). A small, static slice is exported into this repo, so the site has no runtime dependency on Domain Explorer.
+Demo data comes from the India grocery world in the Domain Explorer project (`synthetic-data/india_grocery/`, seed 42). A small, static slice is exported into this repo, so the site has no runtime dependency on Domain Explorer: `src/data/retail.json` drives the demo and figures, and `public/data/india-grocery/` holds the June records offered for download. To refresh it, run this from the Domain Explorer repo:
+
+    python synthetic-data/india_grocery/export_blog.py --out ../domain-series
+
+The Playwright suite checks the numbers quoted in the retail post against the exported data, so a re-export that changes the story fails the build until the prose is updated. The videos and the deck are not checked this way: if the story numbers change, re-render the videos with `npm run video` and update the deck and its PDF by hand.
 
 ## Develop
 
@@ -28,3 +33,4 @@ Demo data comes from the India grocery world in the Domain Explorer project (`sy
     npm run build        # static build into dist/
     npm run og           # re-render link-preview images
     npm run test:e2e     # build first; runs the Playwright suite against the built site
+    npm run video        # build first; re-renders the captioned videos
