@@ -12,6 +12,11 @@ Live site: https://kvinayakpai.github.io/domain-series/
 - `public/og/`: link-preview images, rendered by `npm run og` from the post front matter.
 - `tests/e2e/`: Playwright tests run on desktop and mobile in CI before every deploy.
 
+## Media
+
+- `public/media/retail-short.mp4` (1080x1920, about a minute) and `retail-walkthrough.mp4` (1920x1080, about two minutes): captioned, no narration, rendered from the built site by `npm run video` (`scripts/video/render.py`, needs Python Playwright and ffmpeg). Captions read their numbers from the world data. `.srt` files sit beside them.
+- `public/media/retail-slides.pdf`: the retail deck as a PDF (the editable deck is a Slides artifact).
+
 ## Data
 
 Demo data comes from the India grocery world in the Domain Explorer project (`synthetic-data/india_grocery/`, seed 42). A small, static slice is exported into this repo, so the site has no runtime dependency on Domain Explorer.

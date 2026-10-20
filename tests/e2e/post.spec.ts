@@ -56,3 +56,19 @@ test('the post renders its figures without JavaScript', async ({ browser }) => {
   await expect(page.locator('table.milk-table tbody tr')).toHaveCount(data.milk.length);
   await ctx.close();
 });
+
+test('the post links its videos and slides, and they are served', async ({ page, request }) => {
+  await page.goto('retail/');
+  await expect(page.locator('#walkthrough video')).toHaveAttribute('poster', /retail-walkthrough-poster\.jpg$/);
+  for (const [file, type] of [
+    ['media/retail-short.mp4', 'video/mp4'],
+    ['media/retail-walkthrough.mp4', 'video/mp4'],
+    ['media/retail-slides.pdf', 'application/pdf'],
+    ['media/retail-short-poster.jpg', 'image/jpeg'],
+    ['media/retail-walkthrough.srt', ''],
+  ]) {
+    const res = await request.head(file);
+    expect(res.status(), file).toBe(200);
+    if (type) expect(res.headers()['content-type'], file).toContain(type);
+  }
+});
