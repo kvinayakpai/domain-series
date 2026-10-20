@@ -2,25 +2,122 @@
 import Layout from '../layouts/Layout.astro';
 const base = import.meta.env.BASE_URL;
 ---
-<Layout title="Demo" description="One grocery basket, three domains.">
+<Layout title="Demo" description="One grocery basket, three domains: a seeded week of one dairy item, from shelf to till.">
   <h1>One grocery basket, three domains</h1>
-  <p class="hook">One dairy item travels from the DC to the shelf and then to the till. Each stage is a domain from the series.</p>
+  <p class="hook">One 1 L milk travels from the DC to the shelf and then to the till. Change the controls and watch the numbers respond.</p>
+  <p class="note">Synthetic and seeded (seed 42), so every visitor sees the same week. The parameters are chosen for this story. The numbers are not read from the Domain Explorer tables.</p>
+
+  <fieldset class="controls">
+    <legend>Controls</legend>
+    <label>Safety stock (units): <output id="ss-out">40</output>
+      <input id="ss" type="range" min="0" max="100" step="5" value="40" /></label>
+    <label>Forecast window (days):
+      <select id="fw">
+        <option value="3">3</option>
+        <option value="7" selected>7</option>
+        <option value="14">14</option>
+      </select></label>
+    <label>Delay on the Wednesday shipment (days): <output id="dd-out">0</output>
+      <input id="dd" type="range" min="0" max="5" step="1" value="0" /></label>
+  </fieldset>
+
   <section id="retail" class="stage">
     <h2>1. Retail: the shelf</h2>
-    <p>A seeded week of store sales. The forecast sets a replenishment order, and on-shelf availability and shrink update as the week plays out.</p>
-    <p><em>Coming in the next milestone. The interactive stage is not built yet.</em></p>
+    <p>A seeded week of store sales. The forecast sets the replenishment order, and shrink takes a small share of stock each day.</p>
+    <div class="kpis">
+      <div><span id="k-onshelf">–</span><small>on-shelf availability</small></div>
+      <div><span id="k-lost">–</span><small>lost sales (units)</small></div>
+      <div><span id="k-shrink">–</span><small>shrink (units)</small></div>
+    </div>
+    <table>
+      <thead><tr><th scope="col">Day</th><th scope="col">Demand</th><th scope="col">Sold</th><th scope="col">Lost</th><th scope="col">On hand (end)</th><th scope="col">Ordered</th></tr></thead>
+      <tbody id="days"></tbody>
+    </table>
     <p><a href={`${base}retail/`}>Read the retail post</a></p>
   </section>
+
   <section id="logistics" class="stage">
     <h2>2. Logistics: the movement</h2>
-    <p>The order moves from DC to store. OTIF and dock-to-stock time are calculated, and a delay can be injected.</p>
-    <p><em>Coming in the next milestone. The interactive stage is not built yet.</em></p>
+    <p>The order moves from DC to store. A shipment counts as on time and in full (OTIF) only if it arrives on the promised day with every unit.</p>
+    <div class="kpis">
+      <div><span id="k-otif">–</span><small>OTIF</small></div>
+      <div><span id="k-dock">–</span><small>dock-to-stock (hours)</small></div>
+    </div>
+    <p id="log-note"></p>
     <p><a href={`${base}logistics/`}>Read the logistics post</a></p>
   </section>
+
   <section id="payments" class="stage">
     <h2>3. Payments: the money</h2>
-    <p>The customer pays by UPI or card at the till. Approval rate, decline reasons and settlement are shown.</p>
-    <p><em>Coming in the next milestone. The interactive stage is not built yet.</em></p>
+    <p>Customers pay by UPI or card at the till. Declines are shown by reason, and the merchant's fee is the take rate.</p>
+    <div class="kpis">
+      <div><span id="k-approval">–</span><small>approval rate</small></div>
+      <div><span id="k-take">–</span><small>take rate</small></div>
+    </div>
+    <table>
+      <thead><tr><th scope="col">Rail</th><th scope="col">Attempts</th><th scope="col">Approved</th><th scope="col">Declines</th></tr></thead>
+      <tbody id="pay"></tbody>
+    </table>
+    <p id="settle"></p>
     <p><a href={`${base}payments/`}>Read the payments post</a></p>
   </section>
 </Layout>
+
+<style>
+  .controls { display:grid; gap:.8rem; border:1px solid var(--line); border-radius:.6rem; padding:1rem; margin:1.5rem 0; }
+  .controls label { display:grid; gap:.3rem; }
+  .controls input[type=range] { width:100%; }
+  .controls select { font:inherit; padding:.3rem; max-width:8rem; }
+  .note { color:var(--muted); font-size:.92rem; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.8rem; margin:1rem 0; }
+  .kpis div { border:1px solid var(--line); border-radius:.6rem; padding:.7rem; }
+  .kpis span { display:block; font-size:1.5rem; font-weight:600; }
+  .kpis small { color:var(--muted); }
+  table { width:100%; border-collapse:collapse; font-size:.92rem; margin:.5rem 0 1rem; }
+  th, td { text-align:right; padding:.35rem .4rem; border-bottom:1px solid var(--line); }
+  th:first-child, td:first-child { text-align:left; }
+</style>
+
+<script>
+  import { simulate } from '../lib/basket.ts';
+
+  const $ = (id: string) => document.getElementById(id)!;
+  const pct = (x: number) => (x * 100).toFixed(1) + '%';
+  const inr = (n: number) => n.toLocaleString('en-IN');
+
+  function render() {
+    const safetyStock = Number(($('ss') as HTMLInputElement).value);
+    const forecastWindow = Number(($('fw') as HTMLSelectElement).value);
+    const delayDays = Number(($('dd') as HTMLInputElement).value);
+    $('ss-out').textContent = String(safetyStock);
+    $('dd-out').textContent = String(delayDays);
+
+    const r = simulate({ safetyStock, forecastWindow, delayDays });
+    const lost = r.days.reduce((a, d) => a + d.lostSales, 0);
+
+    $('k-onshelf').textContent = pct(r.onShelf);
+    $('k-lost').textContent = String(lost);
+    $('k-shrink').textContent = String(r.shrinkUnits);
+
+    $('days').innerHTML = r.days.map((d) =>
+      `<tr><td>${d.day}</td><td>${d.demand}</td><td>${d.sold}</td><td>${d.lostSales}</td><td>${d.onHandEnd}</td><td>${d.ordered}</td></tr>`
+    ).join('');
+
+    $('k-otif').textContent = pct(r.otif);
+    $('k-dock').textContent = r.dockToStockHours.toFixed(1);
+    $('log-note').textContent = delayDays > 0
+      ? `The Wednesday shipment arrived ${delayDays} day(s) late, so it counts against OTIF.`
+      : 'No delay injected. Every shipment arrived on the promised day.';
+
+    $('k-approval').textContent = pct(r.approvalRate);
+    $('k-take').textContent = pct(r.takeRate);
+    $('pay').innerHTML = r.pay.map((p) => {
+      const declines = Object.entries(p.declines).map(([k, v]) => `${k} ${v}`).join(', ') || 'none';
+      return `<tr><td>${p.rail}</td><td>${p.attempts}</td><td>${p.approved}</td><td>${declines}</td></tr>`;
+    }).join('');
+    $('settle').textContent = r.settledIn + '.';
+  }
+
+  for (const id of ['ss', 'fw', 'dd']) $(id).addEventListener('input', render);
+  render();
+</script>
