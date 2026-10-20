@@ -1,28 +1,88 @@
 ---
-interface Props { title: string; description?: string; }
-const { title, description = 'One domain, one blog post, one end-to-end demo.' } = Astro.props;
+import '@fontsource-variable/anek-latin/standard.css';
+import '@fontsource-variable/literata/opsz.css';
+import '@fontsource-variable/literata/opsz-italic.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** Path under public/, e.g. 'og/retail.png' */
+  image?: string;
+  type?: 'website' | 'article';
+  published?: Date;
+  wide?: boolean;
+}
+
+export const SITE_NAME = 'Why Domain Matters';
+
+const {
+  title,
+  description = 'A blog series on why domain knowledge matters: real operational failures, seen through the people involved, with demos, slides and short videos.',
+  image = 'og/home.png',
+  type = 'website',
+  published,
+  wide = false,
+} = Astro.props;
+
 const base = import.meta.env.BASE_URL;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const imageUrl = new URL(`${base}${image}`, Astro.site);
+const fullTitle = title === SITE_NAME ? SITE_NAME : `${title}: ${SITE_NAME}`;
+const path = Astro.url.pathname;
+const nav = [
+  { href: `${base}retail/`, label: 'Retail' },
+  { href: `${base}logistics/`, label: 'Logistics' },
+  { href: `${base}payments/`, label: 'Payments' },
+  { href: `${base}demo/`, label: 'Demo' },
+];
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en-IN">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{title} | Domain series</title>
+    <title>{fullTitle}</title>
     <meta name="description" content={description} />
-    <link rel="stylesheet" href={`${base}styles.css`} />
+    <meta name="author" content="Vinayak" />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href={`${base}rss.xml`} />
+    <link rel="sitemap" href={`${base}sitemap-index.xml`} />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={imageUrl} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${title}. ${SITE_NAME}`} />
+    {published && <meta property="article:published_time" content={published.toISOString()} />}
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageUrl} />
+    <meta name="theme-color" content="#f5f6f4" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#141a21" media="(prefers-color-scheme: dark)" />
   </head>
   <body>
-    <header class="site">
-      <a href={base}>Domain series</a>
-      <nav aria-label="Posts">
-        <a href={`${base}retail/`}>Retail</a>
-        <a href={`${base}logistics/`}>Logistics</a>
-        <a href={`${base}payments/`}>Payments</a>
-        <a href={`${base}demo/`}>Demo</a>
-      </nav>
+    <header class="site-head">
+      <div class="inner">
+        <a class="brand" href={base}>{SITE_NAME}</a>
+        <nav class="site-nav" aria-label="Series">
+          {nav.map((n) => (
+            <a href={n.href} aria-current={path === n.href ? 'page' : undefined}>{n.label}</a>
+          ))}
+        </nav>
+      </div>
     </header>
-    <main><slot /></main>
-    <footer class="site">Synthetic data, fixed seed 42. Modelled on the Domain Explorer project patterns; not read from its tables.</footer>
+    <main class={wide ? 'wide' : undefined}><slot /></main>
+    <footer class="site-foot">
+      <div class="inner">
+        <p>Written by Vinayak. Every number in the demos comes from a synthetic, seeded world, so all readers see the same results.</p>
+        <p><a href={`${base}rss.xml`}>RSS feed</a></p>
+      </div>
+    </footer>
   </body>
 </html>

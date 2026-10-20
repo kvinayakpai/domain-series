@@ -1,33 +1,66 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { getCollection, render } from 'astro:content';
-const base = import.meta.env.BASE_URL;
+
 export async function getStaticPaths() {
   const posts = await getCollection('posts');
   return posts.map((post) => ({ params: { slug: post.data.slug }, props: { post } }));
 }
+
 const { post } = Astro.props;
 const { Content } = await render(post);
+const base = import.meta.env.BASE_URL;
 const all = (await getCollection('posts')).sort((a, b) => a.data.order - b.data.order);
 const i = all.findIndex((p) => p.data.slug === post.data.slug);
 const prev = all[i - 1];
 const next = all[i + 1];
+const d = post.data;
+const shown = d.updatedDate ?? d.pubDate;
+const fmt = (x: Date) => x.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
 ---
-<Layout title={post.data.title} description={post.data.description}>
+<Layout title={d.title} description={d.description} image={d.image} type="article" published={d.draft ? undefined : d.pubDate}>
   <article>
-    <h1>{post.data.title}</h1>
-    <p class="hook">{post.data.hook}</p>
-    <h2>Personas</h2>
-    <ul>{post.data.personas.map((p) => <li><strong>{p.name}:</strong> {p.role}</li>)}</ul>
-    <h2>KPIs</h2>
-    <ul>{post.data.kpis.map((k) => <li>{k}</li>)}</ul>
-    <h2>Learning path</h2>
-    <ol>{post.data.learningPath.map((s) => <li>{s}</li>)}</ol>
-    <p><a href={`${base}demo/#${post.data.demoAnchor}`}>Try it in the demo</a></p>
+    <header>
+      <h1>{d.title}</h1>
+      <dl class="pair">
+        <div><dt>The record says</dt><dd class="rec">{d.record}</dd></div>
+        <div><dt>What actually happened</dt><dd><span class="gap">{d.reality}</span></dd></div>
+      </dl>
+      <p class="byline">{d.author}, <time datetime={shown.toISOString().slice(0, 10)}>{d.updatedDate ? `updated ${fmt(shown)}` : fmt(shown)}</time></p>
+    </header>
+
+    {d.draft && (
+      <aside class="notice" aria-label="Status">
+        <p>This post is still an outline. The full version, with a demo scenario, slides and a short video, will replace it.</p>
+      </aside>
+    )}
+
+    {d.personas && (
+      <>
+        <h2>Who's involved</h2>
+        <ul>{d.personas.map((p) => <li><strong>{p.name}:</strong> {p.role}</li>)}</ul>
+      </>
+    )}
+    {d.kpis && (
+      <>
+        <h2>What they measure</h2>
+        <ul>{d.kpis.map((k) => <li>{k}</li>)}</ul>
+      </>
+    )}
+    {d.learningPath && (
+      <>
+        <h2>How to learn this domain</h2>
+        <ol>{d.learningPath.map((s) => <li>{s}</li>)}</ol>
+      </>
+    )}
+
     <Content />
+
+    <p><a href={`${base}demo/#${d.demoAnchor}`}>Try this scenario in the demo</a></p>
   </article>
-  <nav class="pager" aria-label="Series">
-    {prev ? <a href={`${base}${prev.data.slug}/`}>← {prev.data.title}</a> : <span />}
-    {next ? <a href={`${base}${next.data.slug}/`}>{next.data.title} →</a> : <span />}
+
+  <nav class="pager" aria-label="More in the series">
+    {prev ? <a href={`${base}${prev.data.slug}/`}><span>Previous</span>{prev.data.title}</a> : <span />}
+    {next ? <a href={`${base}${next.data.slug}/`}><span>Next</span>{next.data.title}</a> : <span />}
   </nav>
 </Layout>
