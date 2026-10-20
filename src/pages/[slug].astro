@@ -1,0 +1,33 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getCollection, render } from 'astro:content';
+const base = import.meta.env.BASE_URL;
+export async function getStaticPaths() {
+  const posts = await getCollection('posts');
+  return posts.map((post) => ({ params: { slug: post.data.slug }, props: { post } }));
+}
+const { post } = Astro.props;
+const { Content } = await render(post);
+const all = (await getCollection('posts')).sort((a, b) => a.data.order - b.data.order);
+const i = all.findIndex((p) => p.data.slug === post.data.slug);
+const prev = all[i - 1];
+const next = all[i + 1];
+---
+<Layout title={post.data.title} description={post.data.description}>
+  <article>
+    <h1>{post.data.title}</h1>
+    <p class="hook">{post.data.hook}</p>
+    <h2>Personas</h2>
+    <ul>{post.data.personas.map((p) => <li><strong>{p.name}:</strong> {p.role}</li>)}</ul>
+    <h2>KPIs</h2>
+    <ul>{post.data.kpis.map((k) => <li>{k}</li>)}</ul>
+    <h2>Learning path</h2>
+    <ol>{post.data.learningPath.map((s) => <li>{s}</li>)}</ol>
+    <p><a href={`${base}demo/#${post.data.demoAnchor}`}>Try it in the demo</a></p>
+    <Content />
+  </article>
+  <nav class="pager" aria-label="Series">
+    {prev ? <a href={`${base}${prev.data.slug}/`}>← {prev.data.title}</a> : <span />}
+    {next ? <a href={`${base}${next.data.slug}/`}>{next.data.title} →</a> : <span />}
+  </nav>
+</Layout>
