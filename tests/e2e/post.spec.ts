@@ -37,6 +37,7 @@ test('the retail post quotes the world correctly', async ({ page }) => {
     `${milk(1).expired} pouches expired in June, eating ${inr(milk(1).waste_cost_inr)} of the ${inr(milk(1).gross_margin_inr)}`,
     `more than doubles, to ${inr(milk(0.95).net_inr)}`,
     `rise from ${milk(1).lost} to ${milk(0.95).lost}`,
+    `runs dry on ${milk(0.95).daily_lost.filter((x: number) => x > 0).length} evenings in June instead of ${milk(1).daily_lost.filter((x: number) => x > 0).length}`,
     `fall from ${Math.round(asIs.kpis.empty_open_hours)} to ${Math.round(alert.kpis.empty_open_hours)}`,
     `fall from ${asIs.kpis.lost_units} to ${alert.kpis.lost_units}`,
     `${pct(data.causes.groups_share['shelf and backroom'] + data.causes.groups_share['store ordering and stock records'])} of those hours started in the store`,
