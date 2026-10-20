@@ -1,0 +1,111 @@
+---
+import data from '../data/retail.json';
+const base = import.meta.env.BASE_URL;
+const files = `${base}data/india-grocery/`;
+const asIs = data.scenarios.find((s) => s.key === 'off|today')!;
+const ep = data.story.episode!;
+const milk = data.milk.find((m) => m.factor === 1)!;
+const fmt = (n: number) => n.toFixed(2);
+const personas = [
+  ['store', 'Store manager'],
+  ['system', 'Reorder system'],
+  ['planner', 'Demand planner'],
+  ['category', 'Category manager'],
+  ['supplier', 'Supplier'],
+  ['truth', 'What actually happened'],
+];
+---
+<section id="retail" class="demo" data-retail-demo aria-labelledby="retail-title">
+  <header class="demo-head">
+    <h2 id="retail-title">Retail: the shelf</h2>
+    <dl class="pair">
+      <div><dt>The record says</dt><dd class="rec">In stock. No reorder needed.</dd></div>
+      <div><dt>What actually happened</dt><dd><span class="gap">The shelf has been empty for days.</span></dd></div>
+    </dl>
+    <p class="demo-intro">Whole wheat atta in 5 kg bags at Store 014, Jayanagar, through June 2026. Pick whose view you want, then change what the store does and watch every view update.</p>
+  </header>
+
+  <form class="controls" aria-label="What the store changes" onsubmit="return false">
+    <fieldset>
+      <legend>Low-sales alert</legend>
+      <div class="seg">
+        <label><input type="radio" name="alert" value="off" checked /><span>Off, as today</span></label>
+        <label><input type="radio" name="alert" value="2d" /><span>After 2 days</span></label>
+        <label><input type="radio" name="alert" value="1d" /><span>Next morning</span></label>
+      </div>
+      <p class="hint">Flags an item selling under a quarter of its forecast while the books show stock, and sends someone to count it.</p>
+    </fieldset>
+    <fieldset>
+      <legend>Backroom</legend>
+      <div class="seg">
+        <label><input type="radio" name="routine" value="today" checked /><span>As today</span></label>
+        <label><input type="radio" name="routine" value="scanned" /><span>Scan every case into a bin</span></label>
+      </div>
+      <p class="hint">Each case is scanned into a numbered bin when it is put away, and the shelf is refilled on a fixed schedule.</p>
+    </fieldset>
+  </form>
+
+  <div class="outcome" data-outcome aria-live="polite"></div>
+
+  <div class="personas">
+    <div class="tabs" role="tablist" aria-label="Whose view">
+      {personas.map(([key, label], i) => (
+        <button type="button" role="tab" id={`tab-${key}`} data-persona={key} aria-selected={i === 0 ? 'true' : 'false'}
+          aria-controls="persona-panel" tabindex={i === 0 ? 0 : -1} class={key === 'truth' ? 'tab-truth' : undefined}>{label}</button>
+      ))}
+    </div>
+    <div id="persona-panel" class="panel" role="tabpanel" data-panel tabindex="0">
+      <noscript>
+        <p>This demo needs JavaScript. In short: on {ep.start.slice(8, 10)} June the 5 kg shelf ran out while the books still showed {ep.book_on_hand_max} bags, above the reorder point, so nothing was reordered for {ep.empty_open_hours} open hours. The records are linked below.</p>
+      </noscript>
+    </div>
+  </div>
+
+  <details class="drawer">
+    <summary>The records behind it</summary>
+    <div class="drawer-bar">
+      <div class="seg buttons" role="group" aria-label="Which records">
+        <button type="button" data-rec="till" aria-pressed="true">Till lines, 9–14 June</button>
+        <button type="button" data-rec="book" aria-pressed="false">Book stock, audits, counts</button>
+        <button type="button" data-rec="reorder" aria-pressed="false">Nightly reorder run</button>
+        <button type="button" data-rec="receipts" aria-pressed="false">Pallets received</button>
+      </div>
+      <label class="reveal"><input type="checkbox" name="reveal" /> Show what the records hide</label>
+    </div>
+    <div data-records></div>
+    <p class="downloads">
+      Download June's records as CSV:
+      <a href={`${files}pos-lines-atta-june.csv`} download>till lines</a>,
+      <a href={`${files}daily-sales-june.csv`} download>daily sales</a>,
+      <a href={`${files}inventory-book-june.csv`} download>book stock</a>,
+      <a href={`${files}forecasts-june.csv`} download>reorder runs</a>,
+      <a href={`${files}store-orders-june.csv`} download>orders</a>,
+      <a href={`${files}goods-receipts-june.csv`} download>receipts</a>,
+      <a href={`${files}stock-counts-june.csv`} download>counts</a>,
+      <a href={`${files}shelf-audits-june.csv`} download>shelf audits</a>,
+      <a href={`${files}write-offs-june.csv`} download>write-offs</a>.
+      <a href={`${files}README.md`}>What each file holds, and four exercises</a>.
+      <a href={`${files}answer-key-retail.json`} download>Answer key</a> (spoilers).
+    </p>
+  </details>
+
+  <section class="milk" aria-labelledby="milk-title">
+    <h3 id="milk-title">Same store, different item: milk</h3>
+    <p>Milk never passes through the warehouse. The dairy's truck drops a standing order at 05:30, and each pouch can be sold that day and the next. Change the order and watch the trade-off.</p>
+    <label class="slider">
+      <span>Toned milk standing order</span>
+      <input type="range" name="milk" min="0" max={data.milk.length - 1} step="1" value={data.milk.indexOf(milk)} aria-describedby="milk-label" />
+      <output id="milk-label" data-milk-label></output>
+    </label>
+    <div data-milk-out></div>
+    <h4>Pouches thrown away and pouches customers could not find, by standing order</h4>
+    <div data-milk-chart></div>
+    <p class="note">In this world each pouch earns the store ₹{fmt(milk.margin_per_unit_inr)} and costs ₹{fmt(milk.cost_per_unit_inr)} when it expires, so the order that makes the most money on milk runs out most evenings. Milk is also why many people walk in at all, which is why the margin view and the store manager's view disagree.</p>
+  </section>
+</section>
+
+<script>
+  import { mountRetailDemo } from '../lib/retail-demo';
+  const root = document.querySelector<HTMLElement>('[data-retail-demo]');
+  if (root) mountRetailDemo(root);
+</script>
