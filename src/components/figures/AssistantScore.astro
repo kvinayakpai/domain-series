@@ -1,15 +1,23 @@
 ---
 // Seven questions at the Monday review, answered by the same scripted assistant with the schema
 // only and with a domain layer, each scored against the answer key.
-import ai from '../../data/retail-ai.json';
+import retailAi from '../../data/retail-ai.json';
+import logisticsAi from '../../data/logistics-ai.json';
 
-const a = ai.assistant;
+interface Props { post?: 'retail' | 'logistics' }
+const { post = 'retail' } = Astro.props;
+const a = (post === 'logistics' ? logisticsAi : retailAi).assistant as typeof retailAi.assistant;
 const mark = (ok: boolean) => (ok ? 'Right' : 'Wrong');
+const words: Record<number, string> = { 6: 'Six', 7: 'Seven', 8: 'Eight' };
+const when = post === 'logistics' ? 'at the supplier review on Monday 29 June' : 'on Monday 15 June';
+const caption = post === 'logistics'
+  ? 'The assistant is scripted so the run can be repeated: for each question it runs the queries the question calls for and composes the answer from what they return. With the schema only it has the shipments, shipping notice, goods receipts, orders, book stock, sales, forecasts and store counts. The domain layer adds definitions, three rules, the pick confirmations, pallets, warehouse adjustments and till lines, and five views built from them. The technical companion shows every query.'
+  : 'The assistant is scripted so the run can be repeated: for each question it runs the queries the question calls for and composes the answer from what they return. With the schema only it has the sales, book stock, forecast and order tables. The domain layer adds definitions, the till lines, shelf audits, receipts and counts, and four views built from them. The technical companion shows every query.';
 ---
 <figure class="figure">
   <div class="table-wrap">
     <table class="ledger assistant">
-      <caption>Seven questions on Monday 15 June: {a.score.naive} of {a.score.of} right with the schema only, {a.score.domain} of {a.score.of} with the domain layer</caption>
+      <caption>{words[a.score.of] ?? a.score.of} questions {when}: {a.score.naive} of {a.score.of} right with the schema only, {a.score.domain} of {a.score.of} with the domain layer</caption>
       <thead>
         <tr><th scope="col">Question</th><th scope="col">Schema only</th><th scope="col">With the domain layer</th><th scope="col" class="why">Answer key</th></tr>
       </thead>
@@ -25,7 +33,7 @@ const mark = (ok: boolean) => (ok ? 'Right' : 'Wrong');
       </tbody>
     </table>
   </div>
-  <figcaption>The assistant is scripted so the run can be repeated: for each question it runs the queries the question calls for and composes the answer from what they return. With the schema only it has the sales, book stock, forecast and order tables. The domain layer adds definitions, the till lines, shelf audits, receipts and counts, and four views built from them. The technical companion shows every query.</figcaption>
+  <figcaption>{caption}</figcaption>
 </figure>
 
 <style>

@@ -1,0 +1,47 @@
+---
+// The mirror-pair test on June's count corrections, in both buildings: which corrections pair up, and
+// what netting them hides. From the logistics analysis (logistics-ai.json).
+import ai from '../../data/logistics-ai.json';
+
+const m = ai.mirror;
+const name: Record<string, string> = { 'ATTA-WW-5KG': '5 kg atta', 'ATTA-WW-1KG': '1 kg atta', 'MILK-TONED-500ML': 'Toned milk', 'MILK-FC-500ML': 'Full-cream milk' };
+const where = (b: string, slot: string | null) => (b === 'warehouse' ? `Warehouse, slot ${slot}` : 'Store');
+const when = (iso: string) => new Date(`${iso.slice(0, 16)}:00+05:30`).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+const cases = (v: number) => `${v > 0 ? '+' : '−'}${Math.abs(v)}`;
+const inr = (x: number) => `₹${Math.abs(Math.round(x)).toLocaleString('en-IN')}`;
+type Pair = (typeof m.pairs)[number];
+const side = (p: Pair, s: 'a' | 'b') => ({
+  where: where(p[`building_${s}`], p[`slot_${s}`]), when: when(p[`ts_${s}`]), item: name[p[`sku_${s}`]] ?? p[`sku_${s}`], cases: cases(p[`cases_${s}`]),
+});
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger mirror">
+      <caption>June's count corrections that mirror each other: {m.pairs.length} pairs</caption>
+      <thead>
+        <tr><th scope="col">Pair</th><th scope="col">One correction</th><th scope="col" class="n">Cases</th><th scope="col">Its mirror</th><th scope="col" class="n">Cases</th></tr>
+      </thead>
+      <tbody>
+        {m.pairs.map((p) => {
+          const a = side(p, 'a');
+          const b = side(p, 'b');
+          return (
+            <tr class={p.sku_a.startsWith('ATTA') ? 'atta' : 'other'}>
+              <th scope="row">{p.kind === 'same building' ? 'Same building' : 'Across buildings'}</th>
+              <td>{a.item}<span class="where">{a.where}, {a.when}</span></td><td class="n">{a.cases}</td>
+              <td>{b.item}<span class="where">{b.where}, {b.when}</span></td><td class="n">{b.cases}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Two corrections mirror each other when they are in one product family, have opposite signs, are each at least a case, are within 15% of each other in cases, and fall within a week: in neighbouring slots or one store count, or the same item in both buildings. The four atta corrections net to {inr(m.net_atta_value_inr)} at cost; their gross is {inr(m.gross_atta_value_inr)}. The milk pair is the retail post's scan errors.</figcaption>
+</figure>
+
+<style>
+  .mirror td { white-space: normal; }
+  .mirror .where { display: block; color: var(--muted); font-size: 0.85rem; }
+  .mirror tr.other th, .mirror tr.other td { color: var(--muted); }
+  .mirror tbody th { min-width: 8rem; }
+</style>

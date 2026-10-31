@@ -7,6 +7,7 @@ const pages = [
   { path: 'retail/', og: 'retail' },
   { path: 'retail/technical/', og: 'retail' },
   { path: 'logistics/', og: 'logistics' },
+  { path: 'logistics/technical/', og: 'logistics' },
   { path: 'payments/', og: 'payments' },
   { path: 'demo/', og: 'demo' },
   { path: 'data/', og: 'home' },

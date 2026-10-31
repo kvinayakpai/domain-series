@@ -1,0 +1,56 @@
+---
+// The shipping records' data tests (they pass) against five tests that ask about the world (they do not).
+// With `sql`, each data test shows its query.
+import ai from '../../data/logistics-ai.json';
+
+interface Props { sql?: boolean }
+const { sql = false } = Astro.props;
+const g = ai.tests.generic;
+const [same, across, survival, checked, gap] = ai.tests.domain;
+const name: Record<string, string> = { 'ATTA-WW-5KG': '5 kg atta', 'ATTA-WW-1KG': '1 kg atta', 'MILK-TONED-500ML': 'toned milk', 'MILK-FC-500ML': 'full-cream milk' };
+const when = (iso: string) => new Date(`${iso.slice(0, 16)}:00+05:30`).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+const day = (iso: string) => new Date(`${iso.slice(0, 10)}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+type Pair = { sku_a: string; sku_b: string; cases_a: number; cases_b: number; building_a: string; ts_a: string; ts_b: string };
+const pairText = (p: Pair) => `${name[p.sku_a] ?? p.sku_a} ${p.cases_a > 0 ? '+' : '−'}${Math.abs(p.cases_a)} and ${name[p.sku_b] ?? p.sku_b} ${p.cases_b > 0 ? '+' : '−'}${Math.abs(p.cases_b)} cases`;
+const s0 = survival.failing[0] as { shipment_id: string; line: number; sku: string; units_booked: number; received_ts: string; count_ts: string; adjustment: number };
+const gp = gap.failing[0] as { start: string; flag_ts: string; book_at_flag: number };
+const world = [
+  { name: same.name, result: `Fails: ${same.failing.length} pairs: ${(same.failing as Pair[]).map(pairText).join('; ')}` },
+  { name: across.name, result: `Fails: ${across.failing.length} pairs, 1 kg and 5 kg atta, each mirrored at the store` },
+  { name: survival.name, result: `Fails: ${s0.units_booked} bags of ${name[s0.sku]} booked ${day(s0.received_ts)}; the count on ${day(s0.count_ts)} took off ${Math.abs(s0.adjustment)}` },
+  { name: checked.name, result: `Fails: ${checked.failing.length} of ${ai.pallets.total} pallets` },
+  { name: gap.name, result: `Fails: flagged ${when(gp.flag_ts)}, with ${gp.book_at_flag} bags on the books` },
+];
+const passed = g.filter((t) => t.pass).length;
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger tests">
+      <caption>The shipping records for June, tested two ways</caption>
+      <tbody>
+        <tr class="group"><th colspan="2" scope="colgroup">The pipeline's data tests: {passed} of {g.length} pass</th></tr>
+        {g.map((t) => (
+          <tr>
+            <th scope="row">{t.name}{sql && <details class="sql"><summary>SQL</summary><code>{t.sql}</code></details>}</th>
+            <td class={t.pass ? 'ok' : 'no'}>{t.pass ? 'Pass' : `Fails: ${t.failing_rows} rows`}</td>
+          </tr>
+        ))}
+        <tr class="group"><th colspan="2" scope="colgroup">Tests that ask about the world: 0 of {world.length} pass</th></tr>
+        {world.map((t) => <tr><th scope="row">{t.name}</th><td class="no">{t.result}</td></tr>)}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>The data tests check that the records agree with each other, and they do: every one was written from the same pick confirmation. The five below check the records against how a warehouse and a store work, using only the records.</figcaption>
+</figure>
+
+<style>
+  .tests tr.group th { font-size: 0.9rem; color: var(--muted); font-weight: 600; padding-top: 1rem; }
+  .tests th[scope='row'] { font-weight: 450; }
+  .tests td { white-space: normal; }
+  .tests td.ok { color: var(--ok); font-weight: 600; }
+  .tests td.no { color: var(--correction); }
+  .tests details.sql { margin-top: 0.2rem; font-size: 0.8rem; }
+  .tests details.sql summary { cursor: pointer; color: var(--record); font-family: var(--font-sign); }
+  .tests details.sql code { display: block; margin-top: 0.3rem; font-family: var(--font-record); font-size: 0.74rem; color: var(--muted); white-space: normal; word-break: break-word; }
+  .tests td { min-width: 9rem; }
+</style>

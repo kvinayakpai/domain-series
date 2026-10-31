@@ -1,0 +1,166 @@
+---
+title: "Mirror pairs and independent records, hands on"
+description: "The technical companion to the logistics post: the shipping records and which of them observe the goods, the data tests that pass and the domain tests that do not, mirror-paired stock corrections, the trace from a correction to a pallet line, OTIF reconciled with counts, and an assistant with and without a domain layer. SQL, Python and a notebook."
+post: logistics
+pubDate: 2026-10-31
+notebook: notebooks/logistics.ipynb
+---
+
+import ai from '../../data/logistics-ai.json';
+import LogisticsTests from '../../components/figures/LogisticsTests.astro';
+import MirrorPairs from '../../components/figures/MirrorPairs.astro';
+import OtifFourWays from '../../components/figures/OtifFourWays.astro';
+import AssistantScore from '../../components/figures/AssistantScore.astro';
+import AssistantPlan from '../../components/figures/AssistantPlan.astro';
+import DomainLayer from '../../components/figures/DomainLayer.astro';
+
+export const t = ai.mirror.traced_line;
+export const gap = ai.gap;
+
+This is the practitioner's half of [On time, in full, and wrong](../). Everything below runs on the downloadable shipping records with DuckDB and pandas, and the notebook runs it end to end in a few seconds. The answer key is read only to score results. Nothing that builds a test, a pair, a trace or an answer is allowed to look at it.
+
+## The records
+
+The warehouse and the store keep these tables. The question that matters for each is not whether it is clean, but where it came from: most of them were written from the pick confirmation, so they cannot disagree with it.
+
+<div class="table-wrap">
+<table class="ledger records-map">
+<thead><tr><th scope="col">Table</th><th scope="col">Grain</th><th scope="col">Written from</th><th scope="col">Cannot know</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>picks</code></th><td>Notice line</td><td>A scan of the slot's label at pick</td><td>What the picker took</td></tr>
+<tr><th scope="row"><code>notice_lines</code></th><td>Pallet line</td><td>The pick confirmations</td><td>What is on the pallet</td></tr>
+<tr><th scope="row"><code>pallets</code></th><td>Pallet (SSCC)</td><td>The notice: the weight its lines imply</td><td>What the pallet weighs</td></tr>
+<tr><th scope="row"><code>shipments</code></th><td>Truck</td><td>The trip log</td><td>What the truck carried</td></tr>
+<tr><th scope="row"><code>goods_receipts</code></th><td>Pallet line</td><td>A scan of the pallet label, matched to the notice</td><td>What was on the pallet</td></tr>
+<tr><th scope="row"><code>dc_adjustments</code></th><td>Slot correction</td><td>A count of the slot: an observation</td><td>Why the slot was wrong</td></tr>
+<tr><th scope="row"><code>stock_counts</code></th><td>Count line</td><td>A count at the store: an observation</td><td>Why the book was wrong</td></tr>
+<tr><th scope="row"><code>pos_lines</code></th><td>Till line</td><td>A scan at the till: an observation of a sale</td><td>Whether the shelf had stock</td></tr>
+</tbody>
+</table>
+</div>
+
+Only the last three observe anything after the pick, and each was closed on its own, in its own building.
+
+## Tests that pass
+
+Ten tests, the kind a dbt project ships on day one. A test passes when its query returns no rows, and all ten pass: the records agree with each other, because they agree with the pick confirmation.
+
+<LogisticsTests sql />
+
+## Corrections, in both buildings
+
+The domain tests start by putting every correction in one place, in units and in cases. A mis-pick moves whole cases, and the two atta sizes come in different cases: four bags of 5 kg, ten packs of 1 kg.
+
+```sql
+CREATE VIEW v_corrections AS
+SELECT 'warehouse' AS building, adjusted_ts AS ts, sku, split_part(sku, '-', 1) AS family, slot,
+       units, CAST(cases AS DOUBLE) AS cases, value_at_cost_inr AS value_inr
+FROM dc_adjustments
+UNION ALL
+SELECT 'store', count_ts, sku, split_part(sku, '-', 1), NULL,
+       adjustment, adjustment / CAST(case_units AS DOUBLE), round(adjustment * cost_inr, 2)
+FROM stock_counts JOIN products USING (sku)
+WHERE adjustment <> 0 AND count_ts > TIMESTAMP '2026-06-01 07:00';
+```
+
+Netted, the atta corrections come to ₹{ai.mirror.net_atta_value_inr} at cost. Summed as they are, gross, they come to ₹{ai.mirror.gross_atta_value_inr.toLocaleString('en-IN')}.
+
+## Mirror pairs
+
+Two corrections mirror each other when they are in one product family, have opposite signs, are each at least a case, are within 15% of each other in cases, and fall within seven days. In one building they must be neighbouring slots at the warehouse, or two items at the store; across buildings, the same item.
+
+```sql
+CREATE VIEW v_mirror_pairs AS
+SELECT a.*, b.*
+FROM v_corrections a JOIN v_corrections b
+  ON a.family = b.family AND sign(a.units) = -sign(b.units)
+ AND abs(a.cases) >= 1 AND abs(b.cases) >= 1
+ AND abs(abs(a.cases) - abs(b.cases)) <= 0.15 * greatest(abs(a.cases), abs(b.cases))
+ AND abs(epoch(b.ts) - epoch(a.ts)) <= 7 * 86400
+ AND (a.ts < b.ts OR (a.ts = b.ts AND a.sku < b.sku))
+WHERE (a.building = b.building AND a.sku <> b.sku
+       AND (a.building = 'store' OR neighbouring(a.slot, b.slot)))
+   OR (a.building <> b.building AND a.sku = b.sku);
+```
+
+`neighbouring` compares aisle and bay and asks for positions one apart; the analysis script spells it out. The thresholds are choices, and exercise two asks what changes when you loosen them.
+
+<MirrorPairs />
+
+## The trace
+
+A warehouse pair names two slots: the one that came up over is the slot the picker should have taken from, and the one that came up short is where the cases came from. So look for picks of the over item, from its slot, in the cases the pair moved, in the week before the first correction:
+
+```sql
+SELECT p.pick_ts, p.shipment_id, p.line, p.cases_confirmed, p.confirmed_by, n.sscc, n.units
+FROM picks p JOIN notice_lines n USING (shipment_id, line)
+WHERE p.sku = 'ATTA-WW-5KG' AND p.slot = 'A-07-03' AND p.cases_confirmed = 16
+  AND p.pick_ts BETWEEN TIMESTAMP '2026-06-23 14:20' - INTERVAL 7 DAY AND TIMESTAMP '2026-06-23 14:20';
+```
+
+It returns one row: {t.shipment_id}, pallet {t.sscc}, line {t.line}, {t.cases_confirmed} cases picked at {t.pick_ts.slice(11, 16)} on 22 June and confirmed by a {t.confirmed_by}. The answer key says that line held {t.actual_units} packs of 1 kg. The pair was complete when the warehouse booked its second correction, {ai.mirror.days_to_pair.toFixed(1)} days after the truck arrived; the store's count came {ai.mirror.days_to_store_count.toFixed(1)} days after, and never found the cause.
+
+## OTIF, reconciled
+
+The four ways of measuring OTIF in the post come straight from the records, except the last, which needs the answer key. A data team can get close to it once a count has happened: a receipt booked by a label scan is a copy of the notice, and a count is an observation, so flag the latest receipt before a count when the count takes off half or more of what it booked.
+
+```sql
+WITH latest AS (
+  SELECT c.count_ts, c.sku, c.adjustment, max(r.received_ts) AS received_ts
+  FROM stock_counts c JOIN goods_receipts r
+    ON r.sku_booked = c.sku AND r.received_ts < c.count_ts
+   AND r.received_ts >= c.count_ts - INTERVAL 7 DAY
+  WHERE c.adjustment < 0 GROUP BY ALL)
+SELECT r.shipment_id, r.line, r.units_booked, l.count_ts, l.adjustment
+FROM latest l JOIN goods_receipts r ON r.sku_booked = l.sku AND r.received_ts = l.received_ts
+WHERE -l.adjustment >= 0.5 * r.units_booked;
+```
+
+One line fails, the 22 June line of 5 kg. Take its delivery out of the scorecard and OTIF from the records is {Math.round(ai.otif.ways.reconciled * 100)}%: {ai.otif.good.reconciled} of {ai.otif.out_of.reconciled}, the same as the answer key's count of deliveries whose cases reached the shelf as ordered. The other three computed ways match the answer key exactly.
+
+<OtifFourWays />
+
+## The shelf side
+
+The retail companion's gap detector runs on the same till lines. It flags 5 kg atta at {gap.flag_ts.slice(11, 16)} on Tuesday 23 June, with {gap.book_at_flag} bags on the books and {gap.expected_at_flag} sales expected since the last one. Filling its flagged hours, and the hours the books show no stock, with the sales it expected gives {gap.censored_open_hours} censored open hours between 23 and 26 June and about {gap.lost_estimate} bags shoppers could not find; the answer key says 72. The detector says the shelf is empty; the mirror pairs say why.
+
+## The assistant, with and without a domain layer
+
+As in the retail companion, the assistant is scripted: for each question it runs a fixed plan of SQL and composes the answer from the results. With the schema only it has the shipping notice, the receipts and the store's tables. With the domain layer it also has this:
+
+<DomainLayer post="logistics" />
+
+Here is the question the scorecard got wrong, both ways:
+
+<AssistantPlan post="logistics" id="in_full" side="naive" />
+
+<AssistantPlan post="logistics" id="in_full" side="domain" />
+
+<AssistantScore post="logistics" />
+
+Answers are checked against the answer key with fixed rules: the delivery's fullness and the claim as stated, OTIF within two points, lost bags within 20%.
+
+## Exercises
+
+1. Find the 22 June line from the pallet weights alone. The pallet table holds the weight each pallet's notice implies; what would a scale have read?
+2. Loosen the mirror rule to 25% and to 30 days. What else pairs up, and is any of it real?
+3. Build the pair rule for the store alone: which counts could have told the store, on their own, that a delivery was wrong?
+4. Compute OTIF per line and per delivery for a 15-minute slot instead of 30. Which deliveries move?
+5. Give the domain layer to a model of your choice and ask it the seven questions; score it with the answer key.
+
+## How to learn this domain, for data people
+
+A rough plan for a few evenings a week over about two months:
+
+1. **How a warehouse works.** Read Bartholdi and Hackman's *Warehouse & Distribution Science*, free to download from the authors, for receiving, slotting and order picking, and Gwynne Richards's *Warehouse Management* for day-to-day operations. If you can, walk a warehouse from the receiving dock to dispatch.
+2. **Supply chain fundamentals.** MIT's Supply Chain Fundamentals (CTL.SC1x) covers demand, inventory and transport, with the maths and the industry practice.
+3. **Documents and identifiers.** Learn the GS1 logistic label, the SSCC and the despatch advice, and how a receiver matches them. In India, add the GST documents that move with goods: an e-way bill is required before moving most consignments worth more than ₹50,000, including movements that are not sales, such as transfers between a company's own sites (rule 138 of the CGST Rules; states can set a different limit for movement within the state).
+4. **Metrics.** OTIF, case fill, pick accuracy and dock-to-stock time. Read how Walmart's OTIF programme changed, and look at WERC's DC Measures for how warehouses benchmark themselves.
+5. **Practice.** Work through the exercises above on [June's shipping records](../../data/#logistics-records) before you open the answer key.
+
+## Sources
+
+- John J. Bartholdi III and Steven T. Hackman, [Warehouse & Distribution Science](https://warehouse-science.com/book/), release 0.98.1 (2019)
+- MIT Open Learning, [Supply Chain Fundamentals (CTL.SC1x)](https://openlearning.mit.edu/courses-programs/mitx-courses/supply-chain-fundamentals-0)
+- GS1 UK, [Logistics labels and SSCCs](https://gs1uk.org/support-training/help-to-use-and-implement-gs1-standards/logistics-labels-and-ssccs)
+- Government of India, Ministry of Finance, [Notification No. 12/2018–Central Tax](https://gstcouncil.gov.in/sites/default/files/2024-05/notification-12-2018-central_tax-english.pdf) (7 March 2018), substituting rule 138 of the CGST Rules, 2017 (e-way bills)

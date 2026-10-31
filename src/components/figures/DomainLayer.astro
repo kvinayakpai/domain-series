@@ -1,11 +1,17 @@
 ---
 // The domain layer the assistant is given, written out as the YAML a team would keep beside the schema.
-import ai from '../../data/retail-ai.json';
+import retailAi from '../../data/retail-ai.json';
+import logisticsAi from '../../data/logistics-ai.json';
 
+interface Props { post?: 'retail' | 'logistics' }
+const { post = 'retail' } = Astro.props;
+const ai = (post === 'logistics' ? logisticsAi : retailAi) as typeof retailAi;
 const d = ai.assistant.domain_layer;
+const words: Record<number, string> = { 3: 'three', 4: 'four', 5: 'five' };
+const observes = post === 'logistics' ? 'the records that observe the goods independently of the pick' : 'the tables that observe the shelf';
 const quote = (s: string) => `"${s.replace(/"/g, '\\"')}"`;
 const yaml = [
-  '# Given to the assistant with the warehouse schema',
+  post === 'logistics' ? '# Given to the assistant with the shipping schema' : '# Given to the assistant with the warehouse schema',
   'definitions:',
   ...Object.entries(d.definitions).map(([k, v]) => `  ${k.replace(/ /g, '_')}: ${quote(v as string)}`),
   'rules:',
@@ -17,7 +23,7 @@ const yaml = [
 ---
 <figure class="figure">
   <pre class="yaml"><code>{yaml}</code></pre>
-  <figcaption>The domain layer: definitions, three rules, four views and the tables that observe the shelf. The schema-only assistant has {ai.assistant.schema_only_tables.join(', ')}.</figcaption>
+  <figcaption>The domain layer: definitions, {words[d.rules.length] ?? d.rules.length} rules, {words[Object.keys(d.views).length] ?? Object.keys(d.views).length} views and {observes}. The schema-only assistant has {ai.assistant.schema_only_tables.join(', ')}.</figcaption>
 </figure>
 
 <style>

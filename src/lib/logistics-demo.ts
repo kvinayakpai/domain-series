@@ -1,5 +1,7 @@
-// Logistics demo: one truck, one wrong pallet line, six ways of looking at the same delivery.
+// Logistics demo: one truck, one wrong pallet line, read by a data team's products and scored against the answer key.
 import data from '../data/logistics.json';
+import lai from '../data/logistics-ai.json';
+import { assistantView, type Assistant } from './assistant-view';
 import { barChart, lineChart, tableView, type Tooltip } from './charts';
 import { bands, day, h, inr, num, pct, plus, recordBlock, recordsTable, says, smallTable, tiles, time, when, wireTabs } from './demo-kit';
 
@@ -32,7 +34,15 @@ const clock = (hoursAfterSix: number) => {
 };
 
 // ---------- state ----------
-const state = { dc: 'none', receiving: 'label', persona: 'dc' };
+const state = { dc: 'none', receiving: 'label', read: 'net', ground: 'schema' as 'schema' | 'domain', q: 'in_full', persona: 'scorecard' };
+const LEVERS: Record<'dc' | 'receiving' | 'read' | 'ground', string[]> = {
+  dc: ['none', 'pick_scan', 'check_weigh'], receiving: ['label', 'case_scan'], read: ['net', 'paired'], ground: ['schema', 'domain'],
+};
+const rerun = () => state.dc !== 'none' || state.receiving !== 'label';
+/** One muted line at the top of a data-team view: the records it is built on. */
+function onRecords(host: HTMLElement) {
+  host.append(h('p', 'context', `Computed from June’s records as they happened${rerun() ? ', before anything the warehouse or the store changes' : ''}.`));
+}
 const scn = () => data.scenarios.find((s) => s.key === `${state.dc}|${state.receiving}`) as Scn;
 const asIs = data.scenarios.find((s) => s.key === 'none|label') as Scn;
 const ev = (s: Scn, kind: string) => s.events.find((e) => e.kind === kind);
@@ -55,13 +65,17 @@ function weeks(s: Scn) {
 function renderOutcome(root: HTMLElement) {
   const s = scn();
   const k = s.kpis;
+  const sc = lai.assistant.score;
+  const t = lai.mirror.traced_line;
   (root.querySelector('[data-outcome]') as HTMLElement).replaceChildren(tiles([
     { label: 'OTIF on the scorecard for June', value: pct(k.otif.scorecard),
       note: `${pct(k.otif.at_the_shelf)} counting what was really on the pallets` },
-    { label: 'Open hours the 5 kg shelf stood empty, 22–28 June', value: hrs(k.empty_open_hours_after),
-      note: s === asIs ? 'the chain as it runs today' : `${hrs(asIs.kpis.empty_open_hours_after)} as it runs today` },
+    { label: 'What the atta corrections say', value: state.read === 'paired' ? 'One mis-pick' : inr(lai.mirror.net_atta_value_inr),
+      note: state.read === 'paired' ? `traced to ${t.shipment_id}, line ${t.line}` : `${lai.mirror.corrections_explained} corrections, netted` },
+    { label: 'Questions the AI assistant answers right', value: `${state.ground === 'domain' ? sc.domain : sc.naive} of ${sc.of}`,
+      note: state.ground === 'domain' ? 'given the schema and the domain layer' : 'given the schema only' },
     { label: 'Bags of 5 kg customers could not buy, 22–28 June', value: num(k.lost_units_after),
-      note: `${inr(k.lost_value_after_inr)} at the shelf price` },
+      note: `${hrs(k.empty_open_hours_after)} open hours empty${s === asIs ? '' : `; ${num(asIs.kpis.lost_units_after)} as June ran`}` },
   ]));
 }
 
@@ -199,31 +213,6 @@ const scorecard: Panel = (host, s) => {
   });
 };
 
-const stock: Panel = (host, s) => {
-  const counts = s.store_counts;
-  if (!counts.length) {
-    host.append(recordBlock(['Count adjustments, Store 014, 22–28 June', 'Atta: none'], 'What the stock controller sees: counts and the adjustments they made.'));
-    host.append(says('“Atta counts are clean this week.”'));
-    return;
-  }
-  const cost = COST;
-  host.append(recordBlock([
-    `Count adjustments, Store 014, ${when(counts[0].count_ts)}`,
-    `Trigger: ${counts[0].trigger}`,
-    'Item        On the books  Counted  Adjustment  At cost',
-    ...counts.map((c) => `${name(c.sku).padEnd(11)} ${String(c.book_before).padStart(12)}  ${String(c.counted).padStart(7)}  ${plus(c.adjustment).padStart(10)}  ${inr(c.adjustment * cost[c.sku]).padStart(8)}`),
-  ], 'What the stock controller sees: counts and the adjustments they made.'));
-  const five = counts.find((c) => c.sku === HERO);
-  const one = counts.find((c) => c.sku === ONE);
-  const net = counts.reduce((a, c) => a + c.adjustment * cost[c.sku], 0);
-  host.append(tiles([
-    { label: '5 kg atta adjusted', value: five ? plus(five.adjustment) : '0', note: five ? `${inr(five.adjustment * cost[HERO])} at cost` : undefined },
-    { label: '1 kg atta adjusted', value: one ? plus(one.adjustment) : '0', note: one ? `${inr(one.adjustment * cost[ONE])} at cost` : undefined },
-    { label: 'Net adjustment at cost', value: inr(net) },
-  ]));
-  host.append(says(`“${five ? Math.abs(five.adjustment) : 0} bags of 5 kg atta gone, and ${one ? one.adjustment : 0} packs of 1 kg from nowhere. Either the counting is sloppy or 5 kg bags are walking out. Recount next week and watch the aisle.”`));
-};
-
 const truth: Panel = (host, s) => {
   const story = h('div', 'story');
   const wrong = ev(s, 'wrong_pallet');
@@ -322,7 +311,97 @@ const truth: Panel = (host, s) => {
   }
 };
 
-const PANELS: Record<string, Panel> = { dc, transport, receiving, scorecard, stock, truth };
+// ---------- the data team's views (June's records as they happened) ----------
+type Row = Record<string, unknown>;
+const NAMES_LONG: Record<string, string> = { ...NAMES, 'MILK-TONED-500ML': 'Toned milk', 'MILK-FC-500ML': 'Full-cream milk' };
+const casesTxt = (v: number) => `${v > 0 ? '+' : '−'}${Math.abs(v)}`;
+
+const tests: Panel = (host) => {
+  onRecords(host);
+  const g = lai.tests.generic;
+  const d = lai.tests.domain;
+  const passed = g.filter((t) => t.pass).length;
+  host.append(tiles([
+    { label: 'The pipeline’s data tests passing', value: `${passed} of ${g.length}`, note: 'keys, joins and reconciliations' },
+    { label: 'Tests about how a warehouse and a store work, passing', value: `${d.filter((t) => t.pass).length} of ${d.length}`, note: 'each one uses only the records' },
+  ]));
+  host.append(says('“The pipeline is green. Every receipt matches its shipping notice.”'));
+  const rows: (string | number)[][] = [];
+  for (const t of g) rows.push([t.name, t.pass ? 'Pass' : `Fails: ${t.failing_rows} rows`]);
+  host.append(smallTable('ledger tests', `The pipeline’s data tests: ${passed} of ${g.length} pass`, null, rows));
+  const [same, across, survival, checked, gap] = d;
+  const s0 = survival.failing[0] as Row;
+  const gp = gap.failing[0] as Row;
+  host.append(smallTable('ledger tests', `Tests about how a warehouse and a store work: 0 of ${d.length} pass`, null, [
+    [same.name, `Fails: ${same.failing.length} pairs`],
+    [across.name, `Fails: ${across.failing.length} pairs`],
+    [survival.name, `Fails: ${s0.units_booked} bags of ${name(String(s0.sku))} booked ${day(String(s0.received_ts))}; the count on ${day(String(s0.count_ts))} took off ${Math.abs(Number(s0.adjustment))}`],
+    [checked.name, `Fails: ${checked.failing.length} of ${lai.pallets.total} pallets`],
+    [gap.name, `Fails: flagged ${when(String(gp.flag_ts))}, ${gp.book_at_flag} bags on the books`],
+  ]));
+  host.append(h('p', 'note', 'The pipeline’s tests check that the records agree with each other. They do, because every one was written from the same pick confirmation. The other five check the records against how a warehouse and a store work.'));
+};
+
+const corrections: Panel = (host) => {
+  onRecords(host);
+  const m = lai.mirror;
+  type Pair = (typeof m.pairs)[number];
+  if (state.read === 'net') {
+    const st = asIs;
+    const cost = COST;
+    const lines = [
+      ...st.dc_adjustments.map((a) => `Warehouse ${when(a.adjusted_ts).padEnd(18)} ${name(a.sku).padEnd(10)} ${`${plus(a.cases)} cases`.padStart(10)}  ${inr(a.value_at_cost_inr).padStart(9)}`),
+      ...st.store_counts.filter((c) => c.sku === HERO || c.sku === ONE).map((c) => `Store     ${when(c.count_ts).padEnd(18)} ${name(c.sku).padEnd(10)} ${`${plus(c.adjustment)} units`.padStart(10)}  ${inr(c.adjustment * cost[c.sku]).padStart(9)}`),
+      `Net, across the company${' '.repeat(29)}${inr(m.net_atta_value_inr).padStart(9)}`,
+    ];
+    host.append(recordBlock(['Stock corrections, atta, 22–28 June', ...lines], 'What the inventory reports show: each correction counted, booked and closed.'));
+    host.append(tiles([
+      { label: 'Atta corrections in two buildings', value: String(m.corrections_explained) },
+      { label: 'Net, at cost', value: inr(m.net_atta_value_inr), note: 'across the company' },
+      { label: 'Investigations opened', value: '0' },
+    ]));
+    host.append(says('“Two slot variances at the warehouse, counted and closed. And at the store, 63 bags of 5 kg gone and 157 packs of 1 kg from nowhere: either the counting is sloppy or 5 kg bags are walking out. Net, about ₹80.”'));
+    return;
+  }
+  const t = m.traced_line;
+  host.append(tiles([
+    { label: 'Mirror pairs among June’s corrections', value: String(m.pairs.length), note: `${m.atta_pairs} of them atta; the other is milk scan errors` },
+    { label: 'Atta corrections, gross and net', value: inr(m.gross_atta_value_inr), note: `net ${inr(m.net_atta_value_inr)}` },
+    { label: 'Traced to', value: `${t.shipment_id}, line ${t.line}`, note: `picked ${when(t.pick_ts)} with a ${t.confirmed_by}` },
+  ]));
+  const side = (p: Pair, k: 'a' | 'b') => `${NAMES_LONG[p[`sku_${k}`]] ?? p[`sku_${k}`]} ${casesTxt(p[`cases_${k}`])} (${p[`building_${k}`] === 'warehouse' ? `slot ${p[`slot_${k}`]}` : 'store'}, ${dd(p[`ts_${k}`])})`;
+  host.append(smallTable('ledger', 'Corrections that mirror each other, in cases', ['Pair', 'One correction', 'Its mirror'],
+    m.pairs.map((p) => [p.kind === 'same building' ? 'Same building' : 'Across buildings', side(p, 'a'), side(p, 'b')])));
+  host.append(recordBlock([
+    'Picks of 5 kg atta from slot A-07-03, 16 cases, in the week before 23 June 14:20',
+    'Picked             Shipment    Line  Pallet (SSCC)        Cases  Confirmed by',
+    ...m.trace.candidates.map((c) => `${when(c.pick_ts).padEnd(18)} ${c.shipment_id}  ${String(c.line).padStart(4)}  ${c.sscc}  ${String(c.cases_confirmed).padStart(5)}  ${c.confirmed_by}`),
+  ], 'The trace: the only pick that fits the warehouse’s pair.'));
+  host.append(says(`“Sixteen cases each way, in neighbouring slots, and mirrored at the store. That is one mis-pick, on the ${Number(t.pick_ts.slice(8, 10))} June truck.”`));
+  const verdict = h('p', 'verdict');
+  verdict.append(h('strong', 'ok', 'Right.'), document.createTextNode(` Answer key: that line held ${t.actual_units} packs of ${name(t.actual_sku)}.`));
+  host.append(verdict);
+};
+
+const assistant: Panel = (host) => {
+  assistantView(host, lai.assistant as unknown as Assistant, {
+    grounding: state.ground, q: state.q, onAsk: (id) => { state.q = id; },
+    context: `Asked at the supplier review on Monday 29 June, of June’s records${rerun() ? ', as they happened' : ''}.`,
+    schema: 'shipping', listLabel: 'Questions at the supplier review',
+  });
+};
+
+const ops: Panel = (host, s) => {
+  host.append(h('p', 'context', rerun() ? 'June rerun on the same customers, with the changes above.' : 'June as it ran.'));
+  host.append(h('h4', '', 'The warehouse: pick confirmations for the 22 June truck'));
+  dc(host, s);
+  host.append(h('h4', '', 'Transport: the trip log'));
+  transport(host, s);
+  host.append(h('h4', '', 'The store: the goods receipt'));
+  receiving(host, s);
+};
+
+const PANELS: Record<string, Panel> = { scorecard, tests, corrections, assistant, ops, truth };
 
 function renderPersona(root: HTMLElement) {
   const host = root.querySelector('[data-panel]') as HTMLElement;
@@ -367,10 +446,12 @@ function renderRecords(root: HTMLElement, which: string, reveal: boolean) {
 // ---------- wiring ----------
 export function mountLogisticsDemo(root: HTMLElement) {
   const select = wireTabs(root, (p) => { state.persona = p; renderPersona(root); });
-  const inputs = root.querySelectorAll<HTMLInputElement>('input[name="dc"], input[name="receiving"]');
+  type Lever = keyof typeof LEVERS;
+  const inputs = root.querySelectorAll<HTMLInputElement>('form.controls input[type="radio"]');
   inputs.forEach((inp) => {
     inp.addEventListener('change', () => {
-      state[inp.name as 'dc' | 'receiving'] = inp.value;
+      if (!inp.checked) return;
+      (state as Record<Lever, string>)[inp.name as Lever] = inp.value;
       renderOutcome(root);
       renderPersona(root);
     });
@@ -386,21 +467,27 @@ export function mountLogisticsDemo(root: HTMLElement) {
   });
   reveal?.addEventListener('change', () => renderRecords(root, recTab, reveal.checked));
 
-  // Deep links: /demo/?lg=truth&dc=pick_scan&recv=case_scan#logistics
+  // Deep links: /demo/?lg=corrections&read=paired&ground=domain&lgq=claim&dc=pick_scan&recv=case_scan#logistics
   const q = new URLSearchParams(location.search);
-  if (['none', 'pick_scan', 'check_weigh'].includes(q.get('dc') ?? '')) state.dc = q.get('dc') as string;
-  if (['label', 'case_scan'].includes(q.get('recv') ?? '')) state.receiving = q.get('recv') as string;
-  inputs.forEach((inp) => { inp.checked = inp.value === state[inp.name as 'dc' | 'receiving']; });
+  const param: Record<Lever, string> = { dc: 'dc', receiving: 'recv', read: 'read', ground: 'ground' };
+  for (const lever of Object.keys(LEVERS) as Lever[]) {
+    const v = q.get(param[lever]);
+    if (v && LEVERS[lever].includes(v)) (state as Record<Lever, string>)[lever] = v;
+  }
+  const qid = q.get('lgq');
+  if (qid && lai.assistant.questions.some((x) => x.id === qid)) state.q = qid;
+  inputs.forEach((inp) => { inp.checked = inp.value === (state as Record<Lever, string>)[inp.name as Lever]; });
   renderOutcome(root);
-  select(q.get('lg') && PANELS[q.get('lg') as string] ? (q.get('lg') as string) : 'dc');
+  select(q.get('lg') && PANELS[q.get('lg') as string] ? (q.get('lg') as string) : 'scorecard');
   renderRecords(root, recTab, false);
   root.dataset.ready = 'true';
   (window as unknown as { logisticsDemo: unknown }).logisticsDemo = {
     state,
     select,
-    set(nameOf: 'dc' | 'receiving', value: string) {
-      const inp = root.querySelector<HTMLInputElement>(`input[name="${nameOf}"][value="${value}"]`);
+    set(nameOf: Lever, value: string) {
+      const inp = root.querySelector<HTMLInputElement>(`form.controls input[name="${nameOf}"][value="${value}"]`);
       if (inp) { inp.checked = true; inp.dispatchEvent(new Event('change')); }
     },
+    ask(id: string) { root.querySelector<HTMLElement>(`[data-q="${id}"]`)?.click(); },
   };
 }

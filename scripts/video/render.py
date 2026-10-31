@@ -70,6 +70,7 @@ LEP = LST["episode"]
 LK = LA["kpis"]
 LFIVE = next(c for c in LST["corrections"] if c["sku"] == "ATTA-WW-5KG")
 LONE = next(c for c in LST["corrections"] if c["sku"] == "ATTA-WW-1KG")
+LAI = json.loads((ROOT / "src" / "data" / "logistics-ai.json").read_text())
 
 P = json.loads((ROOT / "src" / "data" / "payments.json").read_text())
 PS = {s["key"]: s for s in P["scenarios"]}
@@ -253,69 +254,67 @@ L_END = ("Why Domain Matters", "Every record agreed.",
 
 def logistics_short_scenes() -> list[dict]:
     line = LST["line"]
+    t = LAI["mirror"]["traced_line"]
+    sc = LAI["assistant"]["score"]
     return [
         {"card": L_TITLE, "dur": 4.5, "srt": "The record says: delivered on time, in full. What actually happened: one pallet line held the wrong pack size."},
         {"go": "demo/", "to": "#logistics", "dur": 6.0,
-         "cap": "Monday 22 June, 6:12 am. The warehouse truck reaches Store 014 inside its 06:00–06:30 slot."},
-        {"js": "logisticsDemo.select('dc')", "to": "#logistics .tabs", "off": 8, "dur": 7.0,
-         "cap": f"At 03:00 the picker scanned the 5 kg slot’s label, then took {line['cases']} bales from the slot next door: 1 kg packs."},
-        {"js": "logisticsDemo.select('transport')", "to": "#logistics .tabs", "off": 8, "dur": 6.0,
-         "cap": "The trip log: left at 04:30, arrived at 06:12. On time."},
-        {"js": "logisticsDemo.select('receiving')", "to": "#logistics .tabs", "off": 8, "dur": 7.0,
-         "cap": f"The clerk scans the pallet label and the notice matches. {line['units']} bags of 5 kg are booked. They do not exist."},
+         "cap": "Monday 22 June, 6:12 am. The warehouse truck reaches Store 014 inside its slot, read the way a data team reads it."},
         {"js": "logisticsDemo.select('scorecard')", "to": "#logistics .tabs", "off": 8, "dur": 6.5,
-         "cap": f"The OTIF scorecard: {pct(LK['otif']['scorecard'])} for June. The 22 June delivery counts as perfect."},
-        {"js": "logisticsDemo.select('stock')", "to": "#logistics .tabs", "off": 8, "dur": 7.0,
-         "cap": f"Friday’s count: 5 kg {LFIVE['adjustment']:+d} bags, 1 kg {LONE['adjustment']:+d} packs. Theft? Sloppy counting?".replace("-", "−")},
-        {"js": "logisticsDemo.select('truth')", "to": "#lg-panel h4", "off": 40, "dur": 7.5,
-         "cap": f"What actually happened: the 5 kg shelf stood empty for {LEP['empty_open_hours']} open hours while the books showed {LEP['book_on_hand_max']}."},
-        {"js": "logisticsDemo.select('truth')", "to": "#lg-panel table.ledger", "off": 90, "dur": 7.0,
-         "cap": f"Four corrections in two buildings, one mis-pick. Across the company they net to {inr(LST['adjustments_net']['value_at_cost_inr'])}."},
+         "cap": f"The OTIF dashboard: {pct(LK['otif']['scorecard'])} for June. The 22 June delivery counts as perfect."},
+        {"js": "logisticsDemo.select('tests')", "to": "#logistics .tabs", "off": 8, "dur": 7.0,
+         "cap": f"All {len(LAI['tests']['generic'])} data tests pass: every record was written from the same pick. The pallets were never weighed."},
+        {"js": "logisticsDemo.select('corrections')", "to": "#logistics .tabs", "off": 8, "dur": 7.0,
+         "cap": f"Four stock corrections in two buildings net to {inr(LAI['mirror']['net_atta_value_inr'])}. Nothing to chase."},
+        {"js": "logisticsDemo.set('read','paired')", "to": "#lg-panel", "off": 40, "dur": 8.0,
+         "cap": f"Paired, they are equal and opposite, {line['cases']} cases each way. The trace names {t['shipment_id']}, line {t['line']}: {t['actual_units']} packs of 1 kg."},
+        {"js": "logisticsDemo.set('ground','domain'); logisticsDemo.select('assistant')", "to": "#lg-panel .run", "off": 40, "dur": 7.5,
+         "cap": f"An AI assistant with a domain layer: {sc['domain']} of {sc['of']} answers right, not {sc['naive']}. On time, but not in full."},
+        {"js": "logisticsDemo.select('truth')", "to": "#lg-panel table.four-ways", "off": 90, "dur": 7.0,
+         "cap": f"OTIF reconciled with the counts: {pct(LAI['otif']['ways']['reconciled'])}, what the shelf got. The 5 kg shelf stood empty {LEP['empty_open_hours']} open hours."},
         {"js": "logisticsDemo.set('dc','check_weigh'); logisticsDemo.select('scorecard')", "to": "#logistics [data-outcome]", "off": 240, "dur": 7.0,
-         "cap": f"Weigh every pallet: the mistake is caught at dispatch. The shelf stays full, and OTIF falls to {pct(LWEIGH['kpis']['otif']['scorecard'])}."},
+         "cap": f"Weigh every pallet: caught at dispatch. The shelf stays full, and OTIF falls to {pct(LWEIGH['kpis']['otif']['scorecard'])}."},
         {"card": L_END, "dur": 5.0, "srt": "Every record agreed. That is exactly why nobody checked the pallet."},
     ]
 
 
 def logistics_walkthrough_scenes() -> list[dict]:
     k = LK["otif"]
+    m = LAI["mirror"]
+    t = m["traced_line"]
+    sc = LAI["assistant"]["score"]
     return [
         {"card": L_TITLE, "dur": 5.0, "srt": "Why Domain Matters, part 2: Logistics and supply chain. The record says delivered on time, in full; one pallet line held the wrong pack size."},
-        {"go": "", "to": "table.audit", "off": 140, "dur": 6.0,
-         "cap": "Part 2 follows one delivery through the people who see it differently."},
         {"go": "logistics/", "to": "article", "off": 90, "dur": 7.0,
-         "cap": "The same synthetic world: Store 014 in Jayanagar, and the warehouse in Hoskote that supplies it."},
+         "cap": "The same synthetic world: Store 014 in Jayanagar, the warehouse in Hoskote, and an answer key that knows every pallet."},
+        {"to": "#five-readings-of-one-delivery", "off": 24, "dur": 7.5,
+         "cap": f"Five readings: the dashboard says {pct(k['scorecard'])}, the data tests pass, the corrections net to {inr(m['net_atta_value_inr'])}, and the assistant says in full."},
         {"to": "table.docs", "off": 60, "dur": 8.0,
-         "cap": f"Every record of line 1 says 5 kg. The pallet held {LST['actual']['units_actual']} packs of 1 kg. The scan confirmed the slot, not the item."},
+         "cap": f"Every record of line 1 says 5 kg. The pallet held {LST['actual']['units_actual']} packs of 1 kg. All were written from one scan of the slot."},
         {"to": "figure.figure:has(svg)", "off": 60, "dur": 7.0,
          "cap": f"The books said {LEP['book_on_hand_max']}. The shelf was empty for {LEP['empty_open_hours']} open hours, and nothing was reordered."},
-        {"to": "table.ledger", "off": 80, "dur": 7.0,
-         "cap": f"Four corrections, two buildings, one mistake. They net to about {inr(LST['adjustments_net']['value_at_cost_inr'])}, so nobody chases them."},
-        {"to": "table.four-ways", "off": 120, "dur": 7.0,
-         "cap": f"OTIF for June: {pct(k['dc_report'])}, {pct(k['by_line'])}, {pct(k['scorecard'])} or {pct(k['at_the_shelf'])}, depending on whose record decides."},
+        {"to": "table.tests", "off": 60, "dur": 7.5,
+         "cap": f"{len(LAI['tests']['generic'])} data tests pass. Five tests about how a warehouse works fail; none of June's {LAI['pallets']['total']} pallets was checked by anything but the pick."},
+        {"to": "table.mirror", "off": 60, "dur": 8.0,
+         "cap": f"Pair the corrections: equal and opposite in cases, in each building and across the two. Gross {inr(m['gross_atta_value_inr'])}, net {inr(m['net_atta_value_inr'])}."},
         {"go": "demo/", "to": "#logistics .controls", "off": 30, "dur": 7.0,
-         "cap": "The demo replays June with the same customers and trucks. Change how the warehouse checks, or how the store receives."},
-        {"js": "logisticsDemo.select('dc')", "to": "#lg-panel", "off": 70, "dur": 7.0,
-         "cap": "The DC shift supervisor sees every line confirmed, and two count variances, both corrected."},
-        {"js": "logisticsDemo.select('receiving')", "to": "#lg-panel", "off": 70, "dur": 6.0,
-         "cap": "The receiving clerk sees pallet labels that matched the notice. No discrepancies."},
-        {"js": "logisticsDemo.select('scorecard')", "to": "#lg-panel", "off": 70, "dur": 7.0,
-         "cap": f"The scorecard sees {pct(k['scorecard'])} for June, with 22 June on time and in full."},
-        {"js": "logisticsDemo.select('stock')", "to": "#lg-panel", "off": 70, "dur": 7.0,
-         "cap": f"The stock controller sees {abs(LFIVE['adjustment'])} bags of 5 kg gone and {LONE['adjustment']} packs of 1 kg from nowhere."},
-        {"js": "logisticsDemo.select('truth')", "to": "#lg-panel", "off": 70, "dur": 8.0,
-         "cap": f"What actually happened: one mis-pick, {LEP['empty_open_hours']} open hours with an empty shelf, {LEP['lost_units']} bags not sold."},
-        {"js": "logisticsDemo.set('dc','pick_scan')", "to": "#logistics [data-outcome]", "off": 200, "dur": 7.0,
+         "cap": "The demo: change what the data team does with June's records, or rerun June with the warehouse and the store checking pallets."},
+        {"js": "logisticsDemo.set('read','paired'); logisticsDemo.select('corrections')", "to": "#lg-panel", "off": 70, "dur": 8.0,
+         "cap": f"The trace: one 16-case pick of 5 kg in the week before, {t['shipment_id']} line {t['line']}. The answer key: {t['actual_units']} packs of 1 kg."},
+        {"js": "logisticsDemo.set('ground','domain'); logisticsDemo.select('assistant'); logisticsDemo.ask('claim')", "to": "#lg-panel .run", "off": 40, "dur": 8.0,
+         "cap": f"With a domain layer the assistant answers {sc['domain']} of {sc['of']}: not theft, not in full, and the claim belongs to line {t['line']} of the 22 June truck."},
+        {"js": "logisticsDemo.select('truth')", "to": "#lg-panel table.four-ways", "off": 90, "dur": 7.5,
+         "cap": f"OTIF four ways: {pct(k['dc_report'])}, {pct(k['by_line'])}, {pct(k['scorecard'])}, {pct(k['at_the_shelf'])}. Reconciled with counts, the records give {pct(LAI['otif']['ways']['reconciled'])} too."},
+        {"js": "logisticsDemo.set('dc','pick_scan'); logisticsDemo.select('scorecard')", "to": "#logistics [data-outcome]", "off": 200, "dur": 7.0,
          "cap": f"Scan every case at pick: the mistake never happens. OTIF stays {pct(LPICK['kpis']['otif']['scorecard'])}, and now it is true."},
         {"js": "logisticsDemo.set('dc','check_weigh')", "to": "#logistics [data-outcome]", "off": 200, "dur": 7.0,
          "cap": f"Weigh every pallet: caught at dispatch, the truck arrives late. OTIF falls to {pct(LWEIGH['kpis']['otif']['scorecard'])}; the shelf stays full."},
         {"js": "logisticsDemo.set('dc','none'); logisticsDemo.set('receiving','case_scan')", "to": "#logistics [data-outcome]", "off": 200, "dur": 7.0,
          "cap": f"Scan every case at the store: caught on arrival. OTIF falls to {pct(LCASE['kpis']['otif']['scorecard'])} again, because it now counts what arrived."},
-        {"js": "logisticsDemo.set('receiving','label'); const d = document.querySelector('#logistics .drawer'); d.open = true; d.querySelector('[data-rec=notice]').click(); d.querySelector('input[name=lg-reveal]').click()",
-         "to": "#logistics .drawer", "off": 20, "dur": 8.0,
-         "cap": "The records behind it. Nothing says “wrong item”. Download them and find the line yourself."},
-        {"go": "logistics/", "to": "#how-to-learn-this-domain", "off": 30, "dur": 7.0,
-         "cap": "The post ends with a learning path: warehouse science, GS1 identifiers, India’s e-way bill, and practice on June’s records."},
+        {"go": "logistics/technical/", "to": "#mirror-pairs", "off": 24, "dur": 7.0,
+         "cap": "The technical companion: the tests in SQL, the mirror pairs, the trace, OTIF reconciled, and a notebook on the records."},
+        {"go": "logistics/", "to": "#for-data-and-ai-leaders-five-questions-to-ask-your-team", "off": 24, "dur": 7.0,
+         "cap": "For data and AI leaders: five questions to ask your team."},
         {"card": L_END, "dur": 5.5, "srt": "Every record agreed. That is exactly why nobody checked the pallet."},
     ]
 

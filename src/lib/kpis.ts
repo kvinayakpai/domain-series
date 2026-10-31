@@ -6,6 +6,7 @@ import retail from '../data/retail.json';
 import ai from '../data/retail-ai.json';
 import logistics from '../data/logistics.json';
 import payments from '../data/payments.json';
+import lai from '../data/logistics-ai.json';
 
 export interface Measured { value: string; how: string }
 export interface Kpi {
@@ -193,7 +194,7 @@ export const DOMAINS: Domain[] = [
         hero: {
           scope: 'Deliveries to Store 014, June',
           cost: `One pallet line of 1 kg packs booked as 5 kg: the 5 kg shelf empty for ${ls.episode.empty_open_hours} open hours, ${num(ls.episode.lost_units)} bags (${inr(ls.episode.lost_value_inr)}) not sold`,
-          found: `${foundAfterDays} days after delivery, when complaints led the manager to count the bay.`,
+          found: `${foundAfterDays} days after delivery, when complaints led the manager to count the bay. Pairing the warehouse’s two corrections names the pallet line ${Math.round(lai.mirror.days_to_store_count - lai.mirror.days_to_pair) === 1 ? 'a day' : `${Math.round(lai.mirror.days_to_store_count - lai.mirror.days_to_pair)} days`} sooner.`,
         },
       },
       {

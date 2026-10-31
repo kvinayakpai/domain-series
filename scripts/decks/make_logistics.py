@@ -6,6 +6,12 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "decks" / "logistics" / "project"
 (OUT / "slides").mkdir(parents=True, exist_ok=True)
 d = json.loads((ROOT / "src" / "data" / "logistics.json").read_text())
+ai = json.loads((ROOT / "src" / "data" / "logistics-ai.json").read_text())
+M = ai["mirror"]
+T = M["traced_line"]
+SC = ai["assistant"]["score"]
+GREEN = "#1a9e70"
+WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 7: "seven", 10: "ten", 16: "sixteen"}
 S = {s["key"]: s for s in d["scenarios"]}
 A = S["none|label"]
 st = d["story"]
@@ -84,20 +90,21 @@ slides["scene"] = section("scene", "\n".join([
 
 late = [x for x in A["by_shipment"] if not x["in_slot"]]
 short = [x for x in A["by_shipment"] if not x["in_full_notice"]]
+inslot = ai["assistant"]["questions"][1]["naive"]
 rows = [
-    ("DC shift supervisor", "Every line picked and confirmed by a scan; two count variances in the atta bay, both corrected", "“A clean night’s picking.”"),
-    ("Transport manager", f"Left 04:30, arrived 06:12, inside the slot; {k['in_slot']} of {k['shipments']} mornings on time", "“TRK-07 made its slot.”"),
-    ("Receiving clerk", "Pallet labels matched the shipping notice", "“No discrepancies.”"),
-    ("OTIF scorecard", f"{pct(k['otif']['scorecard'])} for June; misses on {', '.join(sorted({x['arrived_ts'][8:10].lstrip('0') for x in late + short}, key=int))} June, none of them atta", "“22 June was perfect.”"),
-    ("Stock controller", f"26 June count: 5 kg {plus(five['adjustment'])}, 1 kg {plus(one['adjustment'])}", "“Sloppy counting, or theft.”"),
+    ("OTIF dashboard", f"{pct(k['otif']['scorecard'])} for June; misses on {', '.join(sorted({x['arrived_ts'][8:10].lstrip('0') for x in late + short}, key=int))} June, none of them atta", "“22 June was perfect.”"),
+    ("Data tests", f"{sum(t['pass'] for t in ai['tests']['generic'])} of {len(ai['tests']['generic'])} pass: notice, picks, pallets and receipts join without a mismatch", "“The pipeline is green.”"),
+    ("Inventory reports", f"Four atta corrections in two buildings, netting to {inr(M['net_atta_value_inr'])}", "“Nothing to chase.”"),
+    ("Store loss report", f"26 June count: 5 kg {plus(five['adjustment'])}, 1 kg {plus(one['adjustment'])}", "“Sloppy counting, or theft.”"),
+    ("AI assistant, given the schema", "On time, inside the slot, every line booked as noticed", "“On time and in full.”"),
 ]
 table = [f'<table style="font-size:28px;color:{INK}">',
-         f'<tr><th style="width:22%;text-align:left;font-weight:600;color:{MUTED}">Who</th><th style="width:48%;text-align:left;font-weight:600;color:{MUTED}">What they see</th><th style="width:30%;text-align:left;font-weight:600;color:{MUTED}">What they conclude</th></tr>']
+         f'<tr><th style="width:24%;text-align:left;font-weight:600;color:{MUTED}">Data product</th><th style="width:48%;text-align:left;font-weight:600;color:{MUTED}">What it reads</th><th style="width:28%;text-align:left;font-weight:600;color:{MUTED}">What it concludes</th></tr>']
 table += [f'<tr><td>{a}</td><td>{b}</td><td>{c}</td></tr>' for a, b, c in rows]
 table.append('</table>')
 slides["readings"] = section("readings", "\n".join([h2("Five readings of one delivery"), *table,
-    foot("Each conclusion is reasonable given the record in front of that person. Each misses the wrong line.")]),
-    f"As in the retail story, nobody is careless. The DC shift supervisor sees pick confirmations for every line, and later two count variances in the atta bay, both corrected and closed. The transport manager sees a trip log: left at 04:30, arrived at 06:12, inside the slot, and on time on {k['in_slot']} of {k['shipments']} mornings in June. The receiving clerk sees pallet labels that matched the notice. The OTIF scorecard shows {pct(k['otif']['scorecard'])} for June, and counts 22 June as perfect. And the stock controller, after a count on Friday 26 June, sees {abs(five['adjustment'])} bags of 5 kg gone and {one['adjustment']} packs of 1 kg from nowhere, and suspects sloppy counting or theft.",
+    foot("Each conclusion is reasonable given the records in front of it. Each misses the wrong line.")]),
+    f"As in the retail story, nobody is careless, and each data product reads the records in front of it. The OTIF dashboard shows {pct(k['otif']['scorecard'])} for June, and counts 22 June as perfect. The data tests pass, all ten: the shipping notice, the pick confirmations, the pallets and the receipts join without a single mismatch. The inventory reports show four atta corrections in two buildings, netting to about {inr(M['net_atta_value_inr'])}. The store’s loss report, after a count on Friday 26 June, shows {abs(five['adjustment'])} bags of 5 kg gone and {one['adjustment']} packs of 1 kg from nowhere, and suspects sloppy counting or theft. And an AI assistant given the shipping schema says the 22 June delivery was on time and in full.",
     gap=40)
 
 doc_rows = [
@@ -186,6 +193,72 @@ slides["corrections"] = section("corrections", "\n".join([h2("Four corrections, 
     f"The mis-pick left four records wrong, two in each building, and each was fixed on its own. The warehouse found the 1 kg slot sixteen cases short on Tuesday and the 5 kg slot sixteen cases over on Thursday, and closed both as count variances. The store found its two in a single count on Friday, after complaints. Across the company they net to about {inr(st['adjustments_net']['value_at_cost_inr'])}, which is why nobody chases them. Read together, they are the signature of a mis-pick, and the pick confirmations would name the truck in a minute.",
     gap=40)
 
+gen, dom = ai["tests"]["generic"], ai["tests"]["domain"]
+dom_short = ["No correction has a mirror image in the same building", "No warehouse correction is mirrored at the store",
+             "Every receipt survives the next count", "Something other than the pick checks each pallet",
+             "No silence longer than the item’s usual rate allows, while the books show stock"]
+slides["tests"] = section("tests", "\n".join([
+    h2("The pipeline is green"),
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start">',
+    f'<div style="display:flex;flex-direction:column;gap:16px;border-top:6px solid {GREEN};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1;color:{GREEN}">{sum(t["pass"] for t in gen)} of {len(gen)}</p><p style="{SIGN};font-size:32px;font-weight:600">data tests pass</p><p style="font-size:28px;line-height:1.4">Keys, joins and reconciliations on the shipping records. They agree with each other, because every one was written from the same pick confirmation.</p></div>',
+    f'<div style="display:flex;flex-direction:column;gap:16px;border-top:6px solid {RED};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1;color:{RED}">0 of {len(dom)}</p><p style="{SIGN};font-size:32px;font-weight:600">tests about how a warehouse works pass</p>'
+    + '<ul style="font-size:26px;line-height:1.4">' + "".join(f"<li>{x}</li>" for x in dom_short) + '</ul></div>',
+    '</div>',
+    foot(f"All {len(gen) + len(dom)} tests use only the records. The one about pallets fails for all {ai['pallets']['total']} of June’s: none was weighed or case-scanned."),
+]), f"The first thing a data team would do is test the data, and the shipping records pass: all {len(gen)} tests a dbt project ships on day one, keys, joins and reconciliations. They agree with each other because every one was written from the same pick confirmation. Five tests that encode how a warehouse and a store work all fail on the same records. Corrections come in mirror pairs, in each building and across the two. One receipt does not survive the next count. Nothing other than the pick checks what is on any of June’s {ai['pallets']['total']} pallets. And the till lines show a silence the item’s usual rate cannot explain while the books show stock.",
+    gap=48)
+
+pair_cells = [
+    f'<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid {INK};padding:24px 0 0 0"><p style="{SIGN};font-size:110px;font-weight:700;line-height:1">{inr(M["net_atta_value_inr"])}</p><p style="font-size:28px;line-height:1.4">the four atta corrections, netted. Gross: {inr(M["gross_atta_value_inr"])}.</p></div>',
+    f'<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid {INK};padding:24px 0 0 0"><p style="{SIGN};font-size:110px;font-weight:700;line-height:1">{len(M["pairs"])} pairs</p><p style="font-size:28px;line-height:1.4">equal and opposite in cases: {M["atta_pairs"]} atta, in each building and across the two; 1 milk, the till’s scan errors</p></div>',
+]
+slides["pairs"] = section("pairs", "\n".join([
+    h2("Pair corrections before you explain them"),
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:72px">', *pair_cells, '</div>',
+    f'<div style="background:{PANEL};border-left:6px solid {GREEN};padding:24px 32px;display:flex;flex-direction:column;gap:12px">',
+    f'<p style="{SIGN};font-size:26px;font-weight:600;color:{MUTED}">The trace: 16-case picks of 5 kg from slot A-07-03 in the week before the first variance</p>',
+    f'<p style="{MONO};font-size:28px;color:{RECORD}">{T["pick_ts"][:16].replace("T", " ")}  {T["shipment_id"]}  line {T["line"]}  SSCC {T["sscc"]}  {T["cases_confirmed"]} cases  {T["confirmed_by"]}</p>',
+    f'<p style="font-size:28px;line-height:1.4">One row. The answer key: that line held {T["actual_units"]} packs of 1 kg.</p>',
+    '</div>',
+    foot(f"Mirror pairs: one product family, opposite signs, each at least a case, within 15% in cases, within a week. The warehouse’s pair was complete {round(M['days_to_pair'])} days after the truck, a day before the store’s count."),
+]), f"Here is the change that finds it. Netted, the four atta corrections come to about {inr(M['net_atta_value_inr'])}, which is why nobody chases them. Paired, they say something else. Two corrections mirror each other when they are in one product family, have opposite signs, and are within fifteen percent of each other in cases, within a week. June has {len(M['pairs'])} such pairs: {M['atta_pairs']} join the atta corrections, in each building and across the two, and one is milk, the till’s scan errors. The warehouse’s pair says sixteen cases left the 1 kg slot as 5 kg. A query for sixteen-case picks of 5 kg from slot A-07-03 in the week before returns one row: line 1 of the 22 June shipment, confirmed by a slot-label scan. The answer key says that line held {T['actual_units']} packs of 1 kg. The pair was complete on Thursday, a day before the store’s count, and the store could have corrected its books and reordered that night.",
+    gap=44)
+
+qd = next(q for q in ai["assistant"]["questions"] if q["id"] == "in_full")
+slides["assistant"] = section("assistant", "\n".join([
+    h2("Give the assistant a domain layer", "#e6eaee"),
+    '<div style="display:grid;grid-template-columns:1fr 1.2fr;gap:72px;align-items:start">',
+    '<div style="display:flex;flex-direction:column;gap:24px">',
+    f'<p style="{SIGN};font-size:96px;font-weight:700;line-height:1;color:#e6eaee">{SC["naive"]} → {SC["domain"]} <span style="color:#a3adb8">of {SC["of"]}</span></p>',
+    f'<p style="{SIGN};font-size:28px;color:#a3adb8">questions answered right at the supplier review, schema only → with the domain layer</p>',
+    '<ul style="font-size:26px;line-height:1.4;color:#e6eaee"><li>“An SSCC identifies a pallet, not what is on it”</li><li>“A goods receipt booked by label scan is a copy of the notice”</li><li>Pick confirmations, pallets, warehouse corrections, till lines</li><li>Five views, the mirror pairs among them</li></ul>',
+    '</div>',
+    f'<div style="background:#222c37;border-left:6px solid {GREEN};padding:32px 36px;display:flex;flex-direction:column;gap:14px">',
+    f'<p style="{SIGN};font-size:24px;font-weight:600;color:#a3adb8">Was the 22 June delivery on time and in full? With the domain layer:</p>',
+    f'<p style="{SIGN};font-size:26px;line-height:1.45;color:#e6eaee">{qd["domain"]["answer"]}</p>',
+    '</div>', '</div>',
+    foot("The assistant is scripted so the run can be repeated; the technical companion shows every query.").replace(MUTED, "#a3adb8"),
+]), f"The same assistant, asked the same seven questions at the supplier review, now given a domain layer: definitions, such as an SSCC identifies a pallet, not what is on it, and a goods receipt booked by label scan is a copy of the notice; three rules, among them pair corrections before you explain them; the pick confirmations, pallets, warehouse corrections and till lines; and five views built from them. Given the schema alone it answered {WORDS[SC['naive']]} of seven. With the domain layer it answers all seven: the delivery was on time but not in full, OTIF was {pct(ai['otif']['ways']['reconciled'])} not {pct(ai['otif']['ways']['scorecard'])}, the missing 5 kg atta is not theft, and the claim belongs to line 1 of the 22 June shipment.",
+    bg=INK, fg="#e6eaee", gap=48)
+
+questions = [
+    "Which of our records were written from the same event, and which observe the goods independently?",
+    "Do we net our stock corrections, or pair them?",
+    "When a KPI says “in full”, which record says so, and could anything have contradicted it?",
+    "Can our data trace a variance back to the order line, the pallet and the pick that caused it?",
+    "What does our AI assistant know about how a warehouse works, and how do we test that?",
+]
+slides["questions"] = section("questions", "\n".join([
+    h2("Five questions to ask your team"),
+    '<div style="display:flex;flex-direction:column">',
+    *[f'<div style="display:grid;grid-template-columns:72px 1fr;gap:24px;border-top:2px solid #d5d9d4;padding:22px 0 22px 0">'
+      f'<p style="{SIGN};font-size:38px;font-weight:700;line-height:1.2;color:{RECORD}">{i}</p>'
+      f'<p style="font-size:36px;line-height:1.3">{q}</p></div>' for i, q in enumerate(questions, 1)],
+    '</div>',
+    foot("For data and AI leaders. The technical companion answers each one for the 22 June truck."),
+]), "For data and AI leaders, five questions to take back to your team. Which of our records were written from the same event, and which observe the goods independently? Do we net our stock corrections, or pair them? When a KPI says in full, which record says so, and could anything have contradicted it? Can our data trace a variance back to the order line, the pallet and the pick that caused it? And what does our AI assistant know about how a warehouse works, and how do we test that?",
+    gap=48)
+
 slides["normal"] = section("normal", "\n".join([
     h2("This is the normal case"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:64px">',
@@ -206,7 +279,7 @@ cells = [f'<div style="display:flex;flex-direction:column;gap:16px;border-top:4p
 slides["fourways"] = section("fourways", "\n".join([
     h2("One name, four numbers", "#e6eaee"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:48px">', *cells, '</div>',
-    f'<p style="font-size:34px;line-height:1.45;width:1500px">OTIF for the warehouse’s {k["shipments"]} deliveries to Store 014 in June. The 22 June delivery passes the first three and fails the fourth, which nobody computes because nobody records it.</p>',
+    f'<p style="font-size:34px;line-height:1.45;width:1500px">OTIF for the warehouse’s {k["shipments"]} deliveries to Store 014 in June. The 22 June delivery passes the first three and fails the fourth. Reconciled with the counts, the records give {pct(ai["otif"]["ways"]["reconciled"])} too, after the fact.</p>',
 ]), f"OTIF, on time and in full, sounds like one number. The warehouse measures its own dispatch: {pct(k['otif']['dc_report'])}. The scorecard measures arrival in the slot and fullness by the store’s goods receipt: {pct(k['otif']['by_line'])} per order line, {pct(k['otif']['scorecard'])} per delivery. Only counting what was really on the pallets gives {pct(k['otif']['at_the_shelf'])}. Real programmes move their definitions too: Walmart began fining suppliers three percent of the value of late or missing goods in 2017, early deliveries included; in 2019 full truckloads had to arrive within a two-day window 87 percent of the time; from September 2020 the target was 98. Before comparing two OTIF numbers, ask what window and which record each one uses.",
     bg=INK, fg="#e6eaee", gap=64)
 
@@ -242,47 +315,35 @@ slides["data"] = section("data", "\n".join([
 ]), "If you work with logistics data, slow down here. This is the shipping notice for the 22 June truck, and the store’s receipt simply copies it. The SSCC joins notice, pallet table and receipt without one mismatch, because all three were written from the same pick. The evidence is in records that do not share that source: the weight a pallet’s notice implies against the case weights in the product master, a 1 kg backroom that keeps growing without receipts, 5 kg sales that stop while the books sit at 63, and two warehouse variances in neighbouring slots two days apart. Knowing which records are independent of each other is most of the job.",
     gap=48)
 
-learn = [
-    ("How a warehouse works", "Bartholdi and Hackman, <i>Warehouse &amp; Distribution Science</i> (free from the authors), and Gwynne Richards, <i>Warehouse Management</i>. Then walk a warehouse, dock to dispatch."),
-    ("Fundamentals", "MIT’s Supply Chain Fundamentals (CTL.SC1x): demand, inventory and transport."),
-    ("Documents and IDs", "GS1 logistic label, SSCC and despatch advice. In India, the e-way bill for most consignments over ₹50,000 (rule 138, CGST Rules)."),
-    ("Metrics", "OTIF, case fill, pick accuracy, dock-to-stock. How Walmart’s OTIF changed; WERC’s DC Measures."),
-    ("Practice", "Download June’s shipping records, compute OTIF two ways, and find the 22 June line."),
-]
-slides["learn"] = section("learn", "\n".join([
-    h2("How to learn this domain"),
-    '<div style="display:flex;flex-direction:column;gap:22px">',
-    *[f'<div style="display:grid;grid-template-columns:340px 1fr;gap:40px;border-top:2px solid #d5d9d4;padding:20px 0 0 0"><p style="{SIGN};font-size:32px;font-weight:600">{a}</p><p style="font-size:28px;line-height:1.4">{b}</p></div>' for a, b in learn],
-    '</div>',
-    foot("A rough plan for a few evenings a week over about two months. Links in the post: kvinayakpai.github.io/domain-series/logistics"),
-]), "A rough plan for a few evenings a week over about two months. Read Bartholdi and Hackman’s Warehouse and Distribution Science, free from the authors, and Gwynne Richards’s Warehouse Management, then walk a warehouse from the receiving dock to dispatch. Take MIT’s Supply Chain Fundamentals. Learn the GS1 logistic label, the SSCC and the despatch advice, and in India the e-way bill. Learn the metrics and how their definitions differ. Then practise on Store 014’s June shipping records.",
-    gap=44)
-
 slides["close"] = section("close", "\n".join([
     f'<h2 style="{SIGN};font-size:88px;font-weight:700;line-height:1.08;color:#e6eaee;width:1500px">Every record agreed. That is why nobody checked the pallet.</h2>',
     '<div style="display:flex;flex-direction:column;gap:16px">',
-    '<p style="font-size:34px;line-height:1.45">Run the scenarios and download the records:</p>',
-    f'<p style="{MONO};font-size:36px;color:#8db0f0"><a href="https://kvinayakpai.github.io/domain-series/demo/#logistics"><span style="color:#8db0f0">kvinayakpai.github.io/domain-series</span></a></p>',
+    '<p style="font-size:34px;line-height:1.45">The tests in SQL, the pairs, the trace and a notebook on the records:</p>',
+    f'<p style="{MONO};font-size:36px;color:#8db0f0"><a href="https://kvinayakpai.github.io/domain-series/logistics/technical/"><span style="color:#8db0f0">kvinayakpai.github.io/domain-series/logistics/technical</span></a></p>',
     '</div>',
     f'<div style="display:flex;flex-direction:column;gap:8px;border-left:6px solid {HL};padding:8px 0 8px 32px">',
     f'<p style="{SIGN};font-size:32px;font-weight:600;color:#a3adb8">Next: payments</p>',
     '<p style="font-size:36px;line-height:1.35">The till says the payment failed. The customer’s bank says it went through.</p>',
     '</div>',
-]), "Every record agreed, and that is exactly why nobody checked the pallet. The demo on the series site lets you take each person’s view of the same delivery, switch on the checks, and download June’s shipping records to find the wrong line yourself. The next post moves from goods to money: a UPI payment the till marks as failed, while the customer’s bank has already taken the money.",
+]), "Every record agreed, and that is exactly why nobody checked the pallet. The technical companion on the series site has the tests in SQL, the mirror pairs, the trace and a notebook that runs on June’s shipping records, with an answer key to score your own work, and the demo lets you switch on the checks. The next post moves from goods to money: a UPI payment the till marks as failed, while the customer’s bank has already taken the money.",
     bg=INK, fg="#e6eaee", gap=56, center=True)
 
-order = ["cover", "scene", "readings", "happened", "chart", "cost", "corrections", "normal", "fourways", "helped", "data", "learn", "close"]
+order = ["cover", "scene", "readings", "happened", "data", "chart", "cost", "corrections", "tests", "pairs", "assistant",
+         "normal", "fourways", "helped", "questions", "close"]
 for sid in order:
     (OUT / "slides" / f"{sid}.html").write_text(slides[sid])
+for f in (OUT / "slides").glob("*.html"):
+    if f.stem not in order:
+        f.unlink()
 prev = OUT / "deck.json"
 deck = json.loads((prev if prev.exists() else ROOT / "decks" / "retail" / "project" / "deck.json").read_text())
 deck["title"] = "Why Domain Matters: Logistics and supply chain"
 deck["order"] = order
 deck["sections"] = {
-    "s1": {"description": "The scene, and five readings of one delivery", "start": "cover"},
-    "s2": {"description": "What actually happened, what it cost, and the four corrections", "start": "happened"},
-    "s3": {"description": "Why it is normal, and OTIF measured four ways", "start": "normal"},
-    "s4": {"description": "What would have helped, what the data looks like, and how to learn the domain", "start": "helped"},
+    "s1": {"description": "The scene, and five readings of one delivery by the data products", "start": "cover"},
+    "s2": {"description": "What actually happened, why the data could not say so, and what it cost", "start": "happened"},
+    "s3": {"description": "What domain knowledge changes: tests about the world, mirror pairs, the trace, the assistant", "start": "corrections"},
+    "s4": {"description": "Why it is normal, OTIF four ways, what would have helped, and questions for leaders", "start": "normal"},
 }
 (OUT / "deck.json").write_text(json.dumps(deck))
 print(f"wrote {OUT.relative_to(ROOT)}: {len(order)} slides")
