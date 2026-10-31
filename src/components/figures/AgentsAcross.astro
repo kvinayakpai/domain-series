@@ -1,0 +1,35 @@
+---
+// The series' scripted assistant and replenishment agent, with and without the domain (finale.json).
+import f from '../../data/finale.json';
+
+const a = f.agents.assistants;
+const r = f.agents.replenishment;
+const rows = [
+  { what: 'Assistant, seven questions on the shelf', post: 'retail', anchor: 'retail/technical/', schema: `${a.retail.naive} of ${a.retail.of}`, domain: `${a.retail.domain} of ${a.retail.of}` },
+  { what: 'Assistant, seven questions on the truck', post: 'logistics', anchor: 'logistics/technical/', schema: `${a.logistics.naive} of ${a.logistics.of}`, domain: `${a.logistics.domain} of ${a.logistics.of}` },
+  { what: 'Assistant, seven questions on the money', post: 'payments', anchor: 'payments/technical/', schema: `${a.payments.naive} of ${a.payments.of}`, domain: `${a.payments.domain} of ${a.payments.of}` },
+];
+const base = import.meta.env.BASE_URL;
+const bags = (v: number) => Math.round(v);
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger across">
+      <caption>The same scripted agents, given the schema or the KPIs, and given the domain</caption>
+      <thead><tr><th scope="col">Task</th><th scope="col" class="n">Schema or KPIs only</th><th scope="col" class="n">With the domain layer</th></tr></thead>
+      <tbody>
+        {rows.map((x) => <tr><th scope="row"><a href={`${base}${x.anchor}`}>{x.what}</a></th><td class="n">{x.schema}</td><td class="n on">{x.domain}</td></tr>)}
+        <tr class="sum"><th scope="row">All three</th><td class="n">{a.naive} of {a.of}</td><td class="n on">{a.domain} of {a.of}</td></tr>
+        <tr><th scope="row"><a href={`${base}retail/#now-let-an-agent-act-on-it`}>Replenishment agent: bags of 5 kg atta lost in an average June</a> <span class="when">{r.junes} simulated Junes; with no agent, {bags(r.lost_bags_mean.none)}</span></th><td class="n">{bags(r.lost_bags_mean.naive)}</td><td class="n on">{bags(r.lost_bags_mean.domain)}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption>The assistant and the agent are scripted, not language models, so every run can be repeated and scored against the answer key. The domain layer adds definitions, rules and views built from the records; the agent’s domain rules read estimated demand and ask for about {Math.round(r.checks_mean)} shelf checks a month.</figcaption>
+</figure>
+
+<style>
+  .across th[scope='row'] { font-weight: 450; }
+  .across .when { display: block; color: var(--muted); font-size: 0.85rem; }
+  .across td.on { font-weight: 650; color: var(--ok); }
+  .across tr.sum th, .across tr.sum td { font-weight: 650; border-top: 2px solid var(--ink); }
+</style>

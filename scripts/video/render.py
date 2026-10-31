@@ -10,6 +10,7 @@ videos cannot drift from the world. Captions only: no narration.
     python3 scripts/video/render.py retail short          # 1080x1920, about a minute
     python3 scripts/video/render.py logistics walkthrough # 1920x1080, about two minutes
     python3 scripts/video/render.py payments              # part 3
+    python3 scripts/video/render.py who-saw-what          # the finale
 
 Writes public/media/<post>-<name>.mp4, .srt and -poster.jpg. Needs Playwright (Python)
 with Chromium, and ffmpeg with libx264.
@@ -414,12 +415,77 @@ def payments_walkthrough_scenes() -> list[dict]:
     ]
 
 
+FIN = json.loads((ROOT / "src" / "data" / "finale.json").read_text())
+F_TITLE = ("Why Domain Matters: shelf, truck and money", "Who saw what",
+           [["The record says", "The records agree.", "record"],
+            ["What actually happened", "Eight of twelve joins compare a record with its own copy.", "reality"]],
+           "A synthetic, seeded world. kvinayakpai.github.io/domain-series")
+F_END = ("Why Domain Matters", "Every record was right about what it saw.",
+         [["Join the ones", "that look at the world.", "reality"]],
+         "The map, the records and the KPIs: kvinayakpai.github.io/domain-series")
+
+
+def _fin() -> tuple:
+    j = {x["id"]: x for x in FIN["joins"]}
+    return j, FIN["trace"], FIN["incidents"], FIN["agents"]["assistants"]
+
+
+def finale_short_scenes() -> list[dict]:
+    _, t, (sh, tr, mo), a = _fin()
+    return [
+        {"card": F_TITLE, "dur": 4.5, "srt": "The record says: the records agree. What actually happened: eight of twelve joins compare a record with its own copy."},
+        {"go": "who-saw-what/", "to": ".ttf", "off": 40, "dur": 7.5,
+         "cap": f"Three failures at Store 014 in June. Two of its records, joined, showed each within hours: {round(sh['hours_joined'])}, {tr['hours_joined']:.1f} and {round(mo['hours_joined'])}."},
+        {"to": "table.joins", "off": 40, "dur": 7.5,
+         "cap": "Join June’s records two at a time. Eight joins agree on every row, because one record is written from the other."},
+        {"to": "table.joins tr.observation", "off": 90, "dur": 7.5,
+         "cap": "Four joins sometimes disagree. On each, one side looks at the world, and each of June’s failures sits on one of them."},
+        {"to": ".record-map", "off": 30, "dur": 7.5,
+         "cap": "The KPIs read copies. And no record looked at what was on a pallet."},
+        {"to": ".trace", "off": 30, "dur": 8.0,
+         "cap": f"Tuesday, 8 pm: a silence at the store, followed to a short slot in the warehouse. The wrong line, named {round(t['hours_before_count'])} hours before the count."},
+        {"to": "table.across", "off": 40, "dur": 7.0,
+         "cap": f"Give the agent the map: {a['naive']} of {a['of']} questions right with the schema, {a['domain']} of {a['of']} with domain layers."},
+        {"card": F_END, "dur": 5.0, "srt": "Every record was right about what it saw. Join the ones that look at the world."},
+    ]
+
+
+def finale_walkthrough_scenes() -> list[dict]:
+    j, t, (sh, tr, mo), a = _fin()
+    rep = FIN["agents"]["replenishment"]["lost_bags_mean"]
+    return [
+        {"card": F_TITLE, "dur": 5.0, "srt": "Why Domain Matters: Who saw what. The record says the records agree; eight of twelve joins compare a record with its own copy."},
+        {"go": "who-saw-what/", "to": "article", "off": 90, "dur": 7.0,
+         "cap": "The last post puts the series’ three failures, on the shelf, the truck and the money, on one map of Store 014’s records."},
+        {"to": ".ttf", "off": 30, "dur": 8.0,
+         "cap": f"Joining two records showed each failure within hours: {round(sh['hours_joined'])}, {tr['hours_joined']:.1f} and {round(mo['hours_joined'])}. The store found them after {round(sh['hours_found'])}, {round(tr['hours_found'])} and {round(mo['hours_found'])}."},
+        {"to": "table.joins", "off": 40, "dur": 8.0,
+         "cap": f"Twelve joins between June’s records. Eight agree on every row: the notice and the picks, {j['picks-notice']['compared']} of {j['picks-notice']['compared']}; approved UPI payments and the provider, {j['payments-provider']['compared']:,} of {j['payments-provider']['compared']:,}."},
+        {"to": "table.joins tr.observation", "off": 90, "dur": 8.0,
+         "cap": f"Four disagree: the books and the counts, {j['book-counts']['agree']} of {j['book-counts']['compared']}; timeouts and the provider, {j['timeouts-provider']['agree']} of {j['timeouts-provider']['compared']}. A test on a copy can only pass."},
+        {"to": ".record-map", "off": 20, "dur": 8.5,
+         "cap": "The map: KPIs at the top read copies; the records that look at the world sit at the bottom; nothing looks at what is on a pallet."},
+        {"to": ".trace", "off": 30, "dur": 8.5,
+         "cap": f"Tuesday 23 June, 8 pm: the store’s silence, followed through the receipt, the notice and the pick to the warehouse’s short slot. Named {round(t['hours_before_pair'])} hours before the warehouse’s pair."},
+        {"to": "table.shows", "off": 40, "dur": 7.0,
+         "cap": "What the ledger showed: lost sales in no record, four corrections netting to ₹80, double charges as ordinary credits."},
+        {"to": "table.across", "off": 40, "dur": 7.5,
+         "cap": f"Give the agent the map: {a['naive']} of {a['of']} questions right with the schema, {a['domain']} of {a['of']} with domain layers; {round(rep['naive'])} bags lost reading the KPIs, {round(rep['domain'])} with the rules."},
+        {"to": "#for-data-and-ai-leaders-five-questions-to-ask-your-team", "off": 24, "dur": 7.0,
+         "cap": "For data and AI leaders: five questions to ask your team."},
+        {"go": "data/", "to": "#map", "off": 24, "dur": 6.5,
+         "cap": "The map is free to download as JSON, next to the records it describes, with the SQL for every join."},
+        {"card": F_END, "dur": 5.5, "srt": "Every record was right about what it saw. Join the ones that look at the world."},
+    ]
+
+
 SHORT = {"viewport": {"width": 360, "height": 640}, "dsf": 3, "mobile": True, "fs": 19, "bottom": 52, "maxw": 340, "card_fs": 26}
 WALK = {"viewport": {"width": 1280, "height": 720}, "dsf": 1.5, "mobile": False, "fs": 22, "bottom": 36, "maxw": 920, "card_fs": 44}
 POSTS = {
     "retail": {"short": SHORT | {"scenes": short_scenes}, "walkthrough": WALK | {"scenes": walkthrough_scenes}},
     "logistics": {"short": SHORT | {"scenes": logistics_short_scenes}, "walkthrough": WALK | {"scenes": logistics_walkthrough_scenes}},
     "payments": {"short": SHORT | {"scenes": payments_short_scenes}, "walkthrough": WALK | {"scenes": payments_walkthrough_scenes}},
+    "who-saw-what": {"short": SHORT | {"scenes": finale_short_scenes}, "walkthrough": WALK | {"scenes": finale_walkthrough_scenes}},
 }
 
 

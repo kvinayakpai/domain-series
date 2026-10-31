@@ -1,0 +1,88 @@
+---
+// Twelve joins between June's records, and how often each pair agrees (finale.json, from
+// scripts/analysis/finale.py). A join that always agrees is a copy; one that sometimes disagrees
+// has an observation of the world on one side.
+import f from '../../data/finale.json';
+import pai from '../../data/payments-ai.json';
+
+interface Props { sql?: boolean }
+const { sql = false } = Astro.props;
+const NAMES: Record<string, [string, string]> = {
+  'picks-notice': ['Pick confirmations and the shipping notice', 'lines'],
+  'notice-labels': ['The shipping notice and the pallet labels', 'pallets'],
+  'notice-receipts': ['The shipping notice and the goods receipts', 'lines'],
+  'book-ledger': ['Book stock and the records it is summed from', 'item-days'],
+  'lines-payments': ['Till lines and till payments', 'bills'],
+  'payments-provider': ['Approved UPI payments and the provider’s report', 'payments'],
+  'provider-settlements': ['The provider’s report and the settlements', 'days'],
+  'provider-refunds': ['The provider’s report and the refunds', 'refunds'],
+  'book-counts': ['Book stock and stock counts', 'counts'],
+  'book-audits': ['Book stock and shelf audits', 'audits'],
+  'receipts-counts': ['Goods receipts and the next count', 'receipts'],
+  'timeouts-provider': ['Timed-out UPI payments and the provider’s report', 'timeouts'],
+};
+const DOMAIN: Record<string, string> = { truck: 'Truck', shelf: 'Shelf', money: 'Money', 'shelf-money': 'Shelf and money' };
+const SKU: Record<string, string> = { 'ATTA-WW-5KG': '5 kg atta', 'SUGAR-1KG': 'sugar' };
+const day = (ts: string) => `${Number(ts.slice(8, 10))} June`;
+const [other, hero] = [f.audits_disagreeing.filter((a) => a.sku !== 'ATTA-WW-5KG'), f.audits_disagreeing.find((a) => a.sku === 'ATTA-WW-5KG')!];
+const o = pai.matcher.outcomes;
+const NOTE: Record<string, string> = {
+  'book-counts': `most by a few units; on 26 June, ${f.trace.silence.book_at_flag} bags of 5 kg atta that were not there`,
+  'book-audits': `${other.map((a) => `${SKU[a.sku] ?? a.sku} on ${day(a.audit_ts)}`).join(', ')}, and the 5 kg atta shelf at ${hero.audit_ts.slice(11, 16)} on ${day(hero.audit_ts)}, empty with ${hero.book_at_audit} on the books`,
+  'receipts-counts': 'the 22 June line of 5 kg atta did not survive the 26 June count',
+  'timeouts-provider': `${o['late credit']} were credited to the store late, ${o['debited and returned']} debited and returned`,
+};
+const times = (n: number) => (n === 1 ? 'once' : n === 2 ? 'twice' : `${n.toLocaleString('en-IN')} times`);
+const curly = (s: string) => s.replace(/'/g, '’');
+const num = (n: number) => n.toLocaleString('en-IN');
+const groups = [
+  { kind: 'copy', head: 'Always agree: one record is written from the other, or both from one event' },
+  { kind: 'observation', head: 'Sometimes disagree: one side looks at the world' },
+];
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger joins">
+      <caption>{f.joins.length} joins between Store 014’s records in June, and how often each pair agrees</caption>
+      <thead><tr><th scope="col">Records joined</th><th scope="col" class="n">Agree</th><th scope="col" class="bar-h"><span class="visually-hidden">Share that agree</span></th></tr></thead>
+      {groups.map((g) => {
+        const js = f.joins.filter((j) => j.kind === g.kind);
+        return (
+          <tbody>
+            <tr class="group"><th colspan="3" scope="colgroup">{g.head}: {js.length}</th></tr>
+            {js.map((j) => (
+              <tr class={j.kind}>
+                <th scope="row">
+                  <span class="dom">{DOMAIN[j.domain]}</span> {NAMES[j.id][0]}
+                  <span class="how">On {curly(j.how)}{NOTE[j.id] && j.kind === 'copy' ? `: ${NOTE[j.id]}` : ''}.{NOTE[j.id] && j.kind === 'observation' ? ` Disagreed ${times(j.compared - j.agree)}: ${NOTE[j.id]}.` : ''}</span>
+                  {sql && j.sql && <details class="sql"><summary>SQL</summary><code>{j.sql}</code></details>}
+                </th>
+                <td class="n">{num(j.agree)} of {num(j.compared)} <span class="unit">{NAMES[j.id][1]}</span></td>
+                <td class="bar"><span class="track" aria-hidden="true"><span class="agree" style={`width:${(j.share * 100).toFixed(1)}%`}></span></span></td>
+              </tr>
+            ))}
+          </tbody>
+        );
+      })}
+    </table>
+  </div>
+  <figcaption>Each join compares the rows two records have in common. The eight that always agree hold {num(f.summary.rows_compared_in_copies)} rows between them and never disagree, so a data test on any of them can only pass. Each of June’s three failures sits on one of the other four.</figcaption>
+</figure>
+
+<style>
+  .joins tr.group th { font-size: 0.9rem; color: var(--muted); font-weight: 600; padding-top: 1rem; }
+  .joins tbody th[scope='row'] { font-weight: 550; min-width: 15rem; }
+  .joins .dom { display: inline-block; font-size: 0.72rem; font-weight: 600; color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 0 0.3rem; margin-right: 0.2rem; vertical-align: 1px; }
+  .joins .how { display: block; font-weight: 400; font-size: 0.84rem; color: var(--muted); line-height: 1.4; }
+  .joins td.n { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .joins .unit { color: var(--muted); font-size: 0.82rem; }
+  .joins td.bar { width: 7rem; vertical-align: middle; }
+  .joins .track { display: block; height: 0.55rem; border-radius: 2px; background: var(--correction); overflow: hidden; }
+  .joins tr.copy .track { background: var(--c-grid); }
+  .joins .agree { display: block; height: 100%; background: var(--muted); opacity: 0.55; }
+  .joins tr.observation .track { opacity: 0.85; }
+  .joins details.sql { margin-top: 0.25rem; font-size: 0.8rem; font-weight: 400; }
+  .joins details.sql summary { cursor: pointer; color: var(--record); font-family: var(--font-sign); }
+  .joins details.sql code { display: block; margin-top: 0.3rem; font-family: var(--font-record); font-size: 0.72rem; color: var(--muted); white-space: normal; word-break: break-word; }
+  @media (max-width: 540px) { .joins td.bar, .joins th.bar-h { display: none; } .joins tbody th[scope='row'] { min-width: 0; } }
+</style>

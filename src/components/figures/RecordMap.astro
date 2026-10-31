@@ -1,0 +1,240 @@
+---
+// The map: Store 014's records in June, what each looks at in the world, how often each join
+// agrees, and which record each headline KPI reads. Data from finale.json (scripts/analysis/finale.py);
+// the layout is drawn here. Wide screens get the drawing; narrow screens get the same map as lists.
+import f from '../../data/finale.json';
+
+type Pt = { x: number; y: number };
+const R = f.map.records as Record<string, { name: string; domain: string; looks_at: Record<string, string>; written_by: string; sees?: string }>;
+const T = f.map.things as Record<string, string>;
+const J = Object.fromEntries(f.joins.map((j) => [j.id, j]));
+
+// Layout: three domains, two columns each; KPIs on top, the world at the bottom.
+const X = [78, 230, 426, 578, 774, 926];
+const Y = { r1: 116, r2: 204, r3: 300, w: 422 };
+const NW = 68, NH = 21, WH = 18;
+const nodes: Record<string, Pt & { sub: string }> = {
+  labels: { x: X[0], y: Y.r1, sub: 'from the notice' },
+  notice: { x: X[0], y: Y.r2, sub: 'from the picks' },
+  picks: { x: X[0], y: Y.r3, sub: 'a scan of the slot' },
+  receipts: { x: X[1], y: Y.r1, sub: 'label scan vs notice' },
+  corrections: { x: X[1], y: Y.r3, sub: 'a count of a slot' },
+  book: { x: X[2], y: Y.r1, sub: 'a running sum' },
+  lines: { x: X[3], y: Y.r1, sub: 'sees a sale, not a gap' },
+  counts: { x: X[2], y: Y.r3, sub: 'counted by staff' },
+  audits: { x: X[3], y: Y.r3, sub: 'a look at the shelf' },
+  payments: { x: X[4], y: Y.r1, sub: 'answer, or a timeout' },
+  settlements: { x: X[5], y: Y.r1, sub: 'from the provider' },
+  provider: { x: X[4], y: Y.r3, sub: 'UPI’s final status' },
+  complaints: { x: X[5], y: Y.r3, sub: 'a customer calls' },
+};
+const things: Record<string, Pt> = {
+  slot: { x: X[0], y: Y.w }, pallet: { x: X[1], y: Y.w }, backroom: { x: X[2], y: Y.w },
+  shelf: { x: X[3], y: Y.w }, store_account: { x: X[4], y: Y.w }, customer_account: { x: X[5], y: Y.w },
+};
+const THING_LABEL: Record<string, string> = {
+  slot: 'A warehouse slot', pallet: 'What is on a pallet', backroom: 'The backroom', shelf: 'The shelf',
+  store_account: 'The store’s account', customer_account: 'The customer’s account',
+};
+
+/** Where the segment from a box's centre towards p leaves the box. */
+function exit(c: Pt, p: Pt, hw: number, hh: number): Pt {
+  const dx = p.x - c.x, dy = p.y - c.y;
+  const t = Math.min(dx ? hw / Math.abs(dx) : Infinity, dy ? hh / Math.abs(dy) : Infinity);
+  return { x: c.x + dx * t, y: c.y + dy * t };
+}
+function seg(a: Pt, b: Pt, ha: [number, number], hb: [number, number], off = 0) {
+  const A = { x: a.x + off, y: a.y }, B = { x: b.x + off, y: b.y };
+  return { p: exit(A, B, ...ha), q: exit(B, A, ...hb) };
+}
+const N: [number, number] = [NW, NH];
+const W: [number, number] = [NW, WH];
+const label = (id: string) => {
+  const j = J[id];
+  return j.kind === 'copy' ? `all ${j.compared.toLocaleString('en-IN')}` : `${j.agree} of ${j.compared}`;
+};
+// Joins between records: [join id, from, to, x offset, where along the line the label sits].
+const joins: [string, string, string, number, number][] = [
+  ['picks-notice', 'picks', 'notice', 0, 0.5],
+  ['notice-labels', 'notice', 'labels', 0, 0.5],
+  ['notice-receipts', 'notice', 'receipts', 0, 0.5],
+  ['book-ledger', 'receipts', 'book', 0, 0.5],
+  ['lines-payments', 'lines', 'payments', 0, 0.5],
+  ['payments-provider', 'payments', 'provider', -16, 0.3],
+  ['timeouts-provider', 'payments', 'provider', 16, 0.68],
+  ['provider-settlements', 'provider', 'settlements', 0, 0.42],
+  ['book-counts', 'book', 'counts', 0, 0.5],
+  ['book-audits', 'book', 'audits', 0, 0.5],
+  ['receipts-counts', 'receipts', 'counts', 0, 0.5],
+];
+const edges = joins.map(([id, a, b, off, at]) => {
+  const { p, q } = seg(nodes[a], nodes[b], N, N, off);
+  return { id, kind: J[id].kind, p, q, mid: { x: p.x + (q.x - p.x) * at, y: p.y + (q.y - p.y) * at }, text: label(id) };
+});
+// The sales side of the book's running sum: drawn, not labelled (the receipts edge carries the label).
+const sales = seg(nodes.lines, nodes.book, N, N);
+// What each record looks at in the world.
+// Till lines see the shelf only through sales; their line would run through the audits, so the
+// drawing leaves it out and the node's own label says so.
+const looks = Object.entries(R).flatMap(([rid, r]) => nodes[rid] && rid !== 'lines' ? Object.entries(r.looks_at).map(([tid, how]) => {
+  const { p, q } = seg(nodes[rid], things[tid], N, W);
+  return { rid, tid, how, p, q };
+}) : []);
+const kpis = [
+  { at: 'receipts', name: 'OTIF' },
+  { at: 'book', name: 'On-shelf availability' },
+  { at: 'payments', name: 'Payment success' },
+];
+const pillW = (s: string) => s.length * 6.1 + 12;
+const domains = [
+  { name: 'The truck', x: (X[0] + X[1]) / 2 },
+  { name: 'The shelf', x: (X[2] + X[3]) / 2 },
+  { name: 'The money', x: (X[4] + X[5]) / 2 },
+];
+const seps = [(X[1] + NW + X[2] - NW) / 2, (X[3] + NW + X[4] - NW) / 2];
+
+// The narrow version: the same records and joins, as lists by domain.
+const DOMAINS = [
+  { id: 'truck', name: 'The truck', recs: ['picks', 'notice', 'labels', 'corrections'] },
+  { id: 'shelf', name: 'The shelf', recs: ['receipts', 'book', 'lines', 'counts', 'audits'] },
+  { id: 'money', name: 'The money', recs: ['payments', 'provider', 'settlements', 'complaints'] },
+];
+const sees = (rid: string) => {
+  const l = Object.entries(R[rid].looks_at);
+  return l.length ? `Looks at ${l.map(([t, how]) => `${THING_LABEL[t].charAt(0).toLowerCase() + THING_LABEL[t].slice(1)}${how === 'part' ? ', in part' : ''}`).join(' and ')}.` : 'Looks at nothing itself: it is written from other records.';
+};
+const joinsOf = (rid: string) => f.joins.filter((j) => j.a === rid);
+const the = (rid: string) => { const n = nameOf(rid); return `the ${n.charAt(0).toLowerCase()}${n.slice(1)}`; };
+const n0 = (v: number) => v.toLocaleString('en-IN');
+const joinText = (j: (typeof f.joins)[number]) => {
+  const on = j.kind === 'copy' ? `on all ${n0(j.compared)}` : `on ${n0(j.agree)} of ${n0(j.compared)}`;
+  if (j.id === 'book-ledger') return `Is the running sum of receipts, sales, write-offs and counts on all ${n0(j.compared)} item-days.`;
+  if (j.id === 'payments-provider') return `Its approved UPI payments agree with ${the(j.b)} ${on}.`;
+  if (j.id === 'timeouts-provider') return `Its timeouts agree with ${the(j.b)} ${on}.`;
+  if (j.id === 'receipts-counts') return `Survives the next count ${on}.`;
+  return `Agrees with ${the(j.b)} ${on}.`;
+};
+const KPI_OF: Record<string, string> = { receipts: 'OTIF reads it.', book: 'On-shelf availability reads it.', payments: 'Payment success reads it.' };
+const curly = (s: string) => s.replace(/'/g, '’');
+const nameOf = (rid: string) => curly(R[rid]?.name ?? rid);
+---
+<figure class="figure record-map">
+  <div class="map-wide">
+    <svg viewBox="0 0 1000 456" role="img" aria-labelledby="map-title">
+      <title id="map-title">Store 014’s records in June as a map. KPIs read records at the top; records that look at the world sit at the bottom. Grey joins always agree; red joins sometimes disagree. Nothing looks at what is on a pallet.</title>
+      {seps.map((x) => <line class="sep" x1={x} x2={x} y1="8" y2="380" />)}
+      {domains.map((d) => <text class="dom" x={d.x} y="16" text-anchor="middle">{d.name}</text>)}
+      <rect class="world-band" x="0" y="392" width="1000" height="60" rx="6" />
+      <text class="world-label" x="8" y="386">In the world</text>
+
+      {kpis.map((k) => (
+        <g class="kpi">
+          <line class="kpi-link" x1={nodes[k.at].x} x2={nodes[k.at].x} y1="60" y2={nodes[k.at].y - NH} />
+          <rect x={nodes[k.at].x - pillW(k.name) / 2} y="38" width={pillW(k.name)} height="22" rx="11" />
+          <text x={nodes[k.at].x} y="53" text-anchor="middle">{k.name}</text>
+        </g>
+      ))}
+
+      {looks.map((l) => <line class={`look ${l.how}`} x1={l.p.x} y1={l.p.y} x2={l.q.x} y2={l.q.y} />)}
+      <line class="edge copy" x1={sales.p.x} y1={sales.p.y} x2={sales.q.x} y2={sales.q.y} />
+      {edges.map((e) => <line class={`edge ${e.kind}`} x1={e.p.x} y1={e.p.y} x2={e.q.x} y2={e.q.y} />)}
+
+      {Object.entries(nodes).map(([id, n]) => (
+        <g class={`node ${Object.keys(R[id].looks_at).length ? 'obs' : 'copy'}`}>
+          <rect x={n.x - NW} y={n.y - NH} width={NW * 2} height={NH * 2} rx="5" />
+          <text class="nm" x={n.x} y={n.y - 3} text-anchor="middle">{nameOf(id).replace('Provider’s UPI report', 'Provider’s report')}</text>
+          <text class="sub" x={n.x} y={n.y + 12} text-anchor="middle">{n.sub}</text>
+        </g>
+      ))}
+      {Object.entries(things).map(([id, t]) => (
+        <g class={`thing ${id === 'pallet' ? 'unseen' : ''}`}>
+          <rect x={t.x - NW} y={t.y - WH} width={NW * 2} height={WH * 2} rx="4" />
+          <text x={t.x} y={t.y + (id === 'pallet' ? -1 : 4)} text-anchor="middle">{THING_LABEL[id]}</text>
+          {id === 'pallet' && <text class="none" x={t.x} y={t.y + 12} text-anchor="middle">no record looks here</text>}
+        </g>
+      ))}
+      {edges.map((e) => (
+        <g class={`pill ${e.kind}`}>
+          <rect x={e.mid.x - pillW(e.text) / 2} y={e.mid.y - 9} width={pillW(e.text)} height="18" rx="9" />
+          <text x={e.mid.x} y={e.mid.y + 4} text-anchor="middle">{e.text}</text>
+        </g>
+      ))}
+    </svg>
+  </div>
+
+  <div class="map-narrow">
+    {DOMAINS.map((d) => (
+      <section class="map-dom" aria-label={d.name}>
+        <h4>{d.name}</h4>
+        <ul>
+          {d.recs.map((rid) => (
+            <li class={Object.keys(R[rid].looks_at).length ? 'obs' : 'copy'}>
+              <strong>{nameOf(rid)}</strong>{KPI_OF[rid] && <span class="kpi-tag"> {KPI_OF[rid]}</span>}
+              <span class="sees">{sees(rid)}</span>
+              {joinsOf(rid).map((j) => (
+                <span class={`jn ${j.kind}`}>{joinText(j)}</span>
+              ))}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+    <p class="unseen-note">Nothing looks at what is on a pallet.</p>
+  </div>
+
+  <ul class="chart-legend map-legend">
+    <li><span class="key-line copy"></span>Always agree: a copy</li>
+    <li><span class="key-line obs"></span>Sometimes disagree</li>
+    <li><span class="key-line look"></span>Looks at</li>
+    <li><span class="key-line part"></span>Looks at, in part</li>
+  </ul>
+  <figcaption>Store 014’s records in June. The headline KPIs read copies: OTIF the goods receipts, availability the book stock, payment success the till payments. Every join that ever disagreed has, on one side, a record that looks at the world. “All 70” means the two records agree on all 70 rows they share; “4 of 25”, on 4 of 25.</figcaption>
+</figure>
+
+<style>
+  .record-map .map-wide { width: min(62.5rem, calc(100vw - 2rem)); margin-left: calc(50% - min(31.25rem, 50vw - 1rem)); }
+  .record-map svg { display: block; width: 100%; height: auto; font-family: var(--font-sign); }
+  .record-map .sep { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 3 4; }
+  .record-map .dom { font-size: 13px; font-weight: 650; fill: var(--muted); }
+  .record-map .world-band { fill: var(--panel); }
+  .record-map .world-label { font-size: 11px; fill: var(--muted); }
+  .record-map .kpi rect { fill: var(--ink); }
+  .record-map .kpi text { font-size: 11.5px; font-weight: 650; fill: var(--paper); }
+  .record-map .kpi-link { stroke: var(--ink); stroke-width: 1.5; }
+  .record-map .node rect { fill: var(--panel); stroke: var(--rule); stroke-width: 1; }
+  .record-map .node.obs rect { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; }
+  .record-map .node .nm { font-size: 12.5px; font-weight: 650; fill: var(--ink); }
+  .record-map .node .sub { font-size: 10.5px; fill: var(--muted); }
+  .record-map .thing rect { fill: var(--paper); stroke: var(--c-axis); stroke-width: 1; stroke-dasharray: 4 3; }
+  .record-map .thing text { font-size: 11.5px; fill: var(--ink); }
+  .record-map .thing.unseen rect { fill: var(--highlight); stroke: var(--on-highlight); stroke-dasharray: none; }
+  .record-map .thing.unseen text { fill: var(--on-highlight); font-weight: 650; }
+  .record-map .thing .none { font-size: 9.5px; font-weight: 400 !important; }
+  .record-map .edge { stroke-width: 2; }
+  .record-map .edge.copy { stroke: var(--c-axis); }
+  .record-map .edge.observation { stroke: var(--correction); }
+  .record-map .look { stroke: var(--muted); stroke-width: 1.2; stroke-dasharray: 5 3; }
+  .record-map .look.part { stroke-dasharray: 1.5 3; }
+  .record-map .pill rect { fill: var(--paper); stroke: var(--c-axis); stroke-width: 1; }
+  .record-map .pill text { font-size: 10.5px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .record-map .pill.observation rect { stroke: var(--correction); }
+  .record-map .pill.observation text { fill: var(--correction); font-weight: 650; }
+  .map-legend .key-line { display: inline-block; width: 1.4rem; height: 0; border-top: 2px solid var(--c-axis); margin-right: 0.4rem; vertical-align: 3px; }
+  .map-legend .key-line.obs { border-top-color: var(--correction); }
+  .map-legend .key-line.look { border-top: 2px dashed var(--muted); }
+  .map-legend .key-line.part { border-top: 2px dotted var(--muted); }
+  .map-narrow { display: none; }
+  .map-dom h4 { margin: 1rem 0 0.3rem; font-family: var(--font-sign); font-size: 1rem; }
+  .map-dom ul { list-style: none; padding: 0; margin: 0; }
+  .map-dom li { border-left: 3px solid var(--rule); padding: 0.3rem 0 0.4rem 0.7rem; margin: 0 0 0.4rem; font-family: var(--font-sign); font-size: 0.92rem; line-height: 1.4; }
+  .map-dom li.obs { border-left-color: var(--ink); }
+  .map-dom .sees, .map-dom .jn { display: block; color: var(--muted); font-size: 0.86rem; }
+  .map-dom .jn.observation { color: var(--correction); }
+  .map-dom .kpi-tag { font-weight: 600; color: var(--ink); font-size: 0.86rem; }
+  .unseen-note { display: inline-block; background: var(--highlight); color: var(--on-highlight); font-family: var(--font-sign); padding: 0.1rem 0.5rem; margin: 0.4rem 0 0; }
+  @media (max-width: 720px) {
+    .record-map .map-wide { display: none; }
+    .record-map .map-narrow { display: block; }
+    .record-map .map-legend { display: none; }
+  }
+</style>

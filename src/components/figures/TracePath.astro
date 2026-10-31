@@ -1,0 +1,69 @@
+---
+// The trace on Tuesday 23 June at 20:00: a silence at the store, followed through the map to a
+// short slot in the warehouse. One query (finale.json, scripts/analysis/finale.py), scored against
+// the answer key.
+import f from '../../data/finale.json';
+
+const t = f.trace;
+const h = t.hit;
+const s = t.silence;
+const when = (ts: string) => new Date(`${ts.slice(0, 16)}:00+05:30`).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+const hm = (ts: string) => ts.slice(11, 16);
+const name = (sku: string) => (sku === 'ATTA-WW-5KG' ? '5 kg atta' : sku === 'ATTA-WW-1KG' ? '1 kg atta' : sku);
+const minus = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v)}`;
+const hops = [
+  { where: 'Store', when: when(t.at), rec: 'Till lines and book stock',
+    says: `No sale of ${name(h.noticed_sku)} since ${hm(s.start)}; ${s.expected_at_flag} expected; ${s.book_at_flag} on the books`,
+    next: 'The books came from the last receipt' },
+  { where: 'Store', when: when(h.received_ts), rec: `Goods receipt ${h.grn_id}, line ${h.line}`,
+    says: `${h.noticed_units} bags of ${name(h.noticed_sku)} booked by scanning the pallet label against the notice`,
+    next: 'The receipt copied the notice' },
+  { where: 'Warehouse', when: when(h.pick_ts).replace(/,? \d\d:\d\d$/, ''), rec: `Shipping notice ${h.shipment_id}, line ${h.line}`,
+    says: `${h.cases_confirmed} cases of ${name(h.noticed_sku)} on pallet …${h.sscc.slice(-4)}`,
+    next: 'The notice copied the pick' },
+  { where: 'Warehouse', when: when(h.pick_ts), rec: 'Pick confirmation',
+    says: `${h.cases_confirmed} cases from slot ${h.pick_slot}, confirmed by a ${h.confirmed_by}`,
+    next: 'The slot next to it, since the pick' },
+  { where: 'Warehouse', when: when(h.adjusted_ts), rec: `Correction, slot ${h.short_slot}`,
+    says: `${name(h.short_sku)}: ${minus(h.short_cases)} cases (${minus(h.short_units)} packs), “${h.reason}”`,
+    next: null },
+];
+---
+<figure class="figure trace">
+  <ol class="hops">
+    {hops.map((x) => (
+      <li>
+        <p class="hop-meta"><span class="where">{x.where}</span> {x.when}</p>
+        <p class="hop-rec"><strong>{x.rec}</strong></p>
+        <p class="hop-says">{x.says}</p>
+        {x.next && <p class="hop-next">{x.next}</p>}
+      </li>
+    ))}
+  </ol>
+  <p class="trace-answer"><span class="gap">Line {t.names.line} of {t.names.shipment_id} held {name(t.names.sku)}: {Math.abs(t.names.units)} packs.</span> <span class="verdict"><strong class={t.right ? 'ok' : 'no'}>{t.right ? 'Right.' : 'Wrong.'}</strong> Answer key: {t.answer_key.units} packs of {name(t.answer_key.sku)}.</span></p>
+  <figcaption>One query across five records in two buildings, run at {hm(t.at)} on Tuesday 23 June with only what the records held by then. The warehouse’s own corrections pair up {t.hours_before_pair} hours later; the store’s count comes {t.hours_before_count} hours later.</figcaption>
+  <details class="table-view">
+    <summary>Show the query</summary>
+    <pre class="trace-sql"><code>{t.sql}</code></pre>
+  </details>
+</figure>
+
+<style>
+  .trace .hops { list-style: none; margin: 0; padding: 0; counter-reset: hop; }
+  .trace .hops li { position: relative; padding: 0.15rem 0 0.15rem 1.6rem; border-left: 2px solid var(--rule); margin-left: 0.45rem; }
+  .trace .hops li::before { content: ''; position: absolute; left: -0.45rem; top: 0.45rem; width: 0.7rem; height: 0.7rem; border-radius: 50%; background: var(--paper); border: 2px solid var(--record); }
+  .trace .hops li:first-child::before { background: var(--record); }
+  .trace .hops li:last-child { border-left-color: transparent; }
+  .trace .hops li:last-child::before { background: var(--correction); border-color: var(--correction); }
+  .trace p { margin: 0; }
+  .trace .hop-meta { font-family: var(--font-sign); font-size: 0.82rem; color: var(--muted); }
+  .trace .hop-meta .where { font-weight: 650; color: var(--ink); }
+  .trace .hop-rec { font-family: var(--font-sign); font-size: 0.95rem; }
+  .trace .hop-says { font-family: var(--font-record); font-size: 0.86rem; color: var(--record); line-height: 1.45; }
+  .trace .hop-next { font-family: var(--font-sign); font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 0.35rem 0 0.6rem; }
+  .trace .trace-answer { margin: 0.8rem 0 0; font-family: var(--font-sign); font-size: 1.02rem; }
+  .trace .verdict { display: block; font-size: 0.9rem; color: var(--muted); margin-top: 0.2rem; }
+  .trace .verdict .ok { color: var(--ok); }
+  .trace .verdict .no { color: var(--correction); }
+  .trace .trace-sql { margin: 0.4rem 0 0; padding: 0.7rem 0.8rem; background: var(--panel); border-radius: 4px; overflow-x: auto; font-family: var(--font-record); font-size: 0.74rem; line-height: 1.5; color: var(--ink); }
+</style>

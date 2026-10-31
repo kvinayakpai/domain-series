@@ -1,0 +1,83 @@
+---
+// June's three failures on one clock: hours from the harm to the first moment two of the store's
+// records could be joined to show it, against hours until the store found it as it ran.
+// HTML and CSS only, so the tracks stretch with the column and the labels wrap on a phone.
+import f from '../../data/finale.json';
+
+const MAX = 72;
+const at = (h: number) => `${Math.min(100, (h / MAX) * 100).toFixed(2)}%`;
+const hrs = (h: number) => `${h < 10 ? h.toFixed(1).replace(/\.0$/, '') : Math.round(h)} h`;
+const fmt = (ts: string) => new Date(`${ts.slice(0, 16)}:00+05:30`).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+const [shelf, truck, money] = f.incidents;
+const rows = [
+  { i: shelf, harm: `Shelf empty from ${fmt(shelf.harm_start)}`, join: 'till lines against book stock', also: 'a shelf audit saw it', found: shelf.found.by },
+  { i: truck, harm: `Shelf empty from ${fmt(truck.harm_start)}`, join: 'the trace across two buildings', also: 'the warehouse’s corrections pair up', found: truck.found.by },
+  { i: money, harm: 'From each extra debit; medians', join: 'the provider’s next-morning file', also: null, found: `the customer’s complaint; ${money.found.never} never complained` },
+];
+const ticks = [0, 12, 24, 36, 48, 60, 72];
+---
+<figure class="figure ttf">
+  <p class="ttf-head" aria-hidden="true"><span>Hours after the harm began</span></p>
+  <ol class="ttf-rows">
+    {rows.map(({ i, harm, join, also, found }) => (
+      <li class="ttf-row">
+        <p class="ttf-label"><a href={`../${i.post}/`}>{i.title}</a> <span>{i.when}. {harm}.</span></p>
+        <div class="ttf-track" role="img" aria-label={`${i.title}: two records could show it after ${hrs(i.hours_joined)}; the store found it after ${hrs(i.hours_found)}.`}>
+          <span class="ttf-seg" style={`left:${at(i.hours_joined)};width:calc(${at(i.hours_found)} - ${at(i.hours_joined)})`}></span>
+          {also && i.also && <span class="ttf-dot also" style={`left:${at(i.also.hours)}`} title={also}></span>}
+          <span class="ttf-dot join" style={`left:${at(i.hours_joined)}`}></span>
+          <span class="ttf-dot found" style={`left:${at(i.hours_found)}`}></span>
+          <span class="ttf-num join" style={`left:${at(i.hours_joined)}`}>{hrs(i.hours_joined)}</span>
+          <span class="ttf-num found" style={`left:${at(i.hours_found)}`}>{hrs(i.hours_found)}</span>
+        </div>
+        <p class="ttf-how"><span class="k join"></span>Joined: {join}. {also && <><span class="k also"></span>Also: {also}, unjoined. </>}<span class="k found"></span>Found: {found}.</p>
+      </li>
+    ))}
+  </ol>
+  <div class="ttf-axis" aria-hidden="true">
+    {ticks.map((t) => <span style={`left:${at(t)}`}>{t === 72 ? '72 h' : t}</span>)}
+  </div>
+  <figcaption>When each of June’s failures could first be seen by joining two of the store’s own records, against when the store found it as it ran. Hours from the moment the shelf emptied or the customer was debited twice. For the double charges, the median of 26.</figcaption>
+  <details class="table-view">
+    <summary>Show the numbers</summary>
+    <div class="table-wrap">
+      <table>
+        <caption>Hours from the harm to finding it</caption>
+        <thead><tr><th scope="col">Failure</th><th scope="col">Joining two records</th><th scope="col">Another record, unjoined</th><th scope="col">As the store ran</th></tr></thead>
+        <tbody>
+          {rows.map(({ i, join, also, found }) => (
+            <tr><th scope="row">{i.title}, {i.when}</th><td>{hrs(i.hours_joined)}: {join}</td><td>{also && i.also ? `${hrs(i.also.hours)}: ${also}` : '–'}</td><td>{hrs(i.hours_found)}: {found}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </details>
+</figure>
+
+<style>
+  .ttf { --pad: 0.6rem; }
+  .ttf-head { margin: 0 0 0.2rem; font-family: var(--font-sign); font-size: 0.85rem; color: var(--muted); }
+  .ttf-rows { list-style: none; margin: 0; padding: 0; }
+  .ttf-row { border-top: 1px solid var(--rule); padding: 0.7rem 0 0.55rem; }
+  .ttf-label { margin: 0; font-family: var(--font-sign); font-size: 1rem; line-height: 1.3; }
+  .ttf-label a { font-weight: 650; color: var(--ink); }
+  .ttf-label span { color: var(--muted); font-size: 0.88rem; }
+  .ttf-track { position: relative; height: 2.6rem; margin: 0.35rem 0.6rem 0.1rem; }
+  .ttf-track::before { content: ''; position: absolute; left: 0; right: 0; top: 0.95rem; border-top: 1px solid var(--c-grid); }
+  .ttf-seg { position: absolute; top: calc(0.95rem - 1px); height: 3px; background: var(--muted); opacity: 0.35; }
+  .ttf-dot { position: absolute; top: 0.95rem; width: 0.85rem; height: 0.85rem; border-radius: 50%; transform: translate(-50%, -50%); border: 2px solid var(--paper); }
+  .ttf-dot.join { background: var(--ok); }
+  .ttf-dot.found { background: var(--correction); }
+  .ttf-dot.also { background: var(--paper); border: 2px solid var(--muted); width: 0.7rem; height: 0.7rem; }
+  .ttf-num { position: absolute; top: 1.45rem; transform: translateX(-50%); font-family: var(--font-sign); font-size: 0.85rem; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .ttf-num.join { color: var(--ok); transform: translateX(-20%); }
+  .ttf-num.found { color: var(--correction); transform: translateX(-80%); }
+  .ttf-how { margin: 0; font-family: var(--font-sign); font-size: 0.85rem; color: var(--muted); line-height: 1.45; }
+  .ttf-how .k { display: inline-block; width: 0.6rem; height: 0.6rem; border-radius: 50%; margin: 0 0.3rem 0 0; vertical-align: 0; }
+  .ttf-how .k.join { background: var(--ok); }
+  .ttf-how .k.found { background: var(--correction); }
+  .ttf-how .k.also { border: 2px solid var(--muted); width: 0.55rem; height: 0.55rem; }
+  .ttf-axis { position: relative; height: 1.2rem; margin: 0.2rem 0.6rem 0; border-top: 1px solid var(--c-axis); }
+  .ttf-axis span { position: absolute; top: 0.15rem; transform: translateX(-50%); font-family: var(--font-sign); font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .ttf-axis span:last-child { transform: translateX(-80%); }
+</style>

@@ -16,8 +16,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 HERE = ROOT / "scripts" / "decks"
-POSTS = ["retail", "logistics", "payments"]
-GENERATED = ["retail", "logistics", "payments"]
+POSTS = ["retail", "logistics", "payments", "finale"]
+GENERATED = ["retail", "logistics", "payments", "finale"]
+PDF = {"finale": "who-saw-what"}  # PDF name by deck, where it is not the deck's own
 
 
 def run(*args: str) -> None:
@@ -31,7 +32,7 @@ def main() -> None:
     for post in POSTS:
         args = [str(HERE / "render.py"), str(ROOT / "decks" / post / "project")]
         if "--pdf" in sys.argv:
-            args += ["--pdf", str(ROOT / "public" / "media" / f"{post}-slides.pdf")]
+            args += ["--pdf", str(ROOT / "public" / "media" / f"{PDF.get(post, post)}-slides.pdf")]
         run(*args)
 
 
