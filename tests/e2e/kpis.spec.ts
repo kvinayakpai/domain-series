@@ -10,6 +10,7 @@ const retail = read('retail.json');
 const ai = read('retail-ai.json');
 const logistics = read('logistics.json');
 const payments = read('payments.json');
+const pai = read('payments-ai.json');
 
 const pct = (v: number) => `${Math.round(Math.abs(v) * 100)}%`;
 const inr = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
@@ -130,7 +131,8 @@ test('the KPI page x-rays eighteen KPIs, each measured twice', async ({ page }) 
   await twice('fill-rate', `${(lk.case_fill.by_notice * 100).toFixed(1)}%`, `${(lk.case_fill.right_item * 100).toFixed(1)}%`);
   await twice('on-time', `${lk.in_slot} of ${lk.shipments}`, ls.shipment.arrived_ts.slice(11, 16));
   await twice('charged-twice', '0', `${june.charged_twice} customers`);
-  await twice('refund-tat', `${refunds.median_days_to_refund} days`, `${refunds.unrefunded_at_month_end} unrefunded`);
+  const fromComplaint = pai.assistant.questions.find((q: { id: string }) => q.id === 'wait').naive.value;
+  await twice('refund-tat', `${Math.round(fromComplaint)} days`, `${pai.find.refund_median_days_from_debit} days`);
   await twice('technical-declines', `${((june.upi_technical_failures / june.upi_attempts) * 100).toFixed(2)}%`, pct(slow.upi_timeouts / slow.upi_attempts));
 });
 

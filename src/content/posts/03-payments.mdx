@@ -1,7 +1,7 @@
 ---
 title: "Failed, but paid"
 domain: "Payments"
-description: "On a slow Saturday evening, Store 014's tills marked 28 UPI payments as failed and took second payments. For most of those customers, the money had already left their accounts. Fifteen paid twice, and getting it back took a phone call and about five days."
+description: "On a slow Saturday evening, Store 014's tills marked 28 UPI payments as failed and took second payments. Every data test passed, and an AI assistant said nobody had paid twice. Twenty-four customers had. Matching each timed-out payment to the provider's report by amount and time finds all 26 extra charges the next morning, without a single false alarm."
 order: 3
 slug: "payments"
 demoAnchor: "payments"
@@ -19,10 +19,15 @@ import PolicyTable from '../../components/figures/PolicyTable.astro';
 import MdrTable from '../../components/figures/MdrTable.astro';
 import Record from '../../components/figures/Record.astro';
 import Media from '../../components/figures/Media.astro';
+import PaymentsTests from '../../components/figures/PaymentsTests.astro';
+import TimeoutMatch from '../../components/figures/TimeoutMatch.astro';
+import AssistantScore from '../../components/figures/AssistantScore.astro';
 
-Every number in this post comes from the same synthetic world as the [retail](../retail/) and [logistics](../logistics/) posts: one fictional supermarket in Jayanagar, Bengaluru, simulated hour by hour through June 2026, now with every one of its 30,077 June bills paid at the tills by UPI, card or cash. The store, its bank and its customers are invented. The [demo](../demo/#payments) lets you change what the cashier does when a payment hangs and how the back office matches payments, and watch what follows.
+Every number in this post comes from the same synthetic world as the [retail](../retail/) and [logistics](../logistics/) posts: one fictional supermarket in Jayanagar, Bengaluru, simulated hour by hour through June 2026, now with every one of its 30,077 June bills paid at the tills by UPI, card or cash. The store, its bank and its customers are invented. Being synthetic, the world has an answer key: it knows what happened to every customer's money, so every reading of the data below can be scored.
 
-<Media kind="links" post="payments" pages={14} />
+This post makes the argument for data and AI teams. Its [technical companion](./technical/) has the tests in SQL, the matcher that finds the double charges, and a notebook that runs on the payment records. The [demo](../demo/#payments) lets you change what the cashier does when a payment hangs and how the back office matches payments, and watch what follows.
+
+<Media kind="links" post="payments" pages={18} />
 
 ## Saturday, 6:48 in the evening
 
@@ -34,17 +39,17 @@ The till waits 30 seconds, hears nothing back, and shows "Payment failed: no res
 
 ## Five readings of one payment
 
-As in the other posts, nobody here is careless. Each person reads the record in front of them, and each conclusion follows from it.
+As in the other posts, nobody here is careless. Each data product reads the records in front of it, and each conclusion follows from them.
 
-**The cashier** sees a screen that says the payment failed. With twenty people waiting, the cashier takes another payment, as every cashier does. Between 18:20 and 19:50 the tills gave up on 28 UPI payments, and cashiers asked for another payment 30 times.
+**The payments dashboard** shows approvals at the tills: 95.9% of June's UPI attempts. Approvals fell to 69% and 67% of UPI attempts in the 18:00 and 19:00 hours on Saturday 20 June, and were back to normal by eight. Between 18:20 and 19:50 the tills gave up on 28 UPI payments, and cashiers asked for another payment 30 times. The acquiring bank's switch was slow; the incident is closed.
 
-**The payments operations lead** sees a dashboard of approvals at the tills. Approvals fell to 69% and 67% of UPI attempts in the 18:00 and 19:00 hours, and were back to normal by eight. The acquiring bank's switch was slow; the incident is closed, and there is nothing for the stores to do.
+**The data tests** pass, all ten. Every bill has exactly one approved payment, every UPI payment the till approved is a success in the provider's report for the same amount, and the settlements add up.
 
-**The reconciliation analyst** matches the payment provider's UPI credits with the till's approved payments, by amount and time. On Saturday there were 607 credits against 597 approvals, and on Sunday 670 against 663. The 17 credits with no approved payment behind them go into a suspense account until someone claims them.
+**The reconciliation report** matches the provider's UPI credits with the till's approved payments, by reference number. On Saturday there were 607 credits against 597 approvals, and on Sunday 670 against 663. The 17 credits with no approved payment behind them go into a suspense account until someone claims them.
 
-**Customer support** takes 26 complaints about payments in June, 23 of them "I was charged twice". The routine is to ask for a screenshot, check it against the provider's report, and refund. It takes about five days.
+**Customer support** takes 26 complaints about payments in June, 23 of them "I was charged twice", and finance books ₹11,302 of refunds. The routine is to ask for a screenshot, check it against the provider's report, and refund.
 
-**The finance controller** sees UPI settle with no fees at all in June, and ₹11,302 of refunds. Since 15 October, though, the same bills carry a merchant fee on every UPI payment above ₹2,000.
+**An AI assistant, given the till's schema,** is asked at the month-end review whether any customer paid twice in June. No, it says: all 30,077 bills have exactly one approved payment. Asked whether the technical decline rate was acceptable, it says yes: 0.76% of UPI attempts, in line with UPI as a whole.
 
 ## What actually happened
 
@@ -59,6 +64,43 @@ In those 90 minutes Store 014 took 119 bills. Of 82 UPI attempts, the tills gave
 <SlowdownBars />
 
 Across June, 24 customers paid twice, 26 extra charges worth ₹13,366.06; 9 of them outside the Saturday slowdown, on ordinary days when a till gives up on about one UPI payment in a thousand. Six customers were debited for payments that never reached the store, and their banks returned every rupee within three days. The store refunded double payments only when a customer complained. The median wait was 4.9 days, the longest 7.8, and when June closed four extra charges, ₹2,846.06, were still sitting in suspense.
+
+## Why the data could not say so
+
+A till that hears nothing back never learns the payment's reference number, the RRN, so there is nothing to join on. The provider's report has the RRN and a success; the till has a failure and no RRN.
+
+<Record caption="The till's payments for the bill, and the provider's report for the same UPI payment. The till never learned the payment's reference number." lines={[
+  'Till payments, bill B260620-110056',
+  '18:48:25  UPI   failed: no response  ₹1,064.47',
+  '                reference: none',
+  '18:48:55  card  approved             ₹1,064.47',
+  '',
+  "Provider's UPI report",
+  '617118013344  18:48:25  success  ₹1,064.47',
+  '              confirmed 18:49:52',
+]} />
+
+The double charge is in no table. Every record is right about what it saw: the till saw no answer, the provider saw a success, the bill was paid once at the till. Data tests check that records agree, and these agree. The only record of the double charge was in the customer's bank statement.
+
+## What domain knowledge changes in the data work
+
+Each change below uses only the records, and each is scored against the answer key.
+
+**Treat a timeout as a question.** A UPI payment the till gave up on is not a failure until the provider says so. Match each of June's 48 timeouts to the provider row no till payment claims, with the same amount and a start within five seconds, and every one matches: 26 were credited to the store late, 6 were debited and returned by the customer's bank, and 16 never left the customer's account. The answer key agrees on all 48.
+
+<PaymentsTests />
+
+**Then the double charges are a query.** A late credit on a bill the customer paid again is an extra charge. The query finds 26, on 24 customers, ₹13,366.06: the same 26 the answer key has, with no false alarms. Run each morning on the provider's file, it finds them a median 0.6 days after the debit. Complaints found them a median 2 days after, and three customers never complained.
+
+<TimeoutMatch />
+
+**Measure the wait from the debit.** From the complaint, refunds took a median 3 days. From the extra debit, which is when the customer lost the money, they took 4.9, and when June closed four extra charges, ₹2,846.06, were still unrefunded. RBI gives banks five days to return a failed payment to a customer; by that clock, 10 of the 22 refunds were late.
+
+**Read rates by the hour, with timeouts counted.** June's technical decline rate, 0.76%, is in line with UPI as a whole, and it counts no timeouts at all. In the 18:00 and 19:00 hours on 20 June the tills got no answer on 25% and 26% of attempts.
+
+**Give the assistant a domain layer.** Ask the same assistant the same seven questions, now given definitions ("a timeout is a question, not an answer"; "a provider success with no approved till payment is a customer's money"), the provider's UPI report and two views built from them. It answers all seven. Given the till's schema alone, it answered one.
+
+<AssistantScore post="payments" />
 
 ## This is the normal case
 
@@ -98,39 +140,19 @@ The demo lets you try two changes from 1 June, with the same customers, the same
 
 The cheaper fix is in the back office. A payment that carries a reference to what it is for can always be matched to it; one that does not can be matched only by hand, and only when someone complains.
 
-## What the data looks like
+## For data and AI leaders: five questions to ask your team
 
-Nothing in the records says "charged twice". Here is the customer's payment in the till's records and in the provider's report:
+1. Which of our "failed" statuses are answers, and which are only timeouts?
+2. When a key is missing, which other fields can join the records, and who checks the match?
+3. Do we measure customer outcomes, such as paying twice, or only system outcomes, such as approvals?
+4. Do our clocks start when the customer is harmed or when the customer complains?
+5. What does our AI assistant know about how payments settle, and how do we test that?
 
-<Record caption="The till's payments for the bill, and the provider's report for the same UPI payment. The till never learned the payment's reference number." lines={[
-  'Till payments, bill B260620-110056',
-  '18:48:25  UPI   failed: no response  ₹1,064.47',
-  '                reference: none',
-  '18:48:55  card  approved             ₹1,064.47',
-  '',
-  "Provider's UPI report",
-  '617118013344  18:48:25  success  ₹1,064.47',
-  '              confirmed 18:49:52',
-]} />
+## Go deeper
 
-A till that hears nothing back never learns the payment's reference number, the RRN, so there is nothing to join on. The provider's report has the RRN and a success; the till has a failure and no RRN. The double charge appears only when you match the provider's successes to the till's approvals, find a credit with no approval behind it, and then find the bill by amount and time. Every table is right on its own. Knowing that a "failed" UPI payment is a question, not an answer, is the domain knowledge.
-
-## How to learn this domain
-
-A rough plan for a few evenings a week over about two months:
-
-1. **How UPI moves money.** Learn the parties in a payment: the customer's app and its bank, NPCI's switch, the customer's bank that debits, the merchant's bank that credits, and the provider that serves the merchant. Then read NPCI's circulars on how a payment that times out is settled afterwards, starting with its 2017 note on debit reversals and deemed approval.
-2. **Cards, for contrast.** Read Glenbrook's *Payments Systems in the U.S.* for authorisation, clearing and settlement in the card networks and the four-party model. India's systems differ in detail, and the vocabulary is the same.
-3. **When payments fail.** Read RBI's 2019 circular on turnaround times and compensation for failed transactions, and NPCI's 2025 circulars on status checks and response times. Note which party owes what, and by when.
-4. **Reconciliation.** Learn the keys that join payment records: the RRN, the merchant's own transaction reference, settlement dates. Practise finding credits with no sale behind them and sales with no credit.
-5. **Practice.** [Download June's payment records](../data/#payments-records) and find every customer who paid twice before opening the answer key.
-
-## Try it
-
-- Open the [demo](../demo/#payments) as the reconciliation analyst, then put the bill ID on every UPI request and watch the suspense balance disappear.
-- Switch the till to wait for the status check, and compare the till time with the double charges.
-- Open "What actually happened" and read the list of extra charges, with when each one came back.
-- Download the records and find the customer from 6:48 on Saturday evening without opening the answer key.
+- The [technical companion](./technical/): the tests in SQL, the matcher, the extra charges scored against the answer key, every query the assistant ran, and a notebook on the payment records.
+- The [demo](../demo/#payments): match the timeouts and watch the suspense account turn into a list of customers; put the bill ID on every UPI request, or make the till wait for the status check, and compare.
+- The [records](../data/#payments-records): June's till payments, the provider's UPI report, settlements, refunds and complaints. Find the customer from 6:48 on Saturday evening before you open the answer key.
 
 <Media kind="walkthrough" post="payments" />
 
@@ -145,4 +167,3 @@ A rough plan for a few evenings a week over about two months:
 - Outlook Money (2 October 2026), [UPI processes 24.07 billion transactions worth ₹29.37 lakh crore in September](https://www.outlookmoney.com/banking/upi-processes-2407-billion-transactions-worth-rs-2937-lakh-crore-in-september)
 - Deccan Chronicle (15 September 2026), [UPI transactions above ₹2,000 to attract 0.4% MDR](https://www.deccanchronicle.com/business/npci-announces-04-merchant-charge-on-upi-payments-above-2000-1987634)
 - Business Standard (16 September 2026), [UPI fee: why government is putting a price on big merchant payments](https://www.business-standard.com/amp/finance/news/upi-fee-why-government-is-putting-a-price-on-big-merchant-payments-126091600484_1.html)
-- Carol Coye Benson, Scott Loftesness and Russ Jones, [Payments Systems in the U.S.](https://glenbrook.com/product/payments-systems-in-the-us-a-guide-for-the-payments-professionals/), 3rd edition, Glenbrook Press

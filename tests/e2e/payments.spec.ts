@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 // The payments post and demo quote the world. Every number checked here must still match it.
 const data = JSON.parse(readFileSync(new URL('../../src/data/payments.json', import.meta.url), 'utf8'));
+const pai = JSON.parse(readFileSync(new URL('../../src/data/payments-ai.json', import.meta.url), 'utf8'));
 type Scn = (typeof data.scenarios)[number];
 const scenario = (key: string): Scn => data.scenarios.find((s: Scn) => s.key === key);
 const asIs = scenario('retry|manual');
@@ -58,6 +59,28 @@ test('the payments post quotes the world correctly', async ({ page }) => {
     sc.rrn, sc.bill_id,
   ];
   for (const e of expected) expect(text, e).toContain(e);
+  const m = pai.matcher;
+  const f = pai.find;
+  const wait = pai.assistant.questions.find((x: { id: string }) => x.id === 'wait');
+  const bursts = pai.hours.bursts.map((b: { share: number }) => pct(b.share));
+  const dataAi = [
+    'The data tests pass, all ten',
+    `Match each of June's ${m.timeouts} timeouts`,
+    `every one matches: ${m.outcomes['late credit']} were credited to the store late, ${m.outcomes['debited and returned']} were debited and returned by the customer's bank, and ${m.outcomes['never debited']} never left the customer's account`,
+    `The query finds ${m.extra_charges}, on ${m.customers} customers, ${inr2(m.extra_inr)}`,
+    `it finds them a median ${f.matcher_median_days} days after the debit. Complaints found them a median ${Math.round(f.complaint_median_days)} days after, and three customers never complained`,
+    `From the complaint, refunds took a median ${Math.round(wait.naive.value)} days. From the extra debit, which is when the customer lost the money, they took ${f.refund_median_days_from_debit}`,
+    `by that clock, ${f.over_tat} of the ${m.extra_charges - f.not_refunded} refunds were late`,
+    `In the 18:00 and 19:00 hours on 20 June the tills got no answer on ${bursts[0]} and ${bursts[1]} of attempts`,
+    "It answers all seven. Given the till's schema alone, it answered one.",
+    `all ${june.bills.toLocaleString('en-IN')} bills have exactly one approved payment`,
+  ];
+  for (const e of dataAi) expect(text.replace(/[’‘]/g, "'"), e).toContain(e);
+  expect([m.true_positives, m.false_positives, m.missed, m.outcomes_right]).toEqual([m.answer_key.extra_charges, 0, 0, m.timeouts]);
+  expect(f.never_complained).toBe(3);
+  expect(f.not_refunded).toBe(ref.unrefunded_at_month_end);
+  expect(pai.assistant.score).toEqual({ naive: 1, domain: 7, of: 7 });
+  expect(pai.hours.bursts.map((b: { hour: string }) => b.hour)).toEqual(['2026-06-20T18:00', '2026-06-20T19:00']);
   // "about a third": the share of slowdown attempts the tills gave up on.
   expect(slow.upi_timeouts / slow.upi_attempts).toBeGreaterThan(0.3);
   expect(slow.upi_timeouts / slow.upi_attempts).toBeLessThan(0.37);
@@ -81,6 +104,9 @@ test('the payments post renders its figures without JavaScript', async ({ browse
   await expect(page.locator('table.docs')).toContainText(st.scene.rrn);
   await expect(page.locator('table.pay-ways')).toContainText(pct(slow.four_ways.charged_once));
   await expect(page.locator('table.policy-table tbody tr')).toHaveCount(4);
+  await expect(page.locator('table.tests tbody tr:not(.group)')).toHaveCount(pai.tests.generic.length + pai.tests.domain.length);
+  await expect(page.locator('table.match').first()).toContainText(String(pai.matcher.outcomes['late credit']));
+  await expect(page.locator('table.assistant tbody tr')).toHaveCount(pai.assistant.questions.length);
   await ctx.close();
 });
 
@@ -89,30 +115,82 @@ test('payments outcome numbers come from the world, and the controls change them
   const outcome = root.locator('[data-outcome]');
   await expect(outcome).toContainText(String(asIs.kpis.june.charged_twice));
   await expect(outcome).toContainText(String(asIs.kpis.refunds.median_days_to_refund));
-  await expect(outcome).toContainText(`${Math.round(asIs.kpis.slowdown.till_minutes)} min`);
 
   await root.getByRole('radio', { name: 'Wait for the status check' }).check();
   await expect(outcome).toContainText(String(check.kpis.june.charged_twice));
-  await expect(outcome).toContainText(`${Math.round(check.kpis.slowdown.till_minutes)} min`);
+  await expect(outcome).toContainText(`till time ${Math.round(check.kpis.slowdown.till_minutes - asIs.kpis.slowdown.till_minutes)} minutes longer`);
 
   await root.getByRole('radio', { name: 'As today: ask for another payment' }).check();
   await root.getByRole('radio', { name: 'Put the bill ID on every UPI request' }).check();
   await expect(outcome).toContainText(String(billRef.kpis.refunds.median_days_to_refund));
+
+  // The data team's levers.
+  await expect(outcome).toContainText(`${pai.matcher.late_credits} credits wait in suspense`);
+  await root.getByRole('radio', { name: 'Matched to the provider’s report' }).check();
+  await expect(outcome).toContainText(`on ${pai.matcher.customers} customers`);
+  const sc = pai.assistant.score;
+  await expect(outcome).toContainText(`${sc.naive} of ${sc.of}`);
+  await root.getByRole('radio', { name: 'The schema and a domain layer' }).check();
+  await expect(outcome).toContainText(`${sc.domain} of ${sc.of}`);
   expect(errors).toEqual([]);
 });
 
-test('every payments persona renders, and the tabs work from the keyboard', async ({ page }) => {
+test('every payments view renders, and the tabs work from the keyboard', async ({ page }) => {
   const { errors, root } = await open(page);
-  for (const t of ['cashier', 'ops', 'recon', 'support', 'finance', 'truth']) {
+  for (const t of ['ops', 'tests', 'recon', 'assistant', 'store', 'truth']) {
     await root.locator(`[data-persona="${t}"]`).click();
     await expect(root.locator(`[data-persona="${t}"]`)).toHaveAttribute('aria-selected', 'true');
-    await expect(root.locator('[data-panel] .record, [data-panel] .story').first()).toBeVisible();
+    await expect(root.locator('[data-panel] .record, [data-panel] .story, [data-panel] table, [data-panel] .run').first()).toBeVisible();
   }
-  await root.locator('[data-persona="cashier"]').click();
-  await root.locator('[data-persona="cashier"]').press('ArrowRight');
-  await expect(root.locator('[data-persona="ops"]')).toHaveAttribute('aria-selected', 'true');
-  await expect(root.locator('[data-persona="ops"]')).toBeFocused();
+  await root.locator('[data-persona="ops"]').click();
+  await root.locator('[data-persona="ops"]').press('ArrowRight');
+  await expect(root.locator('[data-persona="tests"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(root.locator('[data-persona="tests"]')).toBeFocused();
   expect(errors).toEqual([]);
+});
+
+test('the reconciliation view holds the credits in suspense, then matches them to customers', async ({ page }) => {
+  const { root } = await open(page, '?py=recon');
+  const panel = root.locator('[data-panel]');
+  await expect(panel).toContainText('Credits held in suspense in June');
+  await root.getByRole('radio', { name: 'Matched to the provider’s report' }).check();
+  const m = pai.matcher;
+  await expect(panel).toContainText(`${m.matched} of ${m.timeouts}`);
+  await expect(panel.locator('table tbody tr')).toHaveCount(m.extra_charges);
+  await expect(panel).toContainText(`${m.true_positives} found, ${m.false_positives} false alarms`);
+  // Scored: the matcher's extra charges are the answer key's.
+  const key = JSON.parse(readFileSync(new URL('../../public/data/india-grocery/answer-key-payments.json', import.meta.url), 'utf8'));
+  const found = pai.find.per_charge.map((x: { rrn: string }) => x.rrn).sort();
+  expect(found).toEqual(key.charged_twice.map((c: { rrn: string }) => c.rrn).sort());
+});
+
+test('the payments assistant answers each question from its plan', async ({ page }) => {
+  const { root } = await open(page, '?py=assistant');
+  const q = pai.assistant.questions.find((x: { id: string }) => x.id === 'twice');
+  await expect(root.locator('.run')).toContainText(q.naive.answer);
+  await root.getByRole('radio', { name: 'The schema and a domain layer' }).check();
+  for (const item of pai.assistant.questions) {
+    await root.locator(`[data-q="${item.id}"]`).click();
+    await expect(root.locator('.run')).toContainText(item.domain.answer);
+    await expect(root.locator('.run code.sql')).toHaveCount(item.domain.plan.length);
+  }
+});
+
+test('the payments companion quotes the analysis and links its notebook', async ({ page, request }) => {
+  await page.goto('payments/technical/');
+  const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ');
+  const m = pai.matcher;
+  const f = pai.find;
+  for (const e of [
+    `All ${m.timeouts} of June's timeouts have a blank reference`,
+    `${m.outcomes['late credit']} late credits, ${m.outcomes['debited and returned']} debited and returned, ${m.outcomes['never debited']} never debited`,
+    `It returns ${m.extra_charges} rows on ${m.customers} bills`,
+    `${m.true_positives} right, ${m.false_positives} false alarms, ${m.missed} missed`,
+    `the median wait is ${f.refund_median_days_from_debit} days, ${f.not_refunded} extra charges were still unrefunded, and ${f.over_tat} of the refunds`,
+  ]) expect(text.replace(/[’‘]/g, "'"), e).toContain(e);
+  await expect(page.locator('figure.plan')).toHaveCount(2);
+  await expect(page.locator('a[href="https://colab.research.google.com/github/kvinayakpai/domain-series/blob/main/public/notebooks/payments.ipynb"]')).toHaveCount(1);
+  expect((await request.get('notebooks/payments.ipynb')).status()).toBe(200);
 });
 
 test('what actually happened shows payment success four ways and every extra charge', async ({ page }) => {

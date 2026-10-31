@@ -1,4 +1,4 @@
-"""Build the payments deck (Slides artifact data files) from the blog's payments.json."""
+"""Build the payments deck (Slides artifact data files) from the blog's payments.json and payments-ai.json."""
 import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -7,6 +7,11 @@ ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "decks" / "payments" / "project"
 (OUT / "slides").mkdir(parents=True, exist_ok=True)
 d = json.loads((ROOT / "src" / "data" / "payments.json").read_text())
+ai = json.loads((ROOT / "src" / "data" / "payments-ai.json").read_text())
+M, F, SC = ai["matcher"], ai["find"], ai["assistant"]["score"]
+Q = {q["id"]: q for q in ai["assistant"]["questions"]}
+GREEN = "#1a9e70"
+WORDS = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 7: "seven", 10: "ten"}
 S = {s["key"]: s for s in d["scenarios"]}
 A, CHK, BREF = S["retry|manual"], S["check|manual"], S["retry|bill_ref"]
 st = d["story"]
@@ -103,7 +108,7 @@ slides["scene"] = section("scene", "\n".join([
     f'<p style="{SIGN};font-size:32px;font-weight:500;color:#a3adb8">{datetime.fromisoformat(upi["ts"]).strftime("%A %-d %B, %-I:%M %p").replace("AM", "am").replace("PM", "pm")}. Store 014, Jayanagar.</p>',
     f'<h2 style="{SIGN};font-size:72px;font-weight:700;line-height:1.1;color:#e6eaee">The till said the payment failed. Her bank had already taken the money.</h2>',
     '<div style="background:#222c37;border-left:6px solid #8db0f0;padding:32px 40px;width:1200px">',
-    f'<p style="{MONO};font-size:32px;line-height:1.5;color:#8db0f0">{hms(upi["ts"])}  UPI   {inr_in(sc["amount_inr"], True)}  failed: no response<br>{hms(second["ts"])}  {second["tender"]}  {inr_in(sc["amount_inr"], True)}  approved</p>',
+    f'<p style="{MONO};font-size:32px;line-height:1.5;white-space:pre;color:#8db0f0">{hms(upi["ts"])}  UPI   {inr_in(sc["amount_inr"], True)}  failed: no response<br>{hms(second["ts"])}  {second["tender"]}  {inr_in(sc["amount_inr"], True)}  approved</p>',
     '</div>',
     f'<p style="font-size:32px;line-height:1.45;color:#e6eaee;width:1400px">{late_s} seconds after she approved the UPI payment, the store was credited. Nobody at the till saw it. She had paid twice.</p>',
 ]), f"Saturday evening, the rush. A customer’s basket comes to {inr_in(sc['amount_inr'], True)}. She scans the QR code at the till and approves the payment on her phone, and her bank takes the money. The till waits thirty seconds, hears nothing back, and shows payment failed, no response. The cashier asks for another way to pay; she pays by card and leaves. {late_s} seconds after she approved the UPI payment, the store’s bank confirms the credit. Nobody at the till sees it. She has paid twice, and it takes a phone call and eight days to get the money back.",
@@ -114,20 +119,24 @@ d21 = next(x for x in A["daily"] if x["date"] == "2026-06-21")
 hours = {h["hour"]: h for h in st["slowdown_day_by_hour"]}
 twice = sum(1 for c in A["complaints"] if c["kind"] == "charged twice")
 refunds = sum(f["amount_inr"] for f in A["refunds"])
+gen, dom = ai["tests"]["generic"], ai["tests"]["domain"]
+passed = sum(t["pass"] for t in gen)
+a18, a19 = (pct(hours[h]["approved_at_till"] / hours[h]["upi_attempts"]) for h in (18, 19))
+suspense = d20["unmatched"] + d21["unmatched"]
 rows = [
-    ("Cashier", f"“Failed: no response” {slow['upi_timeouts']} times in 90 minutes; another payment taken {slow['second_payments']} times", "“Take another payment.”"),
-    ("Payments operations", f"Approvals at {pct(hours[18]['approved_at_till'] / hours[18]['upi_attempts'])} and {pct(hours[19]['approved_at_till'] / hours[19]['upi_attempts'])} for two hours, normal by eight", "“Incident closed.”"),
-    ("Reconciliation analyst", f"{d20['unmatched'] + d21['unmatched']} UPI credits with no approved payment at the till", "“Park them in suspense.”"),
-    ("Customer support", f"{len(A['complaints'])} complaints in June, {twice} of them “charged twice”", "“Send a screenshot; five days.”"),
-    ("Finance controller", f"UPI fees of ₹0 in June; {inr_in(refunds)} of refunds", "“UPI is free; refunds are small.”"),
+    ("Payments dashboard", f"Approvals at the tills {pct1(june['four_ways']['till'])} for June; {a18} and {a19} in the 18:00 and 19:00 hours on 20 June, normal by eight", "“Incident closed.”"),
+    ("Data tests", f"{passed} of {len(gen)} pass: one approved payment per bill, every approval a success at the provider, settlements add up", "“The pipeline is green.”"),
+    ("Reconciliation report", f"{d20['provider_credits']} credits against {d20['till_approved']} approvals on Saturday, {d21['provider_credits']} against {d21['till_approved']} on Sunday", f"“Park the {suspense} in suspense.”"),
+    ("Customer support", f"{len(A['complaints'])} payment complaints in June, {twice} of them “charged twice”; {inr_in(refunds)} of refunds", "“Screenshot, check, refund.”"),
+    ("AI assistant, given the till’s schema", f"All {june['bills']:,} bills have exactly one approved payment", "“Nobody paid twice.”"),
 ]
 table = [f'<table style="font-size:28px;color:{INK}">',
-         f'<tr><th style="width:24%;text-align:left;font-weight:600;color:{MUTED}">Who</th><th style="width:46%;text-align:left;font-weight:600;color:{MUTED}">What they see</th><th style="width:30%;text-align:left;font-weight:600;color:{MUTED}">What they conclude</th></tr>']
+         f'<tr><th style="width:24%;text-align:left;font-weight:600;color:{MUTED}">Data product</th><th style="width:48%;text-align:left;font-weight:600;color:{MUTED}">What it reads</th><th style="width:28%;text-align:left;font-weight:600;color:{MUTED}">What it concludes</th></tr>']
 table += [f'<tr><td>{a}</td><td>{b}</td><td>{c}</td></tr>' for a, b, c in rows]
 table.append('</table>')
-slides["readings"] = section("readings", "\n".join([h2("Five readings of one evening"), *table,
-    foot("Each conclusion follows from the record in front of that person. None of them sees a customer charged twice.")]),
-    f"Nobody here is careless. The cashier sees a screen that says failed and takes another payment, as every cashier does: {slow['second_payments']} times in ninety minutes. Payments operations sees approvals fall to {pct(hours[18]['approved_at_till'] / hours[18]['upi_attempts'])} and {pct(hours[19]['approved_at_till'] / hours[19]['upi_attempts'])} for two hours and recover, and closes the incident. The reconciliation analyst finds {d20['unmatched'] + d21['unmatched']} UPI credits with no approved payment behind them and parks them in suspense. Customer support takes {twice} calls from people charged twice and asks for screenshots. Finance sees UPI settle with no fees and small refunds.",
+slides["readings"] = section("readings", "\n".join([h2("Five readings of one payment"), *table,
+    foot("Each conclusion follows from the records in front of it. None of them sees a customer charged twice.")]),
+    f"As in the other posts, nobody here is careless, and each data product reads the records in front of it. The payments dashboard shows approvals at the tills: {pct1(june['four_ways']['till'])} of June’s UPI attempts, falling to {a18} and {a19} in the 18:00 and 19:00 hours on Saturday 20 June and back to normal by eight, so the incident is closed. The data tests pass, all {WORDS[len(gen)]}: every bill has exactly one approved payment, every UPI payment the till approved is a success in the provider’s report, and the settlements add up. The reconciliation report matches the provider’s credits to the till’s approvals by reference number, and parks the {suspense} credits with no approval behind them in suspense. Customer support takes {twice} calls from people charged twice and asks for screenshots. And an AI assistant, given the till’s schema, says nobody paid twice: all {june['bills']:,} bills have exactly one approved payment.",
     gap=40)
 
 boxes = [("Her app", "sends the payment"), ("NPCI", "routes it"), ("Her bank", "debits her account"), ("Store’s bank", "slow to answer"), ("The till", "gives up at 30 s")]
@@ -280,49 +289,149 @@ slides["data"] = section("data", "\n".join([
     h2("Nothing in the records says “charged twice”"),
     '<div style="display:grid;grid-template-columns:1.15fr 1fr;gap:72px;align-items:start">',
     f'<div style="background:{PANEL};border-left:6px solid {RECORD};padding:24px 32px;display:flex;flex-direction:column;gap:20px">',
-    f'<p style="{MONO};font-size:26px;line-height:1.5;color:{RECORD}">Till, bill {sc["bill_id"]}<br>{hms(upi["ts"])}  UPI   failed: no response<br>          reference: none<br>{hms(second["ts"])}  card  approved</p>',
-    f'<p style="{MONO};font-size:26px;line-height:1.5;color:{RECORD}">Provider’s UPI report<br>{sc["rrn"]}  {hms(upi["ts"])}<br>success, confirmed {hms(sc["credited_ts"])}</p>',
+    f'<p style="{MONO};font-size:26px;line-height:1.5;white-space:pre;color:{RECORD}">Till, bill {sc["bill_id"]}<br>{hms(upi["ts"])}  UPI   failed: no response<br>          reference: none<br>{hms(second["ts"])}  card  approved</p>',
+    f'<p style="{MONO};font-size:26px;line-height:1.5;white-space:pre;color:{RECORD}">Provider’s UPI report<br>{sc["rrn"]}  {hms(upi["ts"])}<br>success, confirmed {hms(sc["credited_ts"])}</p>',
     '</div>',
     '<div style="display:flex;flex-direction:column;gap:28px">',
-    '<p style="font-size:32px;line-height:1.45">A till that hears nothing back never learns the payment’s reference number, so there is nothing to join on.</p>',
-    '<p style="font-size:32px;line-height:1.45">The double charge appears only when you match the provider’s successes to the till’s approvals, find a credit with no approval, and find its bill by amount and time.</p>',
+    '<p style="font-size:32px;line-height:1.45">A till that hears nothing back never learns the payment’s reference number, the RRN, so there is nothing to join on.</p>',
+    '<p style="font-size:32px;line-height:1.45">Data tests check that records agree, and these agree. The only record of the double charge was in the customer’s bank statement.</p>',
     '</div>', '</div>',
     foot("Identifiers in the data are synthetic. Download June’s till payments and the provider’s report to try the match."),
-]), "If you work with payments data, slow down here. The till recorded the UPI attempt as failed, with no reference number, because it never heard back. The provider’s report has the reference number and a success. There is nothing to join on. The double charge appears only when you match the provider’s successes to the till’s approvals, find a credit with no approval behind it, and then find its bill by amount and time. Every table is right on its own. Knowing that a failed UPI payment is a question, not an answer, is the domain knowledge.",
+]), "If you work with payments data, slow down here. The till recorded the UPI attempt as failed, with no reference number, because it never heard back. The provider’s report has the reference number and a success. There is nothing to join on. Every record is right about what it saw: the till saw no answer, the provider saw a success, and the bill was paid once at the till. Data tests check that records agree, and these agree. The only record of the double charge was in the customer’s bank statement.",
     gap=48)
 
-learn = [
-    ("How UPI moves money", "The parties in a payment: app, NPCI, the customer’s bank, the merchant’s bank, the provider. Then NPCI’s 2017 circular on deemed approval."),
-    ("Cards, for contrast", "Glenbrook, <i>Payments Systems in the U.S.</i>: authorisation, clearing, settlement and the four-party model."),
-    ("When payments fail", "RBI’s 2019 circular on turnaround times and compensation; NPCI’s 2025 circulars on status checks and response times."),
-    ("Reconciliation", "The keys that join payment records: RRN, the merchant’s reference, settlement dates. Credits with no sale; sales with no credit."),
-    ("Practice", "Download June’s payment records and find every customer who paid twice."),
+dom_short = [
+    ("Every success in the provider’s report has an approved till payment", f"{len(dom[0]['failing'])} credits"),
+    ("Every UPI attempt joins the provider’s status by RRN", f"{len(dom[1]['failing'])} timeouts"),
+    ("No bill is paid twice, once timeouts are matched", f"{M['customers']} bills"),
+    ("Every extra charge comes back within five days of the debit", f"{F['over_tat'] + F['not_refunded']} charges"),
+    ("No hour has a burst of timeouts", f"{len(dom[4]['failing'])} hours"),
 ]
-slides["learn"] = section("learn", "\n".join([
-    h2("How to learn this domain"),
-    '<div style="display:flex;flex-direction:column;gap:22px">',
-    *[f'<div style="display:grid;grid-template-columns:340px 1fr;gap:40px;border-top:2px solid #d5d9d4;padding:20px 0 0 0"><p style="{SIGN};font-size:32px;font-weight:600">{a}</p><p style="font-size:28px;line-height:1.4">{b}</p></div>' for a, b in learn],
+slides["tests"] = section("tests", "\n".join([
+    h2("The pipeline is green"),
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start">',
+    f'<div style="display:flex;flex-direction:column;gap:16px;border-top:6px solid {GREEN};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1;color:{GREEN}">{passed} of {len(gen)}</p><p style="{SIGN};font-size:32px;font-weight:600">data tests pass</p><p style="font-size:28px;line-height:1.4">Keys, statuses and reconciliations across the till, the provider’s report, settlements, refunds and complaints. They agree, because each records only what it saw.</p></div>',
+    f'<div style="display:flex;flex-direction:column;gap:16px;border-top:6px solid {RED};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1;color:{RED}">0 of {len(dom)}</p><p style="{SIGN};font-size:32px;font-weight:600">tests about how UPI works pass</p>'
+    + '<ul style="font-size:26px;line-height:1.4">' + "".join(f'<li>{x} <span style="color:{MUTED}">(fails on {n})</span></li>' for x, n in dom_short) + '</ul></div>',
     '</div>',
-    foot("A rough plan for a few evenings a week over about two months. Links in the post: kvinayakpai.github.io/domain-series/payments"),
-]), "A rough plan for a few evenings a week over about two months. Learn the parties in a UPI payment and read NPCI’s circular on how a payment that times out is settled afterwards. Read Glenbrook’s Payments Systems in the U.S. for the card side. Read RBI’s 2019 circular on failed transactions and NPCI’s 2025 circulars on status checks. Learn the keys that join payment records. Then practise on Store 014’s June payment records.",
-    gap=44)
+    foot(f"All {len(gen) + len(dom)} tests use only the records. The five days are what RBI allows for a failed payment to a merchant, used as the store’s own clock."),
+]), f"The first thing a data team would do is test the data, and the payment records pass: all {WORDS[len(gen)]} tests a dbt project ships on day one, keys, statuses and reconciliations across the till, the provider’s report, the settlements, the refunds and the complaints. They agree with each other, because each records only what it saw. Five tests that encode how UPI works all fail on the same records. {len(dom[0]['failing'])} successes in the provider’s report have no approved till payment behind them. {len(dom[1]['failing'])} timeouts cannot join the provider’s status, because a till that hears nothing back never learns the reference number. {M['customers']} bills were paid twice, once the timeouts are matched. {F['over_tat'] + F['not_refunded']} extra charges did not come back within five days of the debit. And two hours on Saturday evening had a burst of timeouts that the month’s rate hides.",
+    gap=48)
+
+O = M["outcomes"]
+fates = [(O["late credit"], "credited to the store late", "an extra charge whenever the bill was paid again", RED),
+         (O["debited and returned"], "debited, then returned", "by the customer’s bank, within days", INK),
+         (O["never debited"], "never left the account", "the only true failures", INK)]
+fcells = [f'<div style="display:flex;flex-direction:column;gap:8px;border-top:4px solid {c};padding:20px 0 0 0"><p style="{SIGN};font-size:96px;font-weight:700;line-height:1;color:{c}">{n}</p><p style="{SIGN};font-size:30px;font-weight:600">{a}</p><p style="font-size:26px;line-height:1.35;color:{MUTED}">{b}</p></div>' for n, a, b, c in fates]
+pc = next(x for x in F["per_charge"] if x["rrn"] == sc["rrn"])
+alarms = "no" if M["false_positives"] == 0 else WORDS.get(M["false_positives"], str(M["false_positives"]))
+slides["match"] = section("match", "\n".join([
+    h2("Treat a timeout as a question"),
+    f'<p style="font-size:32px;line-height:1.4;width:1550px">Match each of June’s {M["timeouts"]} timeouts to the provider row no till payment claims, with the same amount and a start within five seconds. All {M["matched"]} match:</p>',
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:56px">', *fcells, '</div>',
+    f'<div style="background:{PANEL};border-left:6px solid {GREEN};padding:24px 32px;display:flex;flex-direction:column;gap:12px">',
+    f'<p style="{SIGN};font-size:30px;font-weight:600">Then the double charges are a query: late credits on bills paid again</p>',
+    f'<p style="font-size:28px;line-height:1.4">{M["extra_charges"]} extra charges on {M["customers"]} customers, {inr_in(M["extra_inr"], True)}: the answer key’s {M["answer_key"]["extra_charges"]}, with {alarms} false alarms. Run each morning on the provider’s file, it finds them a median {F["matcher_median_days"]} days after the debit, against {round(F["complaint_median_days"])} for complaints, and {WORDS[F["never_complained"]]} customers never complained.</p>',
+    f'<p style="{MONO};font-size:24px;color:{RECORD}">{hms(upi["ts"])} timeout {inr_in(sc["amount_inr"], True)} → {sc["rrn"]} success {hms(sc["credited_ts"])} → bill {sc["bill_id"]} paid again by {second["tender"]}</p>',
+    '</div>',
+]), f"Here is the change that finds them. A UPI payment the till gave up on is not a failure until the provider says so. Match each of June’s {M['timeouts']} timeouts to the provider row that no till payment claims, with the same amount and a start within five seconds, one to one, and every one matches: {O['late credit']} were credited to the store late, {O['debited and returned']} were debited and returned by the customer’s bank, and {O['never debited']} never left the customer’s account. The answer key agrees on all {M['outcomes_right']}. Then the double charges are a query: a late credit on a bill the customer paid again is an extra charge. It finds {M['extra_charges']}, on {M['customers']} customers, {inr_in(M['extra_inr'], True)}, the same {M['answer_key']['extra_charges']} the answer key has, with no false alarms. Run each morning on the provider’s file, it finds them a median {F['matcher_median_days']} days after the debit. Complaints found them a median {round(F['complaint_median_days'])} days after, and {WORDS[F['never_complained']]} customers never complained. The customer from Saturday evening is on the next morning’s list, {pc['matcher_days']} days after her debit; her complaint came {pc['complaint_days']} days after it.",
+    gap=36)
+
+wait = Q["wait"]
+b18, b19 = (pct(b["share"]) for b in ai["hours"]["bursts"])
+tech = f"{june['upi_technical_failures'] / june['upi_attempts'] * 100:.2f}%"
+refunded = M["extra_charges"] - F["not_refunded"]
+
+
+def pair(title, a_big, a_label, b_big, b_label, note):
+    return (f'<div style="display:flex;flex-direction:column;gap:28px">'
+            f'<h3 style="{SIGN};font-size:40px;font-weight:600;line-height:1.2">{title}</h3>'
+            f'<div style="display:grid;grid-template-columns:1fr 1fr;gap:40px">'
+            f'<div style="display:flex;flex-direction:column;gap:10px;border-top:4px solid #b9bfb7;padding:20px 0 0 0"><p style="{SIGN};font-size:88px;font-weight:700;line-height:1;color:{MUTED}">{a_big}</p><p style="font-size:26px;line-height:1.35;color:{MUTED}">{a_label}</p></div>'
+            f'<div style="display:flex;flex-direction:column;gap:10px;border-top:4px solid {RED};padding:20px 0 0 0"><p style="{SIGN};font-size:88px;font-weight:700;line-height:1;color:{RED}">{b_big}</p><p style="font-size:26px;line-height:1.35">{b_label}</p></div>'
+            f'</div><p style="font-size:28px;line-height:1.4">{note}</p></div>')
+
+
+slides["clocks"] = section("clocks", "\n".join([
+    h2("Two KPIs, read the way the money moves"),
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:96px;align-items:start">',
+    pair("Refund wait", f"{round(wait['naive']['value'])} days", "median, from the complaint, as support reports it",
+         f"{F['refund_median_days_from_debit']} days", "median, from the extra debit, when the customer lost the money",
+         f"{F['over_tat']} of {refunded} refunds took longer than RBI’s five days; {WORDS[F['not_refunded']]}, {inr_in(F['not_refunded_inr'], True)}, were not refunded by month end."),
+    pair("UPI decline rate", tech, "technical declines in June, in line with UPI as a whole; timeouts not counted",
+         f"{b18}, {b19}", "no answer, 18:00 and 19:00 on 20 June, timeouts counted",
+         f"A monthly rate hides the two hours in which {slow['charged_twice']} customers paid twice."),
+    '</div>',
+    foot("Same records, same month. Grey: what the store reports. Red: the clock started at the debit, and the attempts counted the way UPI works."),
+]), f"Two of the store’s KPIs change when they are read the way the money moves. Refund wait, as support reports it, runs from the complaint: a median of {round(wait['naive']['value'])} days. The customer lost the money at the extra debit, and from there the median is {F['refund_median_days_from_debit']} days; when June closed, {WORDS[F['not_refunded']]} extra charges, {inr_in(F['not_refunded_inr'], True)}, were still unrefunded. RBI gives banks five days to return a failed payment to a customer; by that clock, {F['over_tat']} of the {refunded} refunds were late. And June’s technical decline rate, {tech}, is in line with UPI as a whole, and it counts no timeouts at all. Read by the hour, with timeouts counted, the tills got no answer on {b18} and {b19} of attempts in the 18:00 and 19:00 hours on 20 June, the two hours in which {slow['charged_twice']} customers paid twice.",
+    gap=48)
+
+qt = Q["twice"]
+
+
+def curly(t):
+    return t.replace("'", "’")
+
+
+slides["assistant"] = section("assistant", "\n".join([
+    h2("Give the assistant a domain layer", "#e6eaee"),
+    '<div style="display:grid;grid-template-columns:1fr 1.2fr;gap:72px;align-items:start">',
+    '<div style="display:flex;flex-direction:column;gap:24px">',
+    f'<p style="{SIGN};font-size:96px;font-weight:700;line-height:1;color:#e6eaee">{SC["naive"]} → {SC["domain"]} <span style="color:#a3adb8">of {SC["of"]}</span></p>',
+    f'<p style="{SIGN};font-size:28px;color:#a3adb8">questions answered right at the month-end review, schema only → with the domain layer</p>',
+    '<ul style="font-size:26px;line-height:1.4;color:#e6eaee"><li>“A timeout is a question, not an answer”</li><li>“A provider success with no approved till payment is a customer’s money”</li><li>“Read payment rates by the hour, with timeouts counted”</li><li>The provider’s UPI report, and two views: the timeouts matched, the extra charges</li></ul>',
+    '</div>',
+    '<div style="display:flex;flex-direction:column;gap:24px">',
+    f'<div style="background:#222c37;border-left:6px solid {RED};padding:24px 32px;display:flex;flex-direction:column;gap:10px">',
+    f'<p style="{SIGN};font-size:24px;font-weight:600;color:#a3adb8">{qt["question"]} Schema only:</p>',
+    f'<p style="{SIGN};font-size:26px;line-height:1.45;color:#e6eaee">{curly(qt["naive"]["answer"])}</p>',
+    '</div>',
+    f'<div style="background:#222c37;border-left:6px solid {GREEN};padding:24px 32px;display:flex;flex-direction:column;gap:10px">',
+    f'<p style="{SIGN};font-size:24px;font-weight:600;color:#a3adb8">With the domain layer:</p>',
+    f'<p style="{SIGN};font-size:26px;line-height:1.45;color:#e6eaee">{curly(qt["domain"]["answer"])}</p>',
+    '</div>', '</div>', '</div>',
+    foot("The assistant is scripted so the run can be repeated; the technical companion shows every query.").replace(MUTED, "#a3adb8"),
+]), f"The same assistant, asked the same seven questions at the month-end review, now given a domain layer: definitions, such as a timeout is a question, not an answer; rules, such as a provider success with no approved till payment is a customer’s money; the provider’s UPI report; and two views built from them, the timeouts matched to the provider’s report and the extra charges. Given the till’s schema alone it answered {WORDS[SC['naive']]} of seven: how many UPI payments the tills attempted. With the domain layer it answers all seven: {M['customers']} customers paid twice, the credits in suspense are extra charges on customers, refunds took {F['refund_median_days_from_debit']} days from the debit, and {WORDS[len(Q['refund_now']['domain']['value'])]} bills should be refunded now, without waiting for a complaint.",
+    bg=INK, fg="#e6eaee", gap=48)
+
+questions = [
+    "Which of our “failed” statuses are answers, and which are only timeouts?",
+    "When a key is missing, which other fields can join the records, and who checks the match?",
+    "Do we measure customer outcomes, such as paying twice, or only system outcomes, such as approvals?",
+    "Do our clocks start when the customer is harmed or when the customer complains?",
+    "What does our AI assistant know about how payments settle, and how do we test that?",
+]
+slides["questions"] = section("questions", "\n".join([
+    h2("Five questions to ask your team"),
+    '<div style="display:flex;flex-direction:column">',
+    *[f'<div style="display:grid;grid-template-columns:72px 1fr;gap:24px;border-top:2px solid #d5d9d4;padding:22px 0 22px 0">'
+      f'<p style="{SIGN};font-size:38px;font-weight:700;line-height:1.2;color:{RECORD}">{i}</p>'
+      f'<p style="font-size:36px;line-height:1.3">{q}</p></div>' for i, q in enumerate(questions, 1)],
+    '</div>',
+    foot("For data and AI leaders. The technical companion answers each one for Saturday 20 June."),
+]), "For data and AI leaders, five questions to take back to your team. Which of our failed statuses are answers, and which are only timeouts? When a key is missing, which other fields can join the records, and who checks the match? Do we measure customer outcomes, such as paying twice, or only system outcomes, such as approvals? Do our clocks start when the customer is harmed or when the customer complains? And what does our AI assistant know about how payments settle, and how do we test that?",
+    gap=48)
 
 slides["close"] = section("close", "\n".join([
     f'<h2 style="{SIGN};font-size:88px;font-weight:700;line-height:1.08;color:#e6eaee;width:1500px">Every record was right about what it saw. Only the customer saw both debits.</h2>',
     '<div style="display:flex;flex-direction:column;gap:16px">',
-    '<p style="font-size:34px;line-height:1.45">Run the scenarios and download the records:</p>',
-    f'<p style="{MONO};font-size:36px;color:#8db0f0"><a href="https://kvinayakpai.github.io/domain-series/demo/#payments"><span style="color:#8db0f0">kvinayakpai.github.io/domain-series</span></a></p>',
+    '<p style="font-size:34px;line-height:1.45">The tests in SQL, the matcher and a notebook on the payment records:</p>',
+    f'<p style="{MONO};font-size:36px;color:#8db0f0"><a href="https://kvinayakpai.github.io/domain-series/payments/technical/"><span style="color:#8db0f0">kvinayakpai.github.io/domain-series/payments/technical</span></a></p>',
     '</div>',
     f'<div style="display:flex;flex-direction:column;gap:8px;border-left:6px solid {HL};padding:8px 0 8px 32px">',
     f'<p style="{SIGN};font-size:32px;font-weight:600;color:#a3adb8">The series so far</p>',
     '<p style="font-size:36px;line-height:1.35">Retail: the shelf. Logistics: the delivery. Payments: the money. One store, one month.</p>',
     '</div>',
-]), "Every record was right about what it saw, and only the customer saw both debits. The demo on the series site lets you take each person’s view of the same evening, change what the till and the back office do, and download June’s payment records to find the double charges yourself. That completes the three domains of this series, in one store and one month: the shelf, the delivery and the money.",
+]), "Every record was right about what it saw, and only the customer saw both debits. The technical companion on the series site has the tests in SQL, the matcher, every query the assistant ran and a notebook that runs on June’s payment records, with an answer key to score your own work, and the demo lets you match the timeouts and watch the suspense account turn into a list of customers. That completes the three domains of this series, in one store and one month: the shelf, the delivery and the money.",
     bg=INK, fg="#e6eaee", gap=56, center=True)
 
-order = ["cover", "scene", "readings", "happened", "timeline", "chart", "cost", "normal", "fourways", "mdr", "helped", "data", "learn", "close"]
+order = ["cover", "scene", "readings", "happened", "timeline", "chart", "cost", "data", "tests", "match", "clocks", "assistant",
+         "normal", "fourways", "mdr", "helped", "questions", "close"]
 for sid in order:
     (OUT / "slides" / f"{sid}.html").write_text(slides[sid])
+for f in (OUT / "slides").glob("*.html"):
+    if f.stem not in order:
+        f.unlink()
 prev = OUT / "deck.json"
 deck = json.loads((prev if prev.exists() else ROOT / "decks" / "retail" / "project" / "deck.json").read_text())
 if not prev.exists():
@@ -330,10 +439,10 @@ if not prev.exists():
 deck["title"] = "Why Domain Matters: Payments"
 deck["order"] = order
 deck["sections"] = {
-    "s1": {"description": "The scene, and five readings of one evening", "start": "cover"},
-    "s2": {"description": "What actually happened, in every record, and what it cost customers", "start": "happened"},
-    "s3": {"description": "Why it is normal, payment success four ways, and the new UPI fee", "start": "normal"},
-    "s4": {"description": "What would have helped, what the data looks like, and how to learn the domain", "start": "helped"},
+    "s1": {"description": "The scene, and five readings of one payment by the data products", "start": "cover"},
+    "s2": {"description": "What actually happened, what it cost, and why the data could not say so", "start": "happened"},
+    "s3": {"description": "What domain knowledge changes: tests about the world, the matcher, the clocks, the assistant", "start": "tests"},
+    "s4": {"description": "Why it is normal, payment success four ways, the new UPI fee, what would have helped, and questions for leaders", "start": "normal"},
 }
 prev.write_text(json.dumps(deck))
 print(f"wrote {OUT.relative_to(ROOT)}: {len(order)} slides")

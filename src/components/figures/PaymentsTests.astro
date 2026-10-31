@@ -1,0 +1,52 @@
+---
+// The payment records' data tests (they pass) against five tests that ask about the world (they do not).
+// With `sql`, each data test shows its query.
+import ai from '../../data/payments-ai.json';
+
+interface Props { sql?: boolean }
+const { sql = false } = Astro.props;
+const g = ai.tests.generic;
+const [orphans, nokey, twice, slow, bursts] = ai.tests.domain;
+const m = ai.matcher;
+const f = ai.find;
+const hour = (iso: string) => new Date(`${iso.slice(0, 16)}:00+05:30`).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Kolkata' });
+const b = bursts.failing as { hour: string; share: number }[];
+const world = [
+  { name: orphans.name, result: `Fails: ${orphans.failing.length} credits` },
+  { name: nokey.name, result: `Fails: ${nokey.failing.length} timeouts, none with an RRN` },
+  { name: twice.name, result: `Fails: ${m.customers} bills, ${m.extra_charges} extra charges` },
+  { name: slow.name, result: `Fails: ${f.over_tat} refunded later than that, and ${f.not_refunded} not refunded by the review` },
+  { name: bursts.name, result: `Fails: ${b.map((x) => `${hour(x.hour)} (${Math.round(x.share * 100)}%)`).join(' and ')}` },
+];
+const passed = g.filter((t) => t.pass).length;
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger tests">
+      <caption>June's payment records, tested two ways</caption>
+      <tbody>
+        <tr class="group"><th colspan="2" scope="colgroup">The pipeline's data tests: {passed} of {g.length} pass</th></tr>
+        {g.map((t) => (
+          <tr>
+            <th scope="row">{t.name}{sql && <details class="sql"><summary>SQL</summary><code>{t.sql}</code></details>}</th>
+            <td class={t.pass ? 'ok' : 'no'}>{t.pass ? 'Pass' : `Fails: ${t.failing_rows} rows`}</td>
+          </tr>
+        ))}
+        <tr class="group"><th colspan="2" scope="colgroup">Tests that ask about the world: 0 of {world.length} pass</th></tr>
+        {world.map((t) => <tr><th scope="row">{t.name}</th><td class="no">{t.result}</td></tr>)}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>The data tests check that the till, the provider's report, the settlements and the refunds agree, and they do. The five below check the records against how UPI works, using only the records. The fourth uses the five days RBI allows for a failed payment to a merchant as the store's own clock.</figcaption>
+</figure>
+
+<style>
+  .tests tr.group th { font-size: 0.9rem; color: var(--muted); font-weight: 600; padding-top: 1rem; }
+  .tests th[scope='row'] { font-weight: 450; }
+  .tests td { white-space: normal; min-width: 9rem; }
+  .tests td.ok { color: var(--ok); font-weight: 600; }
+  .tests td.no { color: var(--correction); }
+  .tests details.sql { margin-top: 0.2rem; font-size: 0.8rem; }
+  .tests details.sql summary { cursor: pointer; color: var(--record); font-family: var(--font-sign); }
+  .tests details.sql code { display: block; margin-top: 0.3rem; font-family: var(--font-record); font-size: 0.74rem; color: var(--muted); white-space: normal; word-break: break-word; }
+</style>

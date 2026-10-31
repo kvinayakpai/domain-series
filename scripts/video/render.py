@@ -79,6 +79,7 @@ PST = P["story"]
 PSLOW, PJUNE, PREFUNDS = PST["slowdown"], PST["june"], PST["refunds"]
 PHOURS = {x["hour"]: x for x in PST["slowdown_day_by_hour"]}
 PDAY = {x["date"]: x for x in PA["daily"]}
+PAI = json.loads((ROOT / "src" / "data" / "payments-ai.json").read_text())
 
 
 def pct(x: float) -> str:
@@ -342,29 +343,28 @@ def payments_short_scenes() -> list[dict]:
     late = _secs(sc["attempts"][0]["ts"], sc["credited_ts"])
     days = round(_secs(sc["attempts"][0]["ts"], sc["refunded_ts"]) / 86400)
     fw = PSLOW["four_ways"]
-    unmatched = PDAY["2026-06-20"]["unmatched"] + PDAY["2026-06-21"]["unmatched"]
-    twice = sum(1 for c in PA["complaints"] if c["kind"] == "charged twice")
-    refunds = sum(f["amount_inr"] for f in PA["refunds"])
+    m = PAI["matcher"]
+    s = PAI["assistant"]["score"]
     return [
         {"card": P_TITLE, "dur": 4.5, "srt": "The record says: payment failed. What actually happened: the customer’s account was debited."},
         {"go": "demo/", "to": "#payments", "dur": 6.0,
-         "cap": "Saturday 20 June, 6:48 pm. The bank behind Store 014’s tills is slow to answer UPI payments."},
-        {"js": "paymentsDemo.select('cashier')", "to": "#payments .tabs", "off": 8, "dur": 7.0,
-         "cap": "The till waits 30 seconds, hears nothing, and shows “failed: no response”. The cashier asks for another way to pay."},
+         "cap": "Saturday 20 June, 6:48 pm. Store 014’s tills give up on UPI payments, read the way a data team reads them."},
         {"js": "paymentsDemo.select('ops')", "to": "#payments .tabs", "off": 8, "dur": 6.5,
-         "cap": f"Payments operations sees approvals fall to {_ops()} for two hours, then recover. Incident closed."},
+         "cap": f"The payments dashboard: approvals fall to {_ops()} for two hours, then recover. Incident closed."},
+        {"js": "paymentsDemo.select('tests')", "to": "#payments .tabs", "off": 8, "dur": 7.0,
+         "cap": f"All {len(PAI['tests']['generic'])} data tests pass. Every bill has exactly one approved payment."},
         {"js": "paymentsDemo.select('recon')", "to": "#payments .tabs", "off": 8, "dur": 7.0,
-         "cap": f"Reconciliation finds {unmatched} UPI credits with no approved payment at the till, and parks them in suspense."},
-        {"js": "paymentsDemo.select('support')", "to": "#payments .tabs", "off": 8, "dur": 6.5,
-         "cap": f"Customer support takes {len(PA['complaints'])} payment complaints in June. {twice} say “I was charged twice”."},
-        {"js": "paymentsDemo.select('finance')", "to": "#payments .tabs", "off": 8, "dur": 6.5,
-         "cap": f"Finance sees no UPI fees in June and {inr(refunds)} of refunds. Nothing looks wrong."},
+         "cap": f"Reconciliation parks {m['late_credits']} UPI credits with no approved payment in suspense, until someone claims them."},
+        {"js": "paymentsDemo.set('read','matched')", "to": "#py-panel", "off": 40, "dur": 8.0,
+         "cap": f"Match each timeout to the provider’s report by amount and time: {m['extra_charges']} extra charges on {m['customers']} customers, and no false alarms."},
+        {"js": "paymentsDemo.set('ground','domain'); paymentsDemo.select('assistant')", "to": "#py-panel .run", "off": 40, "dur": 7.5,
+         "cap": f"An AI assistant with a domain layer: {s['domain']} of {s['of']} answers right, not {s['naive']}. Yes, {m['customers']} customers paid twice."},
         {"js": "paymentsDemo.select('truth')", "to": "#py-panel .story", "off": 60, "dur": 7.5,
          "cap": f"What actually happened: her bank had taken the money. The credit came {late} seconds later. She paid twice, and waited {days} days."},
         {"js": "paymentsDemo.select('truth')", "to": "#py-panel table.four-ways", "off": 90, "dur": 7.0,
          "cap": f"Payment success in those 90 minutes: {pct(fw['till'])} at the till, {pct(fw['bank'])} at the bank, {pct(fw['bills_paid'])} of bills paid. {pct(fw['charged_once'])} charged once."},
-        {"js": "paymentsDemo.set('recon','bill_ref'); paymentsDemo.select('recon')", "to": "#payments [data-outcome]", "off": 250, "dur": 7.0,
-         "cap": f"Put the bill ID on every UPI request: each double charge is found the next morning. Median refund: {PA['kpis']['refunds']['median_days_to_refund']} days → {PREF['kpis']['refunds']['median_days_to_refund']}."},
+        {"js": "paymentsDemo.set('recon','bill_ref'); paymentsDemo.select('ops')", "to": "#payments [data-outcome]", "off": 250, "dur": 7.0,
+         "cap": f"Put the bill ID on every UPI request: each double charge is refunded the next morning. Median wait: {PA['kpis']['refunds']['median_days_to_refund']} days → {PREF['kpis']['refunds']['median_days_to_refund']}."},
         {"card": P_END, "dur": 5.0, "srt": "Every record was right about what it saw. Only the customer saw both debits."},
     ]
 
@@ -374,44 +374,42 @@ def payments_walkthrough_scenes() -> list[dict]:
     late = _secs(sc["attempts"][0]["ts"], sc["credited_ts"])
     fw = PSLOW["four_ways"]
     unmatched = PDAY["2026-06-20"]["unmatched"] + PDAY["2026-06-21"]["unmatched"]
-    twice = sum(1 for c in PA["complaints"] if c["kind"] == "charged twice")
     gap = sum(PHOURS[h]["credited"] - PHOURS[h]["approved_at_till"] for h in (18, 19))
     a, c, b = PA["kpis"], PCHECK["kpis"], PREF["kpis"]
+    m, f = PAI["matcher"], PAI["find"]
+    o = m["outcomes"]
+    s = PAI["assistant"]["score"]
+    wait = next(q for q in PAI["assistant"]["questions"] if q["id"] == "wait")
     return [
         {"card": P_TITLE, "dur": 5.0, "srt": "Why Domain Matters, part 3: Payments. The record says payment failed; the customer’s account was debited."},
-        {"go": "", "to": "table.audit", "off": 140, "dur": 6.0,
-         "cap": "Part 3 follows one evening’s payments through the people who see them differently."},
         {"go": "payments/", "to": "article", "off": 90, "dur": 7.0,
-         "cap": f"The same synthetic world: Store 014 in Jayanagar, now with every one of its {PJUNE['bills']:,} June bills paid at the tills."},
+         "cap": f"The same synthetic world: Store 014 in Jayanagar, now with every one of its {PJUNE['bills']:,} June bills paid at the tills, and an answer key for every rupee."},
+        {"to": "#five-readings-of-one-payment", "off": 24, "dur": 7.5,
+         "cap": f"Five readings: approvals at {PJUNE['four_ways']['till'] * 100:.1f}%, the data tests pass, {unmatched} credits wait in suspense, and the assistant says nobody paid twice."},
         {"to": "table.docs", "off": 60, "dur": 8.0,
          "cap": f"One basket in every record that holds it. The till says the UPI payment failed; the provider’s report says success, {late} seconds later."},
         {"to": "figure.figure:has(svg)", "off": 60, "dur": 7.0,
          "cap": f"In the 18:00 and 19:00 hours the bank credited {gap} UPI payments that the tills had marked failed."},
-        {"to": "table.pay-ways", "off": 120, "dur": 7.0,
-         "cap": f"Payment success four ways: {pct(fw['till'])} at the till, {pct(fw['bank'])} at the bank, {pct(fw['bills_paid'])} of bills paid, {pct(fw['charged_once'])} of customers charged once."},
+        {"to": "table.tests", "off": 60, "dur": 7.5,
+         "cap": f"{len(PAI['tests']['generic'])} data tests pass. Five tests about how UPI works fail: {m['timeouts']} timeouts have no reference number to join on."},
+        {"to": "table.match", "off": 60, "dur": 8.0,
+         "cap": f"Treat a timeout as a question. Matched by amount and time: {o['late credit']} credited late, {o['debited and returned']} returned, {o['never debited']} never debited. Every one right."},
         {"go": "demo/", "to": "#payments .controls", "off": 30, "dur": 7.0,
-         "cap": "The demo replays June with the same customers, baskets and banks. Change what the till does, or how the back office matches."},
-        {"js": "paymentsDemo.select('cashier')", "to": "#py-panel", "off": 70, "dur": 7.0,
-         "cap": f"The tills give up on {PSLOW['upi_timeouts']} UPI payments in 90 minutes. Each time, the cashier asks for another way to pay."},
-        {"js": "paymentsDemo.select('ops')", "to": "#py-panel", "off": 70, "dur": 6.0,
-         "cap": f"Payments operations sees approvals at {_ops()} for two hours, normal by eight. Incident closed."},
-        {"js": "paymentsDemo.select('recon')", "to": "#py-panel", "off": 70, "dur": 7.0,
-         "cap": f"Reconciliation sees {unmatched} credits with no approved payment behind them. They sit in suspense until someone calls."},
-        {"js": "paymentsDemo.select('support')", "to": "#py-panel", "off": 70, "dur": 6.0,
-         "cap": f"Support takes {twice} calls from customers charged twice: a screenshot, a check, and about five days."},
-        {"js": "paymentsDemo.select('truth')", "to": "#py-panel", "off": 70, "dur": 8.0,
-         "cap": f"What actually happened: {PSLOW['charged_twice']} customers paid twice in 90 minutes, {PSLOW['extra_charges']} extra charges, {inr(PSLOW['charged_twice_inr'])} in all."},
-        {"js": "paymentsDemo.set('till','check')", "to": "#payments [data-outcome]", "off": 200, "dur": 7.0,
+         "cap": "The demo: change what the data team does with June’s records, or rerun June with the till and the back office working differently."},
+        {"js": "paymentsDemo.set('read','matched'); paymentsDemo.select('recon')", "to": "#py-panel", "off": 70, "dur": 8.0,
+         "cap": f"The suspense account becomes a list of customers: {m['extra_charges']} extra charges on {m['customers']}, found a median {f['matcher_median_days']} days after the debit."},
+        {"js": "paymentsDemo.set('ground','domain'); paymentsDemo.select('assistant'); paymentsDemo.ask('wait')", "to": "#py-panel .run", "off": 40, "dur": 8.0,
+         "cap": f"With a domain layer the assistant answers {s['domain']} of {s['of']}: refunds took {f['refund_median_days_from_debit']} days from the debit, not {round(wait['naive']['value'])} from the complaint."},
+        {"js": "paymentsDemo.select('truth')", "to": "#py-panel table.four-ways", "off": 90, "dur": 7.5,
+         "cap": f"Payment success four ways: {pct(fw['till'])} at the till, {pct(fw['bank'])} at the bank, {pct(fw['bills_paid'])} of bills paid, {pct(fw['charged_once'])} of customers charged once."},
+        {"js": "paymentsDemo.set('till','check'); paymentsDemo.select('ops')", "to": "#payments [data-outcome]", "off": 200, "dur": 7.0,
          "cap": f"Wait for the status check at 90 seconds: double charges in June fall from {a['june']['charged_twice']} to {c['june']['charged_twice']}, and the tills spend {round(c['slowdown']['till_minutes'])} minutes taking payment, not {round(a['slowdown']['till_minutes'])}."},
         {"js": "paymentsDemo.set('till','retry'); paymentsDemo.set('recon','bill_ref')", "to": "#payments [data-outcome]", "off": 200, "dur": 7.0,
          "cap": f"Put the bill ID on every UPI request: double charges still happen, but the median refund falls from {a['refunds']['median_days_to_refund']} days to {b['refunds']['median_days_to_refund']}."},
-        {"js": "paymentsDemo.set('recon','manual'); const d = document.querySelector('#payments .drawer'); d.open = true; d.querySelector('[data-rec=psp]').click(); d.querySelector('input[name=py-reveal]').click();"
-               " const g = d.querySelector('[data-records] .gap'); const w = g.closest('.table-wrap');"
-               " w.scrollTop += g.closest('tr').getBoundingClientRect().top - w.getBoundingClientRect().top - 72;",
-         "to": "#payments .drawer", "off": 20, "dur": 8.0,
-         "cap": "The records behind it. Nothing says “charged twice”. Download them and find the customers yourself."},
-        {"go": "payments/", "to": "#how-to-learn-this-domain", "off": 30, "dur": 7.0,
-         "cap": "The post ends with a learning path: how UPI moves money, RBI’s rules for failed payments, reconciliation, and practice on June’s records."},
+        {"go": "payments/technical/", "to": "#the-extra-charges", "off": 24, "dur": 7.0,
+         "cap": "The technical companion: the tests in SQL, the matcher, the extra charges scored against the answer key, and a notebook on the records."},
+        {"go": "payments/", "to": "#for-data-and-ai-leaders-five-questions-to-ask-your-team", "off": 24, "dur": 7.0,
+         "cap": "For data and AI leaders: five questions to ask your team."},
         {"card": P_END, "dur": 5.5, "srt": "Every record was right about what it saw. Only the customer saw both debits."},
     ]
 

@@ -2,16 +2,17 @@
 // The domain layer the assistant is given, written out as the YAML a team would keep beside the schema.
 import retailAi from '../../data/retail-ai.json';
 import logisticsAi from '../../data/logistics-ai.json';
+import paymentsAi from '../../data/payments-ai.json';
 
-interface Props { post?: 'retail' | 'logistics' }
+interface Props { post?: 'retail' | 'logistics' | 'payments' }
 const { post = 'retail' } = Astro.props;
-const ai = (post === 'logistics' ? logisticsAi : retailAi) as typeof retailAi;
+const ai = ({ retail: retailAi, logistics: logisticsAi, payments: paymentsAi }[post]) as unknown as typeof retailAi;
 const d = ai.assistant.domain_layer;
-const words: Record<number, string> = { 3: 'three', 4: 'four', 5: 'five' };
-const observes = post === 'logistics' ? 'the records that observe the goods independently of the pick' : 'the tables that observe the shelf';
+const words: Record<number, string> = { 2: 'two', 3: 'three', 4: 'four', 5: 'five' };
+const observes = { retail: 'the tables that observe the shelf', logistics: 'the records that observe the goods independently of the pick', payments: 'the provider’s report, which sees what the till missed' }[post];
 const quote = (s: string) => `"${s.replace(/"/g, '\\"')}"`;
 const yaml = [
-  post === 'logistics' ? '# Given to the assistant with the shipping schema' : '# Given to the assistant with the warehouse schema',
+  { retail: '# Given to the assistant with the warehouse schema', logistics: '# Given to the assistant with the shipping schema', payments: '# Given to the assistant with the till’s payment schema' }[post],
   'definitions:',
   ...Object.entries(d.definitions).map(([k, v]) => `  ${k.replace(/ /g, '_')}: ${quote(v as string)}`),
   'rules:',

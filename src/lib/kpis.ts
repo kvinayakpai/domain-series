@@ -7,6 +7,7 @@ import ai from '../data/retail-ai.json';
 import logistics from '../data/logistics.json';
 import payments from '../data/payments.json';
 import lai from '../data/logistics-ai.json';
+import pai from '../data/payments-ai.json';
 
 export interface Measured { value: string; how: string }
 export interface Kpi {
@@ -65,6 +66,8 @@ const slow = payments.story.slowdown;
 const june = payments.story.june;
 const refunds = payments.story.refunds;
 const unmatched = pk.daily.filter((d) => d.date === '2026-06-20' || d.date === '2026-06-21').reduce((a, d) => a + d.unmatched, 0);
+// Refund wait as support measures it: from the complaint (the assistant's schema-only answer).
+const fromComplaint = Math.round((pai.assistant.questions.find((q) => q.id === 'wait')!.naive as unknown as { value: number }).value);
 
 export const DOMAINS: Domain[] = [
   {
@@ -266,7 +269,7 @@ export const DOMAINS: Domain[] = [
         hero: {
           scope: 'UPI at Store 014’s tills, Saturday 20 June, 18:20–19:50',
           cost: `${slow.charged_twice} customers charged twice: ${slow.extra_charges} extra charges, ${inr(slow.charged_twice_inr)}`,
-          found: `By no system. Each surfaced when a customer complained, and June’s refunds took a median ${refunds.median_days_to_refund} days.`,
+          found: `By no system. Each surfaced when a customer complained, and June’s refunds took a median ${refunds.median_days_to_refund} days. Matching each timeout to the provider’s report finds all ${pai.matcher.extra_charges} the next morning.`,
         },
       },
       {
@@ -301,9 +304,9 @@ export const DOMAINS: Domain[] = [
         blind: 'The clock starts at the complaint, not at the extra debit. Customers who never complain never appear.',
         check: 'Measure from the debit, and count refunds made without a complaint.',
         agent: 'Start the clock at the debit, not the complaint.',
-        reported: { value: `${refunds.median_days_to_refund} days`, how: 'median, after a complaint' },
-        observed: { value: `${refunds.unrefunded_at_month_end} unrefunded`, how: `${inr(refunds.unrefunded_inr)} when June closed` },
-        example: `Refunds took a median ${refunds.median_days_to_refund} days and the longest ${refunds.max_days_to_refund}, all after a complaint. When June closed, ${refunds.unrefunded_at_month_end} extra charges were still in suspense.`,
+        reported: { value: `${fromComplaint} days`, how: 'median, from the complaint' },
+        observed: { value: `${pai.find.refund_median_days_from_debit} days`, how: `median, from the extra debit; ${pai.find.not_refunded} not refunded in June` },
+        example: `From the complaint, refunds took a median ${fromComplaint} days. From the extra debit, when the customer lost the money, they took ${pai.find.refund_median_days_from_debit}, and ${pai.find.over_tat} of the ${pai.matcher.extra_charges - pai.find.not_refunded} refunds came later than the five days RBI gives banks. When June closed, ${pai.find.not_refunded} extra charges, ${inr(pai.find.not_refunded_inr)}, were still unrefunded; ${pai.find.never_complained} of those customers never complained.`,
       },
       {
         id: 'technical-declines',

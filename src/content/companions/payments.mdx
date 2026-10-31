@@ -1,0 +1,133 @@
+---
+title: "The key that is not there, hands on"
+description: "The technical companion to the payments post: the till's payments and the provider's UPI report, the data tests that pass and the domain tests that do not, a matcher that joins every timed-out payment to its final status by amount and time, the extra charges it finds scored against the answer key, refund clocks measured from the debit, and an assistant with and without a domain layer. SQL, Python and a notebook."
+post: payments
+pubDate: 2026-10-31
+notebook: notebooks/payments.ipynb
+---
+
+import ai from '../../data/payments-ai.json';
+import PaymentsTests from '../../components/figures/PaymentsTests.astro';
+import TimeoutMatch from '../../components/figures/TimeoutMatch.astro';
+import PaymentFourWays from '../../components/figures/PaymentFourWays.astro';
+import AssistantScore from '../../components/figures/AssistantScore.astro';
+import AssistantPlan from '../../components/figures/AssistantPlan.astro';
+import DomainLayer from '../../components/figures/DomainLayer.astro';
+
+export const m = ai.matcher;
+export const f = ai.find;
+
+This is the practitioner's half of [Failed, but paid](../). Everything below runs on Store 014's downloadable payment records with DuckDB and pandas, and the notebook runs it end to end in a few seconds. The answer key is read only to score results. Nothing that builds a test, a match or an answer is allowed to look at it.
+
+## The records
+
+The till and the payment provider each keep their own account of every UPI payment. Each is right about what it saw.
+
+<div class="table-wrap">
+<table class="ledger records-map">
+<thead><tr><th scope="col">Table</th><th scope="col">Grain</th><th scope="col">Records</th><th scope="col">Cannot know</th></tr></thead>
+<tbody>
+<tr><th scope="row"><code>till_payments</code></th><td>Payment attempt</td><td>Tender, amount, what the till heard, and the RRN when it heard one</td><td>What happened after it stopped waiting</td></tr>
+<tr><th scope="row"><code>psp_upi</code></th><td>UPI payment</td><td>The provider's final status and when it settled, by RRN</td><td>Which bill a payment was for</td></tr>
+<tr><th scope="row"><code>settlements</code></th><td>Day</td><td>Credits, refunds and fees paid to the store the next day</td><td>Which customers they belong to</td></tr>
+<tr><th scope="row"><code>refunds</code></th><td>Refund</td><td>Refunds the store made, and when</td><td>Extra charges nobody claimed</td></tr>
+<tr><th scope="row"><code>complaints</code></th><td>Call</td><td>Customers who called, and what they said</td><td>Customers who did not</td></tr>
+</tbody>
+</table>
+</div>
+
+## Tests that pass
+
+Ten tests, the kind a dbt project ships on day one. All ten pass.
+
+<PaymentsTests sql />
+
+## The key that is not there
+
+A UPI payment the till gave up on, "failed: no response", never learned its RRN. All {m.timeouts} of June's timeouts have a blank reference, so the obvious join returns nothing. The provider's report has a row for each of them all the same: the same amount, started in the same second. Match the timeouts to the provider rows no till payment claims, one to one, nearest in time first:
+
+```sql
+CREATE VIEW v_timeouts_matched AS
+WITH orphans AS (
+  SELECT * FROM psp_upi WHERE rrn NOT IN (SELECT rrn FROM till_payments WHERE rrn IS NOT NULL)),
+pairs AS (
+  SELECT t.bill_id, t.attempt, t.ts, t.amount_inr, o.rrn, o.status, o.status_ts,
+         row_number() OVER (PARTITION BY t.bill_id, t.attempt
+                            ORDER BY abs(epoch(o.initiated_ts) - epoch(t.ts))) AS k,
+         row_number() OVER (PARTITION BY o.rrn
+                            ORDER BY abs(epoch(o.initiated_ts) - epoch(t.ts))) AS j
+  FROM till_payments t JOIN orphans o
+    ON o.amount_inr = t.amount_inr AND abs(epoch(o.initiated_ts) - epoch(t.ts)) <= 5
+  WHERE t.till_status = 'failed: no response')
+SELECT *, CASE status WHEN 'success' THEN 'late credit' WHEN 'returned' THEN 'debited and returned'
+                      ELSE 'never debited' END AS outcome
+FROM pairs WHERE k = 1 AND j = 1;
+```
+
+All {m.matched} match, each within a second, and every outcome is the one the answer key records: {m.outcomes['late credit']} late credits, {m.outcomes['debited and returned']} debited and returned, {m.outcomes['never debited']} never debited. The five-second window matters: customers who retried by UPI made a second attempt for the same amount 30 seconds later, and a looser window would pair the wrong rows. Exercise one asks you to see it happen.
+
+## The extra charges
+
+A late credit on a bill the customer then paid again is an extra charge:
+
+```sql
+CREATE VIEW v_extra_charges AS
+SELECT m.bill_id, m.rrn, m.amount_inr, m.ts AS debited_ts, m.status_ts AS credited_ts, a.tender AS paid_again_by
+FROM v_timeouts_matched m
+JOIN till_payments a ON a.bill_id = m.bill_id AND a.till_status = 'approved'
+WHERE m.outcome = 'late credit';
+```
+
+It returns {m.extra_charges} rows on {m.customers} bills. Scored against the answer key: {m.true_positives} right, {m.false_positives} false alarms, {m.missed} missed.
+
+<TimeoutMatch />
+
+## Clocks that start at the harm
+
+Support measures a refund from the complaint. The customer lost the money at the debit. Measured from the debit, with refunds counted once they are done by the month-end review, the median wait is {f.refund_median_days_from_debit} days, {f.not_refunded} extra charges were still unrefunded, and {f.over_tat} of the refunds took longer than the five days RBI allows banks for a failed payment. The domain test uses that as the store's own clock; RBI's rule covers failed payments, not double charges, and nothing obliged the store to keep it.
+
+## Rates by the hour
+
+The month's technical decline rate counts failures the switch reported. Timeouts are not in it, and a month averages away an hour. Count timeouts, read by the hour, and flag an hour with three or more timeouts and a share more than ten times the month's ({(ai.hours.month_share * 100).toFixed(2)}%): two hours are flagged, 18:00 and 19:00 on Saturday 20 June.
+
+<PaymentFourWays />
+
+## The assistant, with and without a domain layer
+
+The assistant is scripted: for each question it runs a fixed plan of SQL and composes the answer from the results. With the schema only it has the till's payments, settlements, refunds and complaints. With the domain layer it also has this:
+
+<DomainLayer post="payments" />
+
+Here is the question at the heart of the post, both ways:
+
+<AssistantPlan post="payments" id="twice" side="naive" />
+
+<AssistantPlan post="payments" id="twice" side="domain" />
+
+<AssistantScore post="payments" />
+
+Answers are checked against the answer key with fixed rules: counts exactly, the timeouts' outcomes exactly, the refund wait within half a day with the unrefunded counted, and the bills to refund as a set.
+
+## Exercises
+
+1. Widen the matcher's window to 60 seconds. Which timeouts now match two provider rows, and which match goes wrong?
+2. Find the two customers who paid three times. What did the cashier do differently?
+3. Put a ₹100-a-day compensation clock on every extra charge from the fifth day after the debit, as RBI does for failed payments. What would June have cost?
+4. Compute payment success for 18:20 to 19:50 on 20 June four ways: at the till, at the bank, bills paid, and customers charged once.
+5. Give the domain layer to a model of your choice and ask it the seven questions; score it with the answer key.
+
+## How to learn this domain, for data people
+
+A rough plan for a few evenings a week over about two months:
+
+1. **How UPI moves money.** Learn the parties in a payment: the customer's app and its bank, NPCI's switch, the customer's bank that debits, the merchant's bank that credits, and the provider that serves the merchant. Then read NPCI's circulars on how a payment that times out is settled afterwards, starting with its 2017 note on debit reversals and deemed approval.
+2. **Cards, for contrast.** Read Glenbrook's *Payments Systems in the U.S.* for authorisation, clearing and settlement in the card networks and the four-party model. India's systems differ in detail, and the vocabulary is the same.
+3. **When payments fail.** Read RBI's 2019 circular on turnaround times and compensation for failed transactions, and NPCI's 2025 circulars on status checks and response times. Note which party owes what, and by when.
+4. **Reconciliation.** Learn the keys that join payment records: the RRN, the merchant's own transaction reference, settlement dates. Practise finding credits with no sale behind them and sales with no credit.
+5. **Practice.** Work through the exercises above on [June's payment records](../../data/#payments-records) before you open the answer key.
+
+## Sources
+
+- Reserve Bank of India (20 September 2019), [Harmonisation of Turn Around Time (TAT) and customer compensation for failed transactions using authorised Payment Systems](https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693), RBI/2019-20/67
+- NPCI (9 March 2017), [UPI circular 17: debit reversals and deemed approval](https://www.npci.org.in/PDF/npci/upi/circular/2017/Circular-17-Debit-Reversals-and-Deemed-Approval_0.pdf)
+- Carol Coye Benson, Scott Loftesness and Russ Jones, [Payments Systems in the U.S.](https://glenbrook.com/product/payments-systems-in-the-us-a-guide-for-the-payments-professionals/), 3rd edition, Glenbrook Press

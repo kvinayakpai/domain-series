@@ -1,5 +1,7 @@
 // Payments demo: one Saturday evening's slowdown, six ways of looking at the same payments.
 import data from '../data/payments.json';
+import pai from '../data/payments-ai.json';
+import { assistantView, type Assistant } from './assistant-view';
 import { barChart, tableView, type Tooltip } from './charts';
 import { day, h, inr, num, pct, recordBlock, recordsTable, says, smallTable, tiles, time, when, wireTabs } from './demo-kit';
 
@@ -24,7 +26,16 @@ const secsBetween = (a: string, b: string) => Math.round((Date.parse(`${b.slice(
 const daysBetween = (a: string, b: string) => secsBetween(a, b) / 86400;
 
 // ---------- state ----------
-const state = { till: 'retry', recon: 'manual', persona: 'cashier' };
+const state = { till: 'retry', recon: 'manual', read: 'failed', ground: 'schema' as 'schema' | 'domain', q: 'twice', persona: 'ops' };
+const LEVERS: Record<'till' | 'recon' | 'read' | 'ground', string[]> = {
+  till: ['retry', 'check'], recon: ['manual', 'bill_ref'], read: ['failed', 'matched'], ground: ['schema', 'domain'],
+};
+type Lever = keyof typeof LEVERS;
+const rerun = () => state.till !== 'retry' || state.recon !== 'manual';
+/** One muted line at the top of a data-team view: the records it is built on. */
+function onRecords(host: HTMLElement) {
+  host.append(h('p', 'context', `Computed from June’s records as they happened${rerun() ? ', before anything the till or the back office changes' : ''}.`));
+}
 const scn = () => data.scenarios.find((s) => s.key === `${state.till}|${state.recon}`) as Scn;
 const asIs = data.scenarios.find((s) => s.key === 'retry|manual') as Scn;
 const scene = (s: Scn) => s.doubles.find((d) => d.bill_id === ST.scene!.bill_id);
@@ -34,13 +45,18 @@ function renderOutcome(root: HTMLElement) {
   const s = scn();
   const k = s.kpis;
   const extra = k.slowdown.till_minutes - asIs.kpis.slowdown.till_minutes;
+  const m = pai.matcher;
+  const sc = pai.assistant.score;
   (root.querySelector('[data-outcome]') as HTMLElement).replaceChildren(tiles([
     { label: 'Customers charged twice in June', value: num(k.june.charged_twice),
       note: `${num(k.slowdown.charged_twice)} of them during the 90-minute slowdown` },
+    { label: 'Extra charges the data team finds', value: state.read === 'matched' ? num(m.extra_charges) : '0',
+      note: state.read === 'matched' ? `on ${m.customers} customers, the morning after each one` : `${num(m.late_credits)} credits wait in suspense until claimed` },
+    { label: 'Questions the AI assistant answers right', value: `${state.ground === 'domain' ? sc.domain : sc.naive} of ${sc.of}`,
+      note: state.ground === 'domain' ? 'given the schema and the domain layer' : 'given the till’s schema only' },
     { label: 'Median days until they got the money back', value: days1(k.refunds.median_days_to_refund),
-      note: k.refunds.unrefunded_at_month_end ? `${k.refunds.unrefunded_at_month_end} still waiting when June closed` : 'every one refunded by month end' },
-    { label: 'Till time taking payment, Saturday 18:20–19:50', value: mins(k.slowdown.till_minutes),
-      note: s.till === 'retry' ? 'as the tills run today' : `${Math.round(extra)} minutes more than today, across the tills` },
+      note: [k.refunds.unrefunded_at_month_end ? `${k.refunds.unrefunded_at_month_end} still waiting when June closed` : 'every one refunded by month end',
+        s.till === 'retry' ? '' : `till time ${Math.round(extra)} minutes longer on Saturday evening`].filter(Boolean).join('; ') },
   ]));
 }
 
@@ -102,7 +118,7 @@ const ops: Panel = (host, s) => {
   tableView(t, 'UPI attempts and approvals by hour', ['Hour', 'Attempts', 'Approved at the till'], hours.map((x) => [`${String(x.hour).padStart(2, '0')}:00`, x.upi_attempts, x.approved_at_till]));
 };
 
-const recon: Panel = (host, s) => {
+const backOffice: Panel = (host, s) => {
   const d21 = s.daily.find((x) => x.date === '2026-06-21')!;
   const d20 = s.daily.find((x) => x.date === '2026-06-20')!;
   host.append(recordBlock([
@@ -219,7 +235,90 @@ const truth: Panel = (host, s) => {
   if (rows.length) host.append(smallTable('ledger', 'Every extra charge in the slowdown, and when it came back', ['Paid', 'Amount', 'Credited', 'Refunded after'], rows));
 };
 
-const PANELS: Record<string, Panel> = { cashier, ops, recon, support, finance, truth };
+// ---------- the data team's views (June's records as they happened) ----------
+type Row = Record<string, unknown>;
+const tests: Panel = (host) => {
+  onRecords(host);
+  const g = pai.tests.generic;
+  const d = pai.tests.domain;
+  const passed = g.filter((t) => t.pass).length;
+  host.append(tiles([
+    { label: 'The pipeline’s data tests passing', value: `${passed} of ${g.length}`, note: 'keys, values and reconciliations' },
+    { label: 'Tests about how UPI works, passing', value: `${d.filter((t) => t.pass).length} of ${d.length}`, note: 'each one uses only the records' },
+  ]));
+  host.append(says('“The pipeline is green. Every bill was paid exactly once.”'));
+  host.append(smallTable('ledger tests', `The pipeline’s data tests: ${passed} of ${g.length} pass`, null, g.map((t) => [t.name, t.pass ? 'Pass' : `Fails: ${t.failing_rows} rows`])));
+  const m = pai.matcher;
+  const f = pai.find;
+  const b = pai.hours.bursts as Row[];
+  host.append(smallTable('ledger tests', `Tests about how UPI works: 0 of ${d.length} pass`, null, [
+    [d[0].name, `Fails: ${d[0].failing.length} credits`],
+    [d[1].name, `Fails: ${d[1].failing.length} timeouts, none with an RRN`],
+    [d[2].name, `Fails: ${m.customers} bills, ${m.extra_charges} extra charges`],
+    [d[3].name, `Fails: ${f.over_tat} refunded later, ${f.not_refunded} not refunded by the review`],
+    [d[4].name, `Fails: ${b.map((x) => `${when(String(x.hour))} (${pct(Number(x.share))})`).join(' and ')}`],
+  ]));
+  host.append(h('p', 'note', 'The pipeline’s tests check that the till, the provider, the settlements and the refunds agree. They do. The other five check the records against how UPI works.'));
+};
+
+const recon: Panel = (host) => {
+  onRecords(host);
+  const m = pai.matcher;
+  const f = pai.find;
+  if (state.read === 'failed') {
+    const d20 = asIs.daily.find((x) => x.date === '2026-06-20')!;
+    const d21 = asIs.daily.find((x) => x.date === '2026-06-21')!;
+    host.append(recordBlock([
+      'UPI reconciliation, Store 014, matched by RRN',
+      `${'Day'.padEnd(11)} Approved  Credits  Unmatched`,
+      ...[d20, d21].map((x) => `${day(x.date).padEnd(11)} ${String(x.till_approved).padStart(8)}  ${String(x.provider_credits).padStart(7)}  ${String(x.unmatched).padStart(9)}`),
+      `June: ${m.timeouts} UPI payments failed with no response; ${m.late_credits} credits with no approved payment`,
+    ], 'What the reconciliation report shows: credits against approvals, and the rest in suspense.'));
+    host.append(tiles([
+      { label: 'Timed-out payments, read as failures', value: num(m.timeouts) },
+      { label: 'Credits held in suspense in June', value: num(m.late_credits), note: 'until someone claims them' },
+      { label: 'Extra charges found', value: '0', note: 'customers find them, when they complain' },
+    ]));
+    host.append(says('“The provider shows credits with no approved payment behind them. Until a customer claims one, it sits in suspense.”'));
+    return;
+  }
+  host.append(tiles([
+    { label: 'Timed-out payments matched to the provider’s report', value: `${m.matched} of ${m.timeouts}`,
+      note: `${m.outcomes['late credit']} credited late, ${m.outcomes['debited and returned']} returned, ${m.outcomes['never debited']} never debited` },
+    { label: 'Extra charges found', value: num(m.extra_charges), note: `on ${m.customers} customers, ${inr(m.extra_inr)}` },
+    { label: 'Found, median days after the debit', value: days1(f.matcher_median_days), note: `complaints took ${days1(f.complaint_median_days)}; ${f.never_complained} customers never complained` },
+  ]));
+  const extras = (f.per_charge as Row[]).slice().sort((a, b) => String(a.debited_ts).localeCompare(String(b.debited_ts)));
+  host.append(smallTable('ledger', `The extra charges, from the records alone (${extras.length})`, ['Bill', 'Amount', 'Debited', 'Complaint after', 'Refund after'],
+    extras.map((x) => [String(x.bill_id), inr(Number(x.amount_inr)), when(String(x.debited_ts)),
+      x.complaint_days == null ? 'never' : `${days1(Number(x.complaint_days))} days`, x.refund_days == null ? 'not yet' : `${days1(Number(x.refund_days))} days`])));
+  host.append(says('“Every one of those suspense credits is a customer who paid twice. We can refund them in the morning, before anyone has to call.”'));
+  const verdict = h('p', 'verdict');
+  verdict.append(h('strong', 'ok', 'Right.'), document.createTextNode(` Answer key: ${m.answer_key.extra_charges} extra charges on ${m.answer_key.customers} customers; ${m.true_positives} found, ${m.false_positives} false alarms.`));
+  host.append(verdict);
+};
+
+const assistant: Panel = (host) => {
+  assistantView(host, pai.assistant as unknown as Assistant, {
+    grounding: state.ground, q: state.q, onAsk: (id) => { state.q = id; },
+    context: `Asked at the month-end review on Monday 29 June, of June’s records${rerun() ? ', as they happened' : ''}.`,
+    schema: 'till’s payment', listLabel: 'Questions at the month-end review',
+  });
+};
+
+const store: Panel = (host, s) => {
+  host.append(h('p', 'context', rerun() ? 'June rerun on the same customers, with the changes above.' : 'June as it ran.'));
+  host.append(h('h4', '', 'The till: one customer’s basket'));
+  cashier(host, s);
+  host.append(h('h4', '', 'The back office: reconciliation'));
+  backOffice(host, s);
+  host.append(h('h4', '', 'Customer support'));
+  support(host, s);
+  host.append(h('h4', '', 'Finance'));
+  finance(host, s);
+};
+
+const PANELS: Record<string, Panel> = { ops, tests, recon, assistant, store, truth };
 
 function renderPersona(root: HTMLElement) {
   const host = root.querySelector('[data-panel]') as HTMLElement;
@@ -253,10 +352,11 @@ function renderRecords(root: HTMLElement, which: string, reveal: boolean) {
 // ---------- wiring ----------
 export function mountPaymentsDemo(root: HTMLElement) {
   const select = wireTabs(root, (p) => { state.persona = p; renderPersona(root); });
-  const inputs = root.querySelectorAll<HTMLInputElement>('input[name="till"], input[name="recon"]');
+  const inputs = root.querySelectorAll<HTMLInputElement>('form.controls input[type="radio"]');
   inputs.forEach((inp) => {
     inp.addEventListener('change', () => {
-      state[inp.name as 'till' | 'recon'] = inp.value;
+      if (!inp.checked) return;
+      (state as Record<Lever, string>)[inp.name as Lever] = inp.value;
       renderOutcome(root);
       renderPersona(root);
     });
@@ -272,21 +372,27 @@ export function mountPaymentsDemo(root: HTMLElement) {
   });
   reveal?.addEventListener('change', () => renderRecords(root, recTab, reveal.checked));
 
-  // Deep links: /demo/?py=truth&till=check&recon=bill_ref#payments
+  // Deep links: /demo/?py=recon&read=matched&pyground=domain&pyq=twice&till=check&recon=bill_ref#payments
   const q = new URLSearchParams(location.search);
-  if (['retry', 'check'].includes(q.get('till') ?? '')) state.till = q.get('till') as string;
-  if (['manual', 'bill_ref'].includes(q.get('recon') ?? '')) state.recon = q.get('recon') as string;
-  inputs.forEach((inp) => { inp.checked = inp.value === state[inp.name as 'till' | 'recon']; });
+  const param: Record<Lever, string> = { till: 'till', recon: 'recon', read: 'read', ground: 'pyground' };
+  for (const lever of Object.keys(LEVERS) as Lever[]) {
+    const v = q.get(param[lever]);
+    if (v && LEVERS[lever].includes(v)) (state as Record<Lever, string>)[lever] = v;
+  }
+  const qid = q.get('pyq');
+  if (qid && pai.assistant.questions.some((x) => x.id === qid)) state.q = qid;
+  inputs.forEach((inp) => { inp.checked = inp.value === (state as Record<Lever, string>)[inp.name as Lever]; });
   renderOutcome(root);
-  select(q.get('py') && PANELS[q.get('py') as string] ? (q.get('py') as string) : 'cashier');
+  select(q.get('py') && PANELS[q.get('py') as string] ? (q.get('py') as string) : 'ops');
   renderRecords(root, recTab, false);
   root.dataset.ready = 'true';
   (window as unknown as { paymentsDemo: unknown }).paymentsDemo = {
     state,
     select,
-    set(nameOf: 'till' | 'recon', value: string) {
-      const inp = root.querySelector<HTMLInputElement>(`input[name="${nameOf}"][value="${value}"]`);
+    set(nameOf: Lever, value: string) {
+      const inp = root.querySelector<HTMLInputElement>(`form.controls input[name="${nameOf}"][value="${value}"]`);
       if (inp) { inp.checked = true; inp.dispatchEvent(new Event('change')); }
     },
+    ask(id: string) { root.querySelector<HTMLElement>(`#payments [data-q="${id}"]`)?.click(); },
   };
 }

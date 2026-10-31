@@ -1,0 +1,44 @@
+---
+// The matcher: every UPI attempt the till gave up on, joined to the provider's final status by amount
+// and time, and what it finds, scored against the answer key (payments-ai.json).
+import ai from '../../data/payments-ai.json';
+
+const m = ai.matcher;
+const f = ai.find;
+const inr = (x: number) => `₹${x.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const d1 = (x: number | null) => (x == null ? '–' : x.toFixed(1));
+const rows = [
+  ['Credited to the store late', m.outcomes['late credit'], 'An extra charge whenever the bill was paid again'],
+  ['Debited, then returned by the customer’s bank', m.outcomes['debited and returned'], 'Back within days; the store never had it'],
+  ['Never left the customer’s account', m.outcomes['never debited'], 'The only true failures'],
+];
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger match">
+      <caption>June's {m.timeouts} UPI payments the tills gave up on, matched to the provider's report</caption>
+      <thead><tr><th scope="col">What became of the payment</th><th scope="col" class="n">Payments</th><th scope="col" class="why">Which means</th></tr></thead>
+      <tbody>
+        {rows.map(([a, n, why]) => <tr><th scope="row">{a}</th><td class="n">{n}</td><td class="why">{why}</td></tr>)}
+      </tbody>
+    </table>
+  </div>
+  <div class="table-wrap">
+    <table class="ledger match">
+      <caption>The extra charges: {m.extra_charges} on {m.customers} customers, {inr(m.extra_inr)}</caption>
+      <thead><tr><th scope="col">Found by</th><th scope="col" class="n">Median days after the debit</th><th scope="col" class="why">Missed</th></tr></thead>
+      <tbody>
+        <tr><th scope="row">Matching the provider's report the next morning</th><td class="n">{d1(f.matcher_median_days)}</td><td class="why">None: {m.true_positives} of {m.answer_key.extra_charges} found, no false alarms</td></tr>
+        <tr><th scope="row">A customer's complaint</th><td class="n">{d1(f.complaint_median_days)}</td><td class="why">{f.never_complained} customers never complained</td></tr>
+        <tr><th scope="row">The refund, once found</th><td class="n">{d1(f.refund_median_days_from_debit)}</td><td class="why">{f.not_refunded} not refunded by the month-end review, {inr(f.not_refunded_inr)}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Each timed-out attempt is matched to the provider row no till payment claims, with the same amount and a start within five seconds, one to one, nearest first. All {m.matched} match, and every outcome is the one the answer key records.</figcaption>
+</figure>
+
+<style>
+  .match td { white-space: normal; }
+  .match tbody th { min-width: 14rem; font-weight: 450; }
+  .match + .table-wrap .match, .table-wrap + .table-wrap .match { margin-top: 1.2rem; }
+</style>
