@@ -43,6 +43,7 @@ const cards = [
   { name: 'home', title: 'Why domain matters', lede: 'Every KPI is computed from a record, and every record has a blind spot. In the agentic era, domain knowledge is what knows it.' },
   { name: 'kpis', title: 'Domain KPIs, x-rayed', lede: 'Eighteen retail, logistics and payments KPIs, each measured twice: as the systems report it, and as it really was.' },
   { name: 'demo', title: 'One grocery basket, three domains', lede: 'A supermarket in Bengaluru, its warehouse and its milk route. Synthetic, seeded, and the same for every reader.' },
+  { name: 'kit', title: 'Take it to work', lede: 'A benchmark with an answer key, domain tests in dbt, and a domain layer for your agents. All on one synthetic store.' },
   ...readPosts(),
 ];
 

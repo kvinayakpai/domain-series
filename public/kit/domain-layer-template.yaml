@@ -1,0 +1,52 @@
+# A domain layer: what an assistant or agent needs besides the schema.
+# Fill one in for the records behind a KPI your agents act on. Store 014's, filled in, is at
+# https://kvinayakpai.github.io/domain-series/kit/store-014-domain-layer.yaml
+
+records:
+  # One entry per table or file. The question for each: what in the world does it look at?
+  - id: goods_receipts
+    written_by: "a scan of the pallet label, matched to the supplier's shipping notice"
+    looks_at: []            # nothing: it copies the notice. A case scan would look at the pallet.
+    copies: [shipping_notice]
+  - id: stock_counts
+    written_by: "staff counting the shelf and the backroom"
+    looks_at: [shelf, backroom]
+
+unseen:
+  # Things in the world no record looks at. Name them; that is where a failure can hide longest.
+  - what_is_on_a_pallet
+
+joins:
+  # Every pair of records that share a key, and how often they agree. A join that always agrees
+  # is a copy, and a test on it can only pass. Run the counts; do not assume them.
+  - records: [shipping_notice, goods_receipts]
+    joined_on: "shipment and line"
+    agree: "70 of 70"
+    kind: copy
+  - records: [inventory_book, stock_counts]
+    joined_on: "item"
+    agree: "4 of 25"
+    kind: observation
+
+kpis:
+  # The record each KPI reads, the observations that can contradict it, and the rule for an agent.
+  - id: on_shelf_availability
+    reads: [inventory_book]
+    contradicted_by: [shelf_audits, stock_counts, till_lines]
+    rule: "Book stock is a belief. When an item stops selling while the books show stock, ask for a shelf check."
+    two_numbers:
+      reported: "share of open hours with stock on the books"
+      observed: "share of open hours with the item on the shelf, from audits and censored sales"
+    time_to_find: "open hours from the shelf emptying to someone knowing"
+
+definitions:
+  # Terms whose meaning in the records differs from their meaning in the world.
+  sales: "Units the tills scanned. Demand only while the shelf had the item."
+
+rules:
+  # Short, testable instructions. Each should be a test in your pipeline too.
+  - "A timeout is a question, not a failure. Match it to the final status before acting."
+
+views:
+  # Views the layer adds, by name, with what each holds. Keep their SQL with your models.
+  censored_hours: "open hours with no stock on the books, or a silence longer than the usual rate allows"

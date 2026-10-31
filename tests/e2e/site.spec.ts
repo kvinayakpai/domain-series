@@ -11,6 +11,7 @@ const pages = [
   { path: 'payments/', og: 'payments' },
   { path: 'payments/technical/', og: 'payments' },
   { path: 'who-saw-what/', og: 'who-saw-what' },
+  { path: 'kit/', og: 'kit' },
   { path: 'demo/', og: 'demo' },
   { path: 'data/', og: 'home' },
 ];

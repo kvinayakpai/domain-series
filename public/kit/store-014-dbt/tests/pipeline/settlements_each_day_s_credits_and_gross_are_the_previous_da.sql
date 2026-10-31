@@ -1,0 +1,2 @@
+-- Settlements: each day's credits and gross are the previous day's successes
+WITH s AS (SELECT CAST(status_ts AS DATE) + 1 AS settlement_date, count(*) AS credits, round(sum(amount_inr), 2) AS gross FROM {{ ref('psp_upi') }} WHERE status = 'success' GROUP BY ALL) SELECT x.settlement_date, x.upi_credits, s.credits, x.gross_inr, s.gross FROM {{ ref('settlements') }} x LEFT JOIN s USING (settlement_date) WHERE x.upi_credits <> coalesce(s.credits, 0) OR abs(x.gross_inr - coalesce(s.gross, 0)) > 0.01

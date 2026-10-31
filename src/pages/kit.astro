@@ -1,0 +1,136 @@
+---
+// The practitioner's kit: the series' benchmark, dbt tests, domain layer and map, as files a data or
+// AI team can run. Numbers come from scripts/kit/*.py, which build and check each piece.
+import Layout from '../layouts/Layout.astro';
+import bench from '../data/bench.json';
+import dbt from '../data/dbt-kit.json';
+import finale from '../data/finale.json';
+
+const base = import.meta.env.BASE_URL;
+const kit = `${base}kit/`;
+const files = `${base}data/india-grocery/`;
+const words: Record<number, string> = { 1: 'one', 3: 'three', 7: 'seven', 8: 'eight', 12: 'twelve', 13: 'thirteen', 21: 'twenty-one', 22: 'twenty-two', 32: 'thirty-two' };
+const b = bench.baselines;
+const label: Record<string, string> = {
+  'schema-only': 'Given the schema only',
+  'domain-layers': 'Given the three posts’ domain layers',
+  map: 'Given the domain layers and the map',
+};
+const DOM: Record<string, string> = { retail: 'The shelf', logistics: 'The truck', payments: 'The money', across: 'Across them' };
+const fmtAnswer = (a: Record<string, unknown>) => Object.entries(a).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' | ') : v}`).join('; ');
+type Score = { right: number; of: number };
+const benchRows = Object.entries(b).map(([k, v]) => ({ k, all: `${v.right} of ${v.of}`,
+  cells: Object.keys(DOM).map((d) => { const x = (v.by_domain as Record<string, Score>)[d]; return `${x.right} of ${x.of}`; }) }));
+const samples = bench.sample.map((s) => ({ ...s, fmt: fmtAnswer(s.answer as Record<string, unknown>) }));
+const domainTests = Object.entries(dbt.domain).map(([id, n]) => ({ id, n: n as number, title: (dbt.domain_titles as Record<string, string>)[id], dom: (dbt.domain_of as Record<string, string>)[id] }));
+const copies = finale.joins.filter((j) => j.kind === 'copy').length;
+---
+<Layout title="Take it to work" image="og/kit.png" description="The series' benchmark, tests and domain layer as files a data or AI team can run: the Store 014 Bench, with an answer key and a scorer; a dbt project with the data tests and the domain tests; and Store 014's domain layer and map, with a template for your own.">
+  <article class="kit">
+    <header>
+      <h1>Take it to work</h1>
+      <p class="lede">The series’ tests, domain layers and questions, in the forms a data or AI team works with: a dbt project, YAML, JSON and a scorer. All of it runs on <a href={`${base}data/`}>Store 014’s records</a>, and none of it calls a language model.</p>
+      <ul class="kit-jump" aria-label="On this page">
+        <li><a href="#bench">Store 014 Bench</a> <span>{words[bench.questions] ?? bench.questions} questions, an answer key, a scorer</span></li>
+        <li><a href="#dbt">Domain tests in dbt</a> <span>{words[dbt.pipeline.tests] ?? dbt.pipeline.tests} data tests and {words[domainTests.length] ?? domainTests.length} domain tests</span></li>
+        <li><a href="#layer">A domain layer</a> <span>Store 014’s, the map, and a template</span></li>
+      </ul>
+    </header>
+
+    <section id="bench" aria-labelledby="bench-title">
+      <h2 id="bench-title">Store 014 Bench</h2>
+      <p>Twenty-two questions about June at Store 014: seven on the shelf, seven on the truck, seven on the money, and one across them. Each is asked at a stated time, has an answer in a fixed form, and is scored against the synthetic world’s answer key, so a model’s answers are counted, not judged. Ask them of your assistant or agent, once with your schema alone and once with a domain layer, and compare.</p>
+      <div class="table-wrap">
+        <table class="ledger bench-scores">
+          <caption>The series’ scripted assistant on the bench</caption>
+          <thead><tr><th scope="col">Assistant</th>{Object.keys(DOM).map((d) => <th scope="col" class="n">{DOM[d]}</th>)}<th scope="col" class="n">All</th></tr></thead>
+          <tbody>
+            {benchRows.map((r) => (
+              <tr><th scope="row">{label[r.k]}</th>{r.cells.map((c) => <td class="n">{c}</td>)}<td class="n all">{r.all}</td></tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="note">The scripted assistant follows rules, not a language model, so its runs repeat exactly. Its answers are in the bench’s baselines folder.</p>
+      <h3>Four of the questions</h3>
+      <dl class="qs">
+        {samples.map((s) => (
+          <div><dt><code>{s.id}</code> <span>asked {s.as_of.replace('T', ' ')}</span></dt><dd>{s.question}<span class="ans">Answer with {s.fmt}</span></dd></div>
+        ))}
+      </dl>
+      <h3>Run it</h3>
+      <ol>
+        <li>Download <a href={`${kit}store-014-bench.zip`} download>the bench</a> (questions, answer key, scorer, baselines) and the <a href={`${base}data/`}>records</a>.</li>
+        <li>Give your assistant the records it would have in your setting. Ask each question, with only the rows timestamped before its <code>as_of</code>.</li>
+        <li>Write the answers as one JSON object keyed by question id, each in the form <code>questions.json</code> gives.</li>
+        <li>Run <code>python score.py answers.json</code>. It needs Python 3 and nothing else.</li>
+      </ol>
+      <p class="files">Browse: <a href={`${kit}bench/questions.json`}>questions.json</a>, <a href={`${kit}bench/answer-key.json`}>answer-key.json</a>, <a href={`${kit}bench/score.py`}>score.py</a>, <a href={`${kit}bench/README.md`}>README</a>.</p>
+    </section>
+
+    <section id="dbt" aria-labelledby="dbt-title">
+      <h2 id="dbt-title">Domain tests in dbt</h2>
+      <p>A dbt project on DuckDB that reads the records as they are. <code>dbt build</code> makes a view per record, carrying what writes it and what it looks at, and runs two sets of tests. The {words[dbt.pipeline.tests] ?? dbt.pipeline.tests} data tests from the technical companions check keys, values and reconciliations: {dbt.pipeline.pass} pass, and the other warns about one milk book that goes below zero. The {words[domainTests.length] ?? domainTests.length} domain tests check the records against how a store, a warehouse and UPI work. Each fails on June’s records, as a warning, and keeps its failing rows.</p>
+      <div class="table-wrap">
+        <table class="ledger dbt-tests">
+          <caption>The domain tests, and the rows each finds in June</caption>
+          <thead><tr><th scope="col">Test</th><th scope="col" class="n">Rows</th></tr></thead>
+          {Object.entries({ retail: 'The shelf', logistics: 'The truck', payments: 'The money' }).map(([d, name]) => (
+            <tbody>
+              <tr class="group"><th colspan="2" scope="colgroup">{name}</th></tr>
+              {domainTests.filter((t) => t.dom === d).map((t) => <tr><th scope="row">{t.title}<code>{t.id}</code></th><td class="n">{t.n}</td></tr>)}
+            </tbody>
+          ))}
+        </table>
+      </div>
+      <p>The gap detector, which the retail companion runs in Python, is written in SQL here and finds the same ten silences. A model called <code>join_agreement</code> counts how often each of the {words[finale.joins.length] ?? finale.joins.length} joins between the records agrees: {words[copies] ?? copies} always do.</p>
+      <pre class="cmd"><code>pip install dbt-duckdb
+unzip store-014-dbt.zip && cd store-014-dbt
+dbt build --profiles-dir .</code></pre>
+      <p class="files">Download <a href={`${kit}store-014-dbt.zip`} download>the project with the records</a>, or browse <a href={`${kit}store-014-dbt/README.md`}>its README</a>, <a href={`${kit}store-014-dbt/models/domain/silent_runs.sql`}>the gap detector in SQL</a> and <a href={`${kit}store-014-dbt/models/domain/mirror_pairs.sql`}>the mirror pairs</a>.</p>
+    </section>
+
+    <section id="layer" aria-labelledby="layer-title">
+      <h2 id="layer-title">A domain layer</h2>
+      <p>What an assistant or agent needs besides the schema: what writes each record and what it looks at, how often the records agree, which record each KPI reads and what can contradict it, and the definitions and rules that read a silence or a timeout as a question.</p>
+      <ul class="layer-files">
+        <li><a href={`${kit}store-014-domain-layer.yaml`}>Store 014’s domain layer</a>, as YAML: the map, the {words[finale.joins.length] ?? finale.joins.length} joins, the headline KPIs, and the definitions, rules and views the series’ assistant was given in each post.</li>
+        <li><a href={`${kit}domain-layer-template.yaml`}>A template</a> for your own, with one filled-in example per section.</li>
+        <li><a href={`${files}store-014-map.json`}>The map of the records</a>, as JSON, with the SQL for every join. <a href={`${base}who-saw-what/`}>Who saw what</a> draws it.</li>
+        <li><a href={`${base}kpis/domain-kpis.yaml`}>Eighteen domain KPIs</a>, as YAML: what each drives, its blind spot, the check that exposes it, and the rule for an agent. <a href={`${base}kpis/`}>Domain KPIs, x-rayed</a> explains them.</li>
+      </ul>
+    </section>
+
+    <section class="kit-next" aria-labelledby="next-title">
+      <h2 id="next-title">Where the pieces come from</h2>
+      <p>The questions, tests and layers were built in the technical companions for <a href={`${base}retail/technical/`}>retail</a>, <a href={`${base}logistics/technical/`}>logistics</a> and <a href={`${base}payments/technical/`}>payments</a>, each with a notebook, and the question across them in <a href={`${base}who-saw-what/`}>the last post</a>. The world is synthetic and seeded, calibrated against published studies of real stores, so every reader gets the same month and every answer can be scored.</p>
+    </section>
+  </article>
+</Layout>
+
+<style>
+  .kit .lede { font-size: 1.15rem; }
+  .kit-jump { list-style: none; padding: 0; margin: 1.2rem 0 0; font-family: var(--font-sign); }
+  .kit-jump li { padding: 0.35rem 0; border-top: 1px solid var(--rule); }
+  .kit-jump a { font-weight: 650; }
+  .kit-jump span { color: var(--muted); margin-left: 0.4rem; }
+  .kit section { margin-top: 2.6rem; }
+  .kit h3 { font-size: 1.1rem; margin: 1.6rem 0 0.4rem; }
+  .bench-scores td.n, .bench-scores th.n { text-align: right; white-space: nowrap; }
+  .bench-scores td.all { font-weight: 650; }
+  .bench-scores tbody tr:last-child td.all { color: var(--ok); }
+  .kit .note { font-family: var(--font-sign); font-size: 0.9rem; color: var(--muted); }
+  .qs { margin: 0; }
+  .qs div { border-top: 1px solid var(--rule); padding: 0.55rem 0; }
+  .qs dt { font-family: var(--font-sign); font-size: 0.85rem; color: var(--muted); }
+  .qs dt code { font-size: 0.82rem; color: var(--record); }
+  .qs dd { margin: 0.15rem 0 0; }
+  .qs .ans { display: block; font-family: var(--font-record); font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; word-break: break-word; }
+  .kit .files { font-family: var(--font-sign); font-size: 0.95rem; }
+  .dbt-tests tr.group th { font-size: 0.9rem; color: var(--muted); font-weight: 600; padding-top: 1rem; }
+  .dbt-tests tbody th[scope='row'] { font-weight: 450; white-space: normal; }
+  .dbt-tests tbody th code { display: block; font-size: 0.74rem; color: var(--muted); }
+  .dbt-tests td.n { text-align: right; color: var(--correction); font-weight: 650; }
+  .cmd { margin: 1rem 0; padding: 0.75rem 1rem; background: var(--panel); border-radius: 4px; overflow-x: auto; font-family: var(--font-record); font-size: 0.82rem; line-height: 1.55; }
+  .layer-files li { margin-bottom: 0.6rem; }
+</style>

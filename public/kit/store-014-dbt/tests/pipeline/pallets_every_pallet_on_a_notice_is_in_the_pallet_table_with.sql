@@ -1,0 +1,2 @@
+-- Pallets: every pallet on a notice is in the pallet table, with the same tare on every pallet
+WITH w AS (SELECT n.sscc, sum(n.cases * p.case_kg) AS cases_kg FROM {{ ref('notice_lines') }} n JOIN {{ ref('products') }} p USING (sku) GROUP BY n.sscc), t AS (SELECT round(pl.notice_kg - w.cases_kg, 1) AS tare FROM w LEFT JOIN {{ ref('pallets') }} pl USING (sscc)) SELECT tare, count(*) AS pallets FROM t GROUP BY tare HAVING (SELECT count(DISTINCT tare) FROM t) <> 1 OR tare IS NULL
