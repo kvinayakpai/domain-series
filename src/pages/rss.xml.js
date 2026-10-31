@@ -8,7 +8,7 @@ export async function GET(context) {
     .sort((a, b) => b.data.pubDate - a.data.pubDate);
   return rss({
     title: 'Why Domain Matters',
-    description: 'Real operational failures in Indian grocery retail, logistics and payments, seen through the people involved, with demos you can run.',
+    description: 'Why domain knowledge matters to data and AI work in the agentic era: KPIs from Indian grocery retail, logistics and payments, each measured twice, with demos, notebooks and answer keys.',
     site: new URL(base, context.site).toString(),
     items: posts.map((p) => ({
       title: p.data.title,

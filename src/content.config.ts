@@ -5,10 +5,13 @@ const posts = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/posts' }),
   schema: z.object({
     title: z.string(),
+    /** The domain the post covers, shown above the title, e.g. 'Retail and grocery'. */
+    domain: z.string().optional(),
     description: z.string(),
     order: z.number(),
     slug: z.string(),
-    demoAnchor: z.string(),
+    /** The post's section of the demo page, if it has one. */
+    demoAnchor: z.string().optional(),
     /** What the system records. Shown in the record voice. */
     record: z.string(),
     /** What actually happened. */

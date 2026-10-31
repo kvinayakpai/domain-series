@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 
 const pages = [
   { path: './', og: 'home' },
+  { path: 'why-domain/', og: 'why-domain' },
+  { path: 'kpis/', og: 'kpis' },
   { path: 'retail/', og: 'retail' },
   { path: 'retail/technical/', og: 'retail' },
   { path: 'logistics/', og: 'logistics' },
@@ -43,13 +45,15 @@ test('link-preview images are served', async ({ request }) => {
   }
 });
 
-test('home lists every post with its record and reality', async ({ page }) => {
+test('home leads with the opener and lists each domain post with its KPI measured twice', async ({ page }) => {
   await page.goto('./');
+  await expect(page.locator('.start a[href$="/why-domain/"]')).toHaveCount(1);
   const rows = page.locator('table.audit tbody tr');
   await expect(rows).toHaveCount(3);
   for (const slug of ['retail', 'logistics', 'payments']) {
     await expect(page.locator(`table.audit a[href$="/${slug}/"]`)).toHaveCount(1);
   }
+  await expect(page.locator('a[href$="/kpis/"]').first()).toBeVisible();
 });
 
 test('posts show a byline and link to their demo scenario', async ({ page }) => {

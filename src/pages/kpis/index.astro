@@ -1,0 +1,64 @@
+---
+// The series' domain KPIs, x-rayed: each one measured twice at Store 014, with what it drives, how
+// it is usually computed, what that record cannot see, the check that exposes the gap, and the rule
+// an agent needs. The content lives in src/lib/kpis.ts; domain-kpis.yaml serves the same list.
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+import { DOMAINS, KPI_COUNT } from '../../lib/kpis';
+
+const base = import.meta.env.BASE_URL;
+const posts = await getCollection('posts');
+const titleOf = (slug: string) => posts.find((p) => p.data.slug === slug)?.data.title ?? slug;
+const words: Record<number, string> = { 5: 'five', 8: 'eight', 18: 'eighteen' };
+---
+<Layout title="Domain KPIs, x-rayed" description={`${KPI_COUNT} retail, logistics and payments KPIs, each measured twice at one supermarket: as its systems report it and as the answer key observed it. With the record each is computed from, what that record cannot see, the check that exposes the gap, and the rule an AI agent needs before acting on it.`} image="og/kpis.png">
+  <article class="kpi-page">
+    <header>
+      <h1>Domain KPIs, x-rayed</h1>
+      <p class="lede">Every KPI is computed from a record, and every record has a blind spot. Agents now act on these numbers, so the blind spot no longer ends as a wrong slide. It ends as a wrong order, refund or reroute.</p>
+      <p>Here are the {words[KPI_COUNT] ?? KPI_COUNT} KPIs behind the series. Each is measured twice at Store 014, the fictional Bengaluru supermarket of the series’ synthetic world: as its systems report it, and as the world’s answer key observed it. Each entry says what the KPI drives, how it is usually computed, what that record cannot see, the check that exposes the gap, and the rule to give an AI agent before it acts on the number.</p>
+      <ul class="kpi-jump" aria-label="Domains">
+        {DOMAINS.map((d) => <li><a href={`#${d.id}`}>{d.name}</a> <span>{words[d.kpis.length] ?? d.kpis.length} KPIs</span></li>)}
+      </ul>
+      <p class="kpi-download"><a href={`${base}kpis/domain-kpis.yaml`} download>Download the list as YAML</a>, a starting point for your own domain layer.</p>
+    </header>
+
+    {DOMAINS.map((d) => (
+      <section class="kpi-domain" id={d.id} aria-labelledby={`${d.id}-title`}>
+        <h2 id={`${d.id}-title`}>{d.name}</h2>
+        <p class="kpi-from">The story behind these numbers: <a href={`${base}${d.post}/`}>{titleOf(d.post)}</a>.</p>
+        {d.kpis.map((k) => (
+          <section class="kpi" id={k.id} aria-labelledby={`${k.id}-name`}>
+            <h3 id={`${k.id}-name`}>{k.name}</h3>
+            <p class="kpi-drives">It drives {k.drives.charAt(0).toLowerCase() + k.drives.slice(1)}</p>
+            {k.reported && k.observed && (
+              <dl class="kpi-twice">
+                <div><dt>Reported</dt><dd><span class="kpi-num rec">{k.reported.value}</span> <span class="kpi-how">{k.reported.how}</span></dd></div>
+                <div><dt>Observed</dt><dd><span class="kpi-num gap">{k.observed.value}</span> <span class="kpi-how">{k.observed.how}</span></dd></div>
+              </dl>
+            )}
+            <dl class="kpi-facets">
+              <div><dt>Usually computed from</dt><dd>{k.computed}</dd></div>
+              <div><dt>Blind spot</dt><dd>{k.blind}</dd></div>
+              <div><dt>Domain check</dt><dd>{k.check}</dd></div>
+              <div><dt>Tell your agent</dt><dd class="kpi-rule">{k.agent}</dd></div>
+            </dl>
+            <p class="kpi-example"><span>Store 014</span> {k.example}</p>
+          </section>
+        ))}
+      </section>
+    ))}
+
+    <section class="kpi-next" aria-labelledby="next-title">
+      <h2 id="next-title">Start with your own</h2>
+      <ol>
+        <li>List your five most important domain KPIs.</li>
+        <li>For each, write down the record it is computed from and what that record cannot see.</li>
+        <li>Find one independent observation for each, and join it.</li>
+        <li>Before an agent acts on a KPI, give it the blind spot as a rule.</li>
+        <li>Score your models against what happened, not against what was recorded.</li>
+      </ol>
+      <p>Why this matters more in the agentic era: <a href={`${base}why-domain/`}>Every KPI has a blind spot</a>. The numbers come from a synthetic, seeded world calibrated against published studies; the <a href={`${base}data/`}>records</a> and answer keys are free to download.</p>
+    </section>
+  </article>
+</Layout>

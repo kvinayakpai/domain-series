@@ -140,7 +140,7 @@ for i, (a, b) in enumerate(boxes):
 flow.append('</div>')
 slides["happened"] = section("happened", "\n".join([h2("A slow answer is not a failed payment"), *flow,
     '<p style="font-size:32px;line-height:1.45;width:1550px">When the debit has happened and the answer is late, UPI settles it afterwards: the store’s bank confirms the credit, or the money goes back. RBI requires it back within five days of the payment, with ₹100 a day after that. The money is never lost. For a while it is in two places, and the till is the last to know.</p>',
-    foot("40% of UPI attempts at Store 014 got no answer within 30 seconds between 18:20 and 19:50. RBI/2019-20/67 (2019): merchant payments reversed within T+5.")]),
+    foot(f"{slow['upi_timeouts']} of {slow['upi_attempts']} UPI attempts at Store 014 got no answer within 30 seconds between 18:20 and 19:50. RBI/2019-20/67 (2019): merchant payments reversed within T+5.")]),
     "A UPI payment at a till passes through several systems: the customer’s app, NPCI’s switch, her bank, which debits her account, and the store’s bank, which credits the store and sends the answer back to the till. On Saturday evening the store’s bank was slow. A slow answer is not a failed payment. When the debit has happened and the answer is late, UPI settles it afterwards: the store’s bank confirms the credit or returns the money, and RBI requires the money back within five days for a payment to a merchant, with a hundred rupees a day in compensation after that. The money is never lost; for a while it is in two places, and the till is the last to know.",
     gap=48)
 

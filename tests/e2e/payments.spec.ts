@@ -46,7 +46,7 @@ test('the payments post quotes the world correctly', async ({ page }) => {
     `there were ${d['2026-06-20'].provider_credits} credits against ${d['2026-06-20'].till_approved} approvals, and on Sunday ${d['2026-06-21'].provider_credits} against ${d['2026-06-21'].till_approved}. The ${d['2026-06-20'].unmatched + d['2026-06-21'].unmatched} credits`,
     `takes ${asIs.complaints.length} complaints about payments in June, ${twice} of them`,
     `${inr0(refunds)} of refunds`,
-    `${pct(data.params.upi_slowdown.value.timeout)} of UPI attempts at Store 014 got no answer`,
+    'about a third of UPI attempts at Store 014 got no answer',
     `Store 014 took ${slow.bills} bills. Of ${slow.upi_attempts} UPI attempts, the tills gave up on ${slow.upi_timeouts}. ${slow.charged_twice} customers paid twice, two of them three times: ${slow.extra_charges} extra charges, ${inr2(slow.charged_twice_inr)} in all.`,
     `Across June, ${june.charged_twice} customers paid twice, ${june.extra_charges} extra charges worth ${inr2(june.charged_twice_inr)}; ${june.charged_twice - slow.charged_twice} of them outside the Saturday slowdown`,
     `The median wait was ${ref.median_days_to_refund} days, the longest ${ref.max_days_to_refund}, and when June closed four extra charges, ${inr2(ref.unrefunded_inr)}`,
@@ -58,6 +58,9 @@ test('the payments post quotes the world correctly', async ({ page }) => {
     sc.rrn, sc.bill_id,
   ];
   for (const e of expected) expect(text, e).toContain(e);
+  // "about a third": the share of slowdown attempts the tills gave up on.
+  expect(slow.upi_timeouts / slow.upi_attempts).toBeGreaterThan(0.3);
+  expect(slow.upi_timeouts / slow.upi_attempts).toBeLessThan(0.37);
   expect(slow.extra_charges - slow.charged_twice).toBe(2); // "two of them three times"
   expect(ref.unrefunded_at_month_end).toBe(4); // "four extra charges"
   expect(june.debited_and_returned).toBe(6); // "Six customers were debited"

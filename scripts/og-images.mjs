@@ -33,12 +33,15 @@ function readPosts() {
   return readdirSync(dir).filter((f) => /\.mdx?$/.test(f)).map((f) => {
     const fm = readFileSync(path.join(dir, f), 'utf8').split('---')[1];
     const get = (k) => (fm.match(new RegExp(`^${k}:\\s*"(.*)"\\s*$`, 'm')) || [])[1];
-    return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality') };
+    const order = Number((fm.match(/^order:\s*(\d+)/m) || [])[1] ?? 0);
+    // A domain post names its domain beside the series; the opener speaks for the whole series.
+    return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality'), domain: order > 0 ? get('domain') : undefined };
   });
 }
 
 const cards = [
-  { name: 'home', title: 'Why domain matters', lede: 'Every system keeps a record. Domain knowledge is knowing when the record is wrong, and why.' },
+  { name: 'home', title: 'Why domain matters', lede: 'Every KPI is computed from a record, and every record has a blind spot. In the agentic era, domain knowledge is what knows it.' },
+  { name: 'kpis', title: 'Domain KPIs, x-rayed', lede: 'Eighteen retail, logistics and payments KPIs, each measured twice: as the systems report it, and as it really was.' },
   { name: 'demo', title: 'One grocery basket, three domains', lede: 'A supermarket in Bengaluru, its warehouse and its milk route. Synthetic, seeded, and the same for every reader.' },
   ...readPosts(),
 ];
@@ -65,7 +68,7 @@ function html(c) {
     .lede { font-size: 38px; line-height: 1.35; margin-top: 30px; max-width: 980px; }
     .url { margin-top: auto; font-family: Anek; font-size: 24px; color: #59626d; }
   </style></head><body>
-    ${c.name === 'home' ? '' : '<div class="series">Why Domain Matters</div>'}
+    ${c.name === 'home' ? '' : `<div class="series">Why Domain Matters${c.domain ? `: ${esc(c.domain.toLowerCase())}` : ''}</div>`}
     <h1>${esc(c.title)}</h1>
     ${body}
     <div class="url">kvinayakpai.github.io/domain-series</div>

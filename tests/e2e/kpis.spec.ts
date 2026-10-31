@@ -1,0 +1,183 @@
+import { test, expect, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { load } from 'js-yaml';
+
+// The opener, the KPI page, the home table and the KPI x-ray in each post header all quote the
+// world. Every number checked here is derived from the world's exports directly, not from
+// src/lib/kpis.ts, so a change in the world that the prose has not caught up with fails here.
+const read = (f: string) => JSON.parse(readFileSync(new URL(`../../src/data/${f}`, import.meta.url), 'utf8'));
+const retail = read('retail.json');
+const ai = read('retail-ai.json');
+const logistics = read('logistics.json');
+const payments = read('payments.json');
+
+const pct = (v: number) => `${Math.round(Math.abs(v) * 100)}%`;
+const inr = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
+
+const ep = retail.story.episode;
+const asIs = retail.scenarios.find((s: { key: string }) => s.key === 'off|today');
+const flag = ai.detector.hero_flags[0];
+const lk = logistics.scenarios.find((s: { key: string }) => s.key === 'none|label').kpis;
+const ls = logistics.story;
+const foundAfterDays = Math.floor((Date.parse(`${ls.corrections[0].count_ts}:00+05:30`) - Date.parse(`${ls.shipment.arrived_ts}:00+05:30`)) / 86_400_000);
+const slow = payments.story.slowdown;
+const june = payments.story.june;
+const refunds = payments.story.refunds;
+
+// The KPI each domain post is built around, measured twice, with what the gap cost.
+const heroes = [
+  {
+    post: 'retail', id: 'osa',
+    reported: pct(ai.availability.on_the_books), observed: pct(ai.availability.true_open_hours),
+    cost: `${asIs.kpis.lost_units} bags shoppers could not find: ${inr(asIs.kpis.lost_value_inr)} of sales`,
+    found: `After ${Math.round(ep.empty_open_hours)} open hours`,
+  },
+  {
+    post: 'logistics', id: 'otif',
+    reported: pct(lk.otif.dc_report), observed: pct(lk.otif.at_the_shelf),
+    cost: `${ls.episode.lost_units} bags (${inr(ls.episode.lost_value_inr)}) not sold`,
+    found: `${foundAfterDays} days after delivery`,
+  },
+  {
+    post: 'payments', id: 'success-rate',
+    reported: pct(slow.four_ways.till), observed: pct(slow.four_ways.bank),
+    cost: `${slow.charged_twice} customers charged twice: ${slow.extra_charges} extra charges, ${inr(slow.charged_twice_inr)}`,
+    found: `median ${refunds.median_days_to_refund} days`,
+  },
+];
+
+async function articleText(page: Page, path: string) {
+  await page.goto(path);
+  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+}
+
+test('the opener quotes the world correctly', async ({ page }) => {
+  const text = await articleText(page, 'why-domain/');
+  const [osa, otif, upi] = heroes;
+  const expected = [
+    `Availability ${osa.reported}. On time, in full ${otif.reported}. UPI success ${upi.reported}.`,
+    `Availability of 5 kg atta in June: ${osa.reported}`,
+    `Deliveries on time and in full: ${otif.reported}`,
+    `UPI payments approved at the till on a busy Saturday evening: ${upi.reported}`,
+    `The shelf had 5 kg atta ${osa.observed} of the time`,
+    `${otif.observed} of deliveries brought the right cases on time`,
+    `${upi.observed} of those UPI payments reached the store's bank, and ${slow.charged_twice} customers paid twice`,
+    `finds the empty shelf in three open hours instead of ${Math.round(ep.empty_open_hours)}`,
+    `At Store 014 that took ${Math.round(ep.empty_open_hours)} open hours for the empty shelf, four days for the wrong pallet`,
+  ];
+  for (const e of expected) expect(text, e).toContain(e);
+
+  // Numbers the prose gives in words.
+  expect(text).toContain("Of Store 014's twelve data tests on keys, values and reconciliations, eleven pass, and the failure is about milk");
+  expect(ai.tests.generic).toHaveLength(12);
+  expect(ai.tests.generic.filter((t: { pass: boolean }) => t.pass)).toHaveLength(11);
+  expect(text).toContain('Four tests that encode how a store works all fail');
+  expect(ai.tests.domain).toHaveLength(4);
+  expect(ai.tests.domain.every((t: { pass: boolean }) => !t.pass)).toBe(true);
+  expect(text).toContain('from one right answer in seven to seven in seven');
+  expect([ai.assistant.score.naive, ai.assistant.score.domain, ai.assistant.questions.length]).toEqual([1, 7, 7]);
+  expect(flag.open_hours_to_flag).toBe(3);
+  expect(foundAfterDays).toBe(4);
+  expect(text).toContain('does this for eighteen KPIs');
+
+  // The table of the three KPIs, each measured twice, and no x-ray of its own.
+  const rows = page.locator('table.three-kpis tbody tr');
+  await expect(rows).toHaveCount(3);
+  for (const [i, h] of heroes.entries()) {
+    await expect(rows.nth(i)).toContainText(h.reported);
+    await expect(rows.nth(i)).toContainText(h.observed);
+    await expect(rows.nth(i).locator(`a[href$="/${h.post}/"]`)).toHaveCount(1);
+  }
+  await expect(page.locator('.xray')).toHaveCount(0);
+});
+
+test('the KPI page x-rays eighteen KPIs, each measured twice', async ({ page }) => {
+  await page.goto('kpis/');
+  await expect(page.locator('section.kpi')).toHaveCount(18);
+  for (const [domain, n, word] of [['retail', 8, 'eight'], ['logistics', 5, 'five'], ['payments', 5, 'five']] as const) {
+    await expect(page.locator(`#${domain} section.kpi`)).toHaveCount(n);
+    await expect(page.locator(`.kpi-jump a[href="#${domain}"]`).locator('..')).toContainText(`${word} KPIs`);
+    await expect(page.locator(`#${domain} .kpi-from a[href$="/${domain}/"]`)).toHaveCount(1);
+  }
+
+  // Every KPI carries both numbers, the four facets and a Store 014 example.
+  const kpis = page.locator('section.kpi');
+  for (let i = 0; i < 18; i++) {
+    const k = kpis.nth(i);
+    await expect(k.locator('.kpi-twice .kpi-num')).toHaveCount(2);
+    await expect(k.locator('.kpi-facets dt')).toHaveText(['Usually computed from', 'Blind spot', 'Domain check', 'Tell your agent']);
+    await expect(k.locator('.kpi-example')).toContainText('Store 014');
+    await expect(k.locator('.kpi-drives')).toHaveText(/^It drives [a-z]/);
+  }
+
+  // The numbers, from the world.
+  const twice = async (id: string, reported: string, observed: string) => {
+    await expect(page.locator(`#${id} .kpi-num.rec`), id).toHaveText(reported);
+    await expect(page.locator(`#${id} .kpi-num.gap`), id).toHaveText(observed);
+  };
+  for (const h of heroes) await twice(h.id, h.reported, h.observed);
+  const acc = retail.record_accuracy;
+  await twice('lost-sales', '0', `${asIs.kpis.lost_units} bags`);
+  await twice('ira', '100%', pct((acc.items - acc.wrong) / acc.items));
+  await twice('fill-rate', `${(lk.case_fill.by_notice * 100).toFixed(1)}%`, `${(lk.case_fill.right_item * 100).toFixed(1)}%`);
+  await twice('on-time', `${lk.in_slot} of ${lk.shipments}`, ls.shipment.arrived_ts.slice(11, 16));
+  await twice('charged-twice', '0', `${june.charged_twice} customers`);
+  await twice('refund-tat', `${refunds.median_days_to_refund} days`, `${refunds.unrefunded_at_month_end} unrefunded`);
+  await twice('technical-declines', `${((june.upi_technical_failures / june.upi_attempts) * 100).toFixed(2)}%`, pct(slow.upi_timeouts / slow.upi_attempts));
+});
+
+test('the KPI list downloads as YAML with the same eighteen entries', async ({ page, request }) => {
+  const res = await request.get('kpis/domain-kpis.yaml');
+  expect(res.status()).toBe(200);
+  expect(res.headers()['content-type']).toContain('yaml');
+  const doc = load(await res.text()) as { domains: { id: string; kpis: Record<string, unknown>[] }[] };
+  expect(doc.domains.map((d) => d.id)).toEqual(['retail', 'logistics', 'payments']);
+  const all = doc.domains.flatMap((d) => d.kpis);
+  expect(all).toHaveLength(18);
+  for (const k of all) {
+    for (const field of ['id', 'name', 'drives', 'usually_computed_from', 'blind_spot', 'domain_check', 'agent_rule', 'store_014']) {
+      expect(k[field], `${k.id}: ${field}`).toBeTruthy();
+    }
+  }
+  const osa = all.find((k) => k.id === 'osa') as { store_014: { reported: { value: string }; observed: { value: string } } };
+  expect(osa.store_014.reported.value).toBe(heroes[0].reported);
+  expect(osa.store_014.observed.value).toBe(heroes[0].observed);
+
+  // The page and the file list the same KPIs, in the same order.
+  await page.goto('kpis/');
+  const ids = await page.locator('section.kpi').evaluateAll((els) => els.map((e) => e.id));
+  expect(ids).toEqual(all.map((k) => k.id));
+  await expect(page.locator('a[href$="/kpis/domain-kpis.yaml"]')).toHaveAttribute('download', '');
+});
+
+test('each domain post opens with its KPI x-rayed, linked to the KPI page', async ({ page }) => {
+  for (const h of heroes) {
+    await page.goto(`${h.post}/`);
+    const x = page.locator('.xray');
+    await expect(x).toBeVisible();
+    await expect(x).toContainText(h.reported);
+    await expect(x).toContainText(h.observed);
+    await expect(x).toContainText(h.cost);
+    await expect(x).toContainText(h.found);
+    await expect(page.locator('.post-domain')).toBeVisible();
+    const link = x.locator(`a[href$="/kpis/#${h.id}"]`);
+    await expect(link).toContainText('17 more');
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`/kpis/#${h.id}$`));
+    await expect(page.locator(`section.kpi#${h.id}`)).toBeInViewport();
+  }
+});
+
+test('the home table measures each post’s KPI twice', async ({ page }) => {
+  await page.goto('./');
+  const rows = page.locator('table.audit tbody tr');
+  for (const [i, h] of heroes.entries()) {
+    await expect(rows.nth(i).locator(`a[href$="/${h.post}/"]`)).toHaveCount(1);
+    await expect(rows.nth(i).locator('.num.rec')).toHaveText(h.reported);
+    await expect(rows.nth(i).locator('.gap')).toHaveText(h.observed);
+  }
+  await expect(page.locator('.all-kpis a')).toHaveText('All eighteen KPIs, x-rayed');
+  // Every page leads readers to the opener and the KPI page.
+  await expect(page.locator('header nav a[href$="/why-domain/"]')).toHaveText('Start here');
+  await expect(page.locator('header nav a[href$="/kpis/"]')).toHaveText('KPIs');
+});
