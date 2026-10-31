@@ -70,6 +70,57 @@ test('the retail post quotes the world and the analysis correctly', async ({ pag
   expect(story.misplaced.cases).toBe(14);
 });
 
+test('the agent section quotes the agents’ runs in the world', async ({ page }) => {
+  const text = await articleText(page, 'retail/');
+  const ag = data.agents;
+  const runs = ag.runs;
+  const heroLog = (k: string) => runs[k].log.filter((x: { sku: string }) => x.sku === 'ATTA-WW-5KG');
+  const cut = heroLog('naive')[0];
+  const [ask1, checked1, ask2] = heroLog('domain');
+  const signal = (d: string) => d.match(/No sales for (\d+) open hours while the books show (\d+); ([\d.]+) expected/)!.slice(1).map(Number);
+  const [h1, b1, e1] = signal(ask1.detail);
+  const [h2, b2] = signal(ask2.detail);
+  const words: Record<number, string> = { 2: 'two', 3: 'three', 5: 'five', 6: 'six' };
+  const ep = (k: string, from: string) => runs[k].episodes.find((e: { start: string }) => e.start.startsWith(from));
+  const logistics = JSON.parse(readFileSync(new URL('../../src/data/logistics.json', import.meta.url), 'utf8'));
+  const seeds = ag.seeds.runs;
+  const better = seeds.domain.hero_lost_units.filter((v: number, i: number) => v < seeds.none.hero_lost_units[i]).length;
+  const expected = [
+    `At 22:00 on Thursday ${Number(cut.ts.slice(8, 10))} June the first agent saw three days of 5 kg atta sales come to ${Math.round(cut.demand_read)} bags against a forecast of ${Math.round(cut.forecast_read)}, with availability at ${pct(cut.availability)} on the books`,
+    `cut the forecast from ${cut.forecast_from.toFixed(1)} bags a day to ${cut.forecast_to.toFixed(1)} for a week`,
+    `The shelf had been empty since Wednesday afternoon, with ${story.misplaced.units} bags behind the rice`,
+    `In June the first agent changed ${words[runs.naive.forecast_changes]} forecasts and checked no shelves`,
+    `it saw ${words[h1]} open hours without a sale while the books showed ${b1} bags, against ${Math.round(e1)} it expected`,
+    `staff found the ${b1} bags in the wrong bay`,
+    `The shelf was empty for ${Math.round(ep('domain', '2026-06-10').empty_open_hours)} open hours instead of ${Math.round(ep('none', '2026-06-10').empty_open_hours)}`,
+    `On ${Number(ask2.ts.slice(8, 10))} June, the day after the wrong pallet, it saw the same signal against ${b2} bags on the books`,
+    `${Math.round(ep('domain', '2026-06-23').empty_open_hours)} open hours empty instead of ${logistics.story.episode.empty_open_hours}`,
+    `Of its ${words[runs.domain.checks]} checks in June, ${words[runs.domain.checks_found_gap]} found the 5 kg gaps and ${words[runs.domain.checks - runs.domain.checks_found_gap]} found shelves that were stocked`,
+    `5 kg atta lost ${runs.none.hero_lost_units} bags with no agent, ${runs.naive.hero_lost_units} with the first agent and ${runs.domain.hero_lost_units} with the second`,
+    `The first agent's ${runs.none.hero_lost_units - runs.naive.hero_lost_units} bags were luck`,
+    `so we ran forty more`,
+    `On average 5 kg atta lost ${Math.round(seeds.none.mean.hero_lost_units)} bags with no agent, ${Math.round(seeds.naive.mean.hero_lost_units)} with the first agent and ${Math.round(seeds.domain.mean.hero_lost_units)} with the second, which did better than no agent in ${better} of the ${ag.seeds.n}`,
+    `the detector gets the loss down to ${rerun('hourly, 1 in 1,000').hero_lost_units} bags`,
+  ];
+  for (const e of expected) expect(text, e).toContain(e);
+  expect(ag.seeds.n).toBe(40);
+  expect(ask1.ts).toBe('2026-06-10T22:00');
+  expect(checked1.detail).toContain(`Staff found ${b1} in the wrong bay`);
+  expect(heroLog('naive').every((x: { action: string }) => x.action === 'lower forecast')).toBe(true);
+  // "Which held about the same stock", this June and across the forty.
+  expect(Math.abs(runs.domain.stock_at_cost_inr / runs.none.stock_at_cost_inr - 1)).toBeLessThan(0.03);
+  expect(seeds.domain.mean.stock_at_cost_inr).toBeLessThanOrEqual(seeds.none.mean.stock_at_cost_inr);
+
+  // The figures: every 5 kg action by either agent, and the outcomes.
+  const times = new Set([...heroLog('naive'), ...heroLog('domain')].map((x: { ts: string }) => x.ts));
+  await expect(page.locator('table.agent-log tbody tr')).toHaveCount(times.size);
+  const outcomes = page.locator('table.agent-outcomes');
+  for (const k of ['none', 'naive', 'domain']) {
+    await expect(outcomes).toContainText(String(runs[k].hero_lost_units));
+    await expect(outcomes).toContainText(`₹${runs[k].stock_at_cost_inr.toLocaleString('en-IN')}`);
+  }
+});
+
 test('the technical companion quotes the analysis correctly and links the notebook', async ({ page, request }) => {
   const text = await articleText(page, 'retail/technical/');
   const hourly = option('hourly, 1 in 1,000');

@@ -79,6 +79,14 @@ test('the opener quotes the world correctly', async ({ page }) => {
   expect(flag.open_hours_to_flag).toBe(3);
   expect(foundAfterDays).toBe(4);
   expect(text).toContain('does this for eighteen KPIs');
+  const seeds = retail.agents.seeds.runs;
+  expect(text).toContain(`across forty simulated Junes, 5 kg atta lost ${Math.round(seeds.naive.mean.hero_lost_units)} bags on average, against ${Math.round(seeds.none.mean.hero_lost_units)} with no agent`);
+  expect(text).toContain(`it asked for about six shelf checks a month, and the loss fell to ${Math.round(seeds.domain.mean.hero_lost_units)} bags with no more stock`);
+  expect(retail.agents.seeds.n).toBe(40);
+  expect(Math.round(seeds.domain.mean.checks)).toBe(6);
+  expect(seeds.domain.mean.stock_at_cost_inr).toBeLessThanOrEqual(seeds.none.mean.stock_at_cost_inr);
+  expect(seeds.domain.mean.hero_lost_units / seeds.naive.mean.hero_lost_units).toBeLessThan(0.55);
+  expect(seeds.naive.mean.checks).toBe(0);
 
   // The table of the three KPIs, each measured twice, and no x-ray of its own.
   const rows = page.locator('table.three-kpis tbody tr');

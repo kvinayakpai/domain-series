@@ -21,6 +21,8 @@ import AssistantScore from '../../components/figures/AssistantScore.astro';
 import AvailabilityWays from '../../components/figures/AvailabilityWays.astro';
 import Answer from '../../components/figures/Answer.astro';
 import Media from '../../components/figures/Media.astro';
+import AgentLog from '../../components/figures/AgentLog.astro';
+import AgentOutcomes from '../../components/figures/AgentOutcomes.astro';
 
 export const why = ai.assistant.questions.find((q) => q.id === 'why');
 
@@ -106,24 +108,45 @@ Published work points the same way. On the BIRD text-to-SQL benchmark, linking q
 
 **Or capture the missing event.** If every case is scanned into a numbered backroom bin at put-away, the record knows where the stock is, and 5 kg atta loses 1 bag in June instead of 157. Sometimes the best model is a barcode scan.
 
+## Now let an agent act on it
+
+The detector and the assistant help people decide. An agent decides, so we gave Store 014 one and ran June again.
+
+The agent is scripted: a few rules standing in for a language model's decisions, so that every run can be repeated and scored. At 22:00 each night, before the store's ordering run, it reviews the seven warehouse items. It has three tools: read the records, change an item's forecast for a week, and ask staff to check a shelf at 08:00. And it has one rule: if an item's demand over the last three days came to less than half its forecast while the item was available at least 95% of the time, demand has dropped, so cut the forecast to the last week's rate.
+
+We ran two versions. The first reads the KPIs as reported: demand is recorded sales, and availability comes from book stock. The second reads them with the domain rules from this post. Demand is recorded sales plus the sales expected in censored hours. Availability is the share of open hours that were not censored. And in stock means on the shelf, so a run of no sales that is less likely than 1 in 1,000 while the books show stock earns a shelf check.
+
+<AgentLog />
+
+At 22:00 on Thursday 11 June the first agent saw three days of 5 kg atta sales come to 34 bags against a forecast of 74, with availability at 100% on the books. It concluded that demand had dropped and cut the forecast from 23.8 bags a day to 20.6 for a week. The shelf had been empty since Wednesday afternoon, with 56 bags behind the rice. The cut did nothing for the shelf, and staff found the cases on Saturday, as before. In June the first agent changed two forecasts and checked no shelves.
+
+The second agent acted the night before. At 22:00 on Wednesday it saw six open hours without a sale while the books showed 56 bags, against 15 it expected: less than one chance in a million. It asked for a check, and at 08:00 on Thursday staff found the 56 bags in the wrong bay. The shelf was empty for 7 open hours instead of 39. On 23 June, the day after the wrong pallet, it saw the same signal against 63 bags on the books. The check found none, the book was corrected, and that night's ordering run reordered: 21 open hours empty instead of 51.5. Of its five checks in June, two found the 5 kg gaps and three found shelves that were stocked.
+
+<AgentOutcomes />
+
+5 kg atta lost 157 bags with no agent, 137 with the first agent and 51 with the second, which held about the same stock. The first agent's 20 bags were luck: its smaller order moved the wrong pallet to a day later. One June can mislead, so we ran forty more, with different shoppers and the same failures. On average 5 kg atta lost 221 bags with no agent, 214 with the first agent and 105 with the second, which did better than no agent in 39 of the 40.
+
+Both agents ran the same rule with the same tools. The second did better because it knew what the records cannot see and had a way to go and look. That is what a domain layer gives an agent, and it is the same knowledge the gap detector uses: checked within an hour of each alert instead of the next morning, the detector gets the loss down to 35 bags.
+
 ## One name, five numbers
 
 "On-shelf availability" sounds like one number. Store 014's records give three honest answers for 5 kg atta in June, and the answer key two more. Whichever one your semantic layer encodes is the one the business will see.
 
 <AvailabilityWays />
 
-## For data and AI leaders: five questions to ask your team
+## For data and AI leaders: six questions to ask your team
 
 1. Which of our tables are observations, and which are beliefs computed from other tables?
 2. Where does our data stop recording what we are trying to measure?
 3. Which independent observation do we have, and does anything join to it?
 4. What do we score our models against, and does it share their blind spot?
 5. What does our AI assistant know about how the business works, and how do we test that?
+6. Before an agent acts on a KPI, what does it read, and what can it go and check?
 
 ## Go deeper
 
 - The [technical companion](./technical/): the tests in SQL, the gap detector and the unconstrained forecast in Python, every query the assistant ran, and a notebook on Store 014's records.
-- The [demo](../demo/#retail): the same month through the pipeline, the dashboard, the forecast and the assistant. Change the detector, the forecast's input and what the assistant is given, and see each scored against ground truth.
+- The [demo](../demo/#retail): the same month through the pipeline, the dashboard, the forecast and the assistant. Change the detector, the forecast's input, what the assistant is given and which agent acts, and see each scored against ground truth.
 - The [records](../data/#retail-records): June's tables and two months of till lines, with exercises and an answer key.
 
 <Media kind="walkthrough" />

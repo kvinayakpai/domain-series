@@ -17,6 +17,7 @@ with Chromium, and ffmpeg with libx264.
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -50,6 +51,11 @@ SCORE = AI["assistant"]["score"]
 AVAIL = AI["availability"]
 PASSED = sum(t["pass"] for t in AI["tests"]["generic"])
 FALL = round((1 - REC5[1] / REC5[0]) * 100)
+AGR, AGM = D["agents"]["runs"], D["agents"]["seeds"]["runs"]
+AG_ASK = next(x for x in AGR["domain"]["log"] if x["sku"] == "ATTA-WW-5KG" and x["action"] == "ask for a shelf check")
+AG_HOURS = int(re.search(r"No sales for (\d+) open hours", AG_ASK["detail"]).group(1))
+TIMES = {1: "once", 2: "twice", 3: "three times", 4: "four times"}
+NUMW = {3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight", 9: "nine"}
 
 
 def signed(x: float) -> str:
@@ -189,6 +195,8 @@ def short_scenes() -> list[dict]:
          "cap": f"Give the assistant a domain layer: {SCORE['domain']} of {SCORE['of']} answers right, not {SCORE['naive']}. It finds the empty shelf."},
         {"js": "retailDemo.set('detect','gap')", "to": "[data-outcome]", "off": 150, "dur": 6.5,
          "cap": f"Rerun June with a shelf check at each alert: {GAP['kpis']['lost_units']} bags lost instead of {ASIS['kpis']['lost_units']}."},
+        {"js": "retailDemo.set('detect','off'); retailDemo.agent('domain')", "to": "section.agent [data-agent-out]", "off": 150, "dur": 7.5,
+         "cap": f"Hand the KPI to a scripted agent. Reading it as reported: {AGR['naive']['hero_lost_units']} bags lost. Reading censored hours, it asks for shelf checks: {AGR['domain']['hero_lost_units']}."},
         {"card": END, "dur": 5.0, "srt": "Sales are not demand. And book stock is a belief, not the shelf."},
     ]
 
@@ -222,10 +230,14 @@ def walkthrough_scenes() -> list[dict]:
          "cap": f"One name, five numbers: availability of {pct(AVAIL['on_the_books'])}, {pct(AVAIL['shelf_audits'])} or {pct(AVAIL['books_and_tills'])} from the records; {pct(AVAIL['true_open_hours'])} or {pct(AVAIL['true_demand_served'])} from the answer key."},
         {"js": "retailDemo.set('routine','scanned')", "to": "[data-outcome]", "off": 150, "dur": 6.5,
          "cap": f"Or capture the missing event: scan every case into a backroom bin, and {BINS['kpis']['lost_units']} bag is lost instead of {ASIS['kpis']['lost_units']}."},
+        {"js": "retailDemo.set('routine','today'); retailDemo.agent('naive')", "to": "section.agent", "off": 24, "dur": 8.0,
+         "cap": f"Now an agent acts. Scripted, reading the KPIs as reported, it cuts the 5 kg forecast {TIMES[AGR['naive']['forecast_changes']]} and checks no shelf: {AGR['naive']['hero_lost_units']} bags lost; {AGR['none']['hero_lost_units']} with no agent."},
+        {"js": "retailDemo.agent('domain')", "to": "section.agent .agent-actions", "off": 200, "dur": 8.5,
+         "cap": f"Same rule, reading censored hours: it asks for a check after {NUMW[AG_HOURS]} silent hours, and staff find the cases next morning. {AGR['domain']['hero_lost_units']} bags lost; over forty more Junes, {round(AGM['domain']['mean']['hero_lost_units'])} against {round(AGM['none']['mean']['hero_lost_units'])}."},
         {"go": "retail/technical/", "to": "#finding-the-censored-hours", "off": 24, "dur": 7.0,
          "cap": "The technical companion: the tests in SQL, the detector and the forecast in Python, every query the assistant ran, and a notebook."},
-        {"go": "retail/", "to": "#for-data-and-ai-leaders-five-questions-to-ask-your-team", "off": 24, "dur": 7.0,
-         "cap": "For data and AI leaders: five questions to ask your team."},
+        {"go": "retail/", "to": "#for-data-and-ai-leaders-six-questions-to-ask-your-team", "off": 24, "dur": 7.0,
+         "cap": "For data and AI leaders: six questions to ask your team."},
         {"card": END, "dur": 5.5, "srt": "Sales are not demand. And book stock is a belief, not the shelf."},
     ]
 

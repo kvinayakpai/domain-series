@@ -1,0 +1,67 @@
+---
+// The two scripted replenishment agents' June for 5 kg atta, night by night: everything each one
+// did, in its own words, from the world's run (retail.json, agents.runs).
+import data from '../../data/retail.json';
+import { day, time } from '../../lib/demo-kit';
+
+type Entry = { ts: string; sku: string; action: string; detail: string };
+const AGENTS = [
+  ['naive', 'Reads the KPIs as reported'],
+  ['domain', 'Reads them with the domain rules'],
+] as const;
+const ACTION: Record<string, string> = {
+  'lower forecast': 'Cuts the forecast.',
+  'ask for a shelf check': 'Asks for a shelf check.',
+  'shelf checked': 'Shelf checked.',
+};
+const byTime = new Map<string, Partial<Record<'naive' | 'domain', Entry>>>();
+for (const [key] of AGENTS) {
+  for (const e of data.agents.runs[key].log as Entry[]) {
+    if (e.sku !== data.hero.sku) continue;
+    byTime.set(e.ts, { ...byTime.get(e.ts), [key]: e });
+  }
+}
+const rows = [...byTime.entries()].sort(([a], [b]) => a.localeCompare(b));
+const otherChecks = (data.agents.runs.domain.log as (Entry & { gap?: boolean })[]).filter((e) => e.sku !== data.hero.sku && e.action === 'shelf checked');
+const stocked = otherChecks.filter((e) => !e.gap).length;
+const words: Record<number, string> = { 1: 'one', 2: 'two', 3: 'three', 4: 'four', 5: 'five', 6: 'six' };
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger agent-log">
+      <caption>5 kg atta in June: everything each agent did</caption>
+      <thead>
+        <tr><th scope="col">When</th>{AGENTS.map(([, label]) => <th scope="col">{label}</th>)}</tr>
+      </thead>
+      <tbody>
+        {rows.map(([ts, r]) => (
+          <tr>
+            <th scope="row">{day(ts)}, {time(ts)}</th>
+            {AGENTS.map(([key, label]) => {
+              const e = r[key];
+              return e
+                ? <td data-label={label} class={key}><strong>{ACTION[e.action] ?? e.action}</strong> {e.detail}</td>
+                : <td data-label={label} class="idle"><span aria-label="Nothing">–</span></td>;
+            })}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Each agent's own log, from rerunning June on the same shoppers. Both review every warehouse item at 22:00; a check happens at 08:00 the next morning. The domain agent also asked for {words[otherChecks.length] ?? otherChecks.length} checks on other items; {stocked === otherChecks.length ? 'each found the shelf stocked' : `${stocked} found the shelf stocked`}.</figcaption>
+</figure>
+
+<style>
+  .agent-log td { font-family: var(--font-text); font-size: 0.95rem; line-height: 1.45; width: 40%; }
+  .agent-log td strong { font-family: var(--font-sign); font-weight: 650; }
+  .agent-log tbody th { white-space: nowrap; }
+  .agent-log td.idle { color: var(--muted); }
+  @media (max-width: 640px) {
+    .agent-log thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+    .agent-log, .agent-log caption, .agent-log tbody, .agent-log tr, .agent-log th, .agent-log td { display: block; width: auto; }
+    .agent-log tr { border-top: 1px solid var(--rule); padding: 0.7rem 0; }
+    .agent-log th, .agent-log td { border: 0; padding: 0.15rem 0; }
+    .agent-log td.idle { display: none; }
+    .agent-log td::before { content: attr(data-label); display: block; font-family: var(--font-sign); color: var(--muted); font-size: 0.85rem; }
+  }
+</style>

@@ -160,6 +160,33 @@ test('the milk slider trades waste for empty shelves', async ({ page }) => {
   await expect(out).toContainText(fmt(lean.expired));
 });
 
+test('the agent section switches between no agent and the two scripted agents', async ({ page }) => {
+  const { errors, root } = await open(page);
+  const section = root.locator('section.agent');
+  const out = section.locator('[data-agent-out]');
+  const runs = data.agents.runs;
+  await expect(section.locator('[data-agent="none"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(out).toContainText(fmt(runs.none.hero_lost_units));
+  await expect(section.locator('.agent-actions li')).toHaveCount(0);
+  for (const k of ['naive', 'domain']) {
+    await section.locator(`[data-agent="${k}"]`).click();
+    await expect(section.locator(`[data-agent="${k}"]`)).toHaveAttribute('aria-pressed', 'true');
+    await expect(out).toContainText(fmt(runs[k].hero_lost_units));
+    await expect(out).toContainText(`${runs[k].forecast_changes} cuts, ${runs[k].checks} checks`);
+    await expect(section.locator('.agent-actions li')).toHaveCount(runs[k].log.length);
+    await expect(section.locator('[data-agent-seeds]')).toContainText(fmt(data.agents.seeds.runs[k].mean.hero_lost_units));
+    await expect(section.locator('[data-agent-chart] svg')).toHaveCount(1);
+  }
+  await expect(section.locator('.agent-actions')).toContainText('5 kg atta: shelf checked.');
+  expect(errors).toEqual([]);
+});
+
+test('a deep link picks the agent', async ({ page }) => {
+  const { root } = await open(page, '?agent=domain');
+  await expect(root.locator('[data-agent="domain"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(root.locator('[data-agent-out]')).toContainText(fmt(data.agents.runs.domain.hero_lost_units));
+});
+
 test('the records drawer reveals scan errors, and the downloads and notebook exist', async ({ page, request }) => {
   const { root } = await open(page);
   await root.getByText('The records behind it').click();

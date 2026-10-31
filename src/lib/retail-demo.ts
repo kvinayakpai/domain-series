@@ -52,6 +52,8 @@ const shortDay = (iso: string) =>
   `${new Date(`${iso}T12:00:00+05:30`).toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'Asia/Kolkata' })} ${Number(iso.slice(8, 10))}`;
 
 // ---------- state ----------
+type AgentKey = 'none' | 'naive' | 'domain';
+const AGENT_KEYS: AgentKey[] = ['none', 'naive', 'domain'];
 type Lever = 'forecast' | 'grounding' | 'detect' | 'routine';
 const LEVERS: Record<Lever, string[]> = {
   forecast: ['recorded', 'unconstrained'],
@@ -70,6 +72,7 @@ const state = {
   alpha: '0.001',
   key: true,
   milk: Math.max(0, data.milk.findIndex((m) => m.factor === 1)),
+  agent: 'none' as AgentKey,
 };
 const scn = () => data.scenarios.find((s) => s.key === `${state.detect}|${state.routine}`) as Scn;
 const asIs = data.scenarios.find((s) => s.key === 'off|today') as Scn;
@@ -725,6 +728,82 @@ function renderMilk() {
   });
 }
 
+// ---------- agent ----------
+const AGENT_READS: Record<AgentKey, string> = {
+  none: 'The store’s ordering run alone: each night it forecasts every item as the 28-day mean of recorded sales, and orders when the books fall to the reorder point.',
+  naive: 'Demand is recorded sales, and availability comes from book stock. It never asks for a check: by the books, every shelf is stocked.',
+  domain: `Demand is recorded sales plus the sales expected in censored hours, and availability is the share of open hours that were not censored. A run of no sales less likely than ${oneIn(data.agents.rule.check_alpha)} while the books show stock gets a shelf check.`,
+};
+const ACTION: Record<string, string> = {
+  'lower forecast': 'cuts the forecast.',
+  'ask for a shelf check': 'asks for a shelf check.',
+  'shelf checked': 'shelf checked.',
+};
+const onNone = (d: number, money = false) =>
+  d === 0 ? 'the same as with no agent'
+    : `${money ? '₹' : ''}${num(Math.abs(d))} ${d < 0 ? (money ? 'less' : 'fewer') : 'more'} than with no agent`;
+
+function renderAgent() {
+  const k = state.agent;
+  const a = data.agents;
+  const run = a.runs[k];
+  const none = a.runs.none;
+  root.querySelectorAll<HTMLButtonElement>('[data-agent]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.agent === k)));
+  (root.querySelector('[data-agent-reads]') as HTMLElement).textContent = AGENT_READS[k];
+  const out = root.querySelector('[data-agent-out]') as HTMLElement;
+  out.replaceChildren(tiles([
+    { label: '5 kg atta: bags shoppers could not find', value: num(run.hero_lost_units),
+      note: `${hrs(run.hero_empty_open_hours)} open hours empty${k === 'none' ? '' : `; ${onNone(run.hero_lost_units - none.hero_lost_units)}`}` },
+    { label: 'Seven warehouse items: units not found', value: num(run.lost_units),
+      note: k === 'none' ? `${inr(run.lost_value_inr)} of sales` : onNone(run.lost_units - none.lost_units) },
+    { label: 'Average stock at cost', value: inr(run.stock_at_cost_inr),
+      note: k === 'none' ? 'seven warehouse items' : onNone(run.stock_at_cost_inr - none.stock_at_cost_inr, true) },
+    { label: 'What the agent did', value: k === 'none' ? '–' : `${run.forecast_changes} cuts, ${run.checks} checks`,
+      note: k === 'none' ? 'no agent' : `${run.checks_found_gap} of the checks found an empty shelf` },
+  ]));
+
+  const d = run.daily;
+  const chart = root.querySelector('[data-agent-chart]') as HTMLElement;
+  chart.replaceChildren();
+  lineChart(chart, {
+    ariaLabel: '5 kg atta in June: forecast, shoppers and recorded sales by day',
+    height: 230,
+    series: [
+      { key: 'forecast', label: 'Forecast the store ordered on', color: C.record, values: d.forecast },
+      { key: 'demand', label: 'Shoppers who came for it', color: C.reality, values: d.demand },
+    ],
+    refs: [{ label: 'Recorded sales', values: d.recorded }],
+    bands: bands(d.empty_hours.map((v) => (v >= 3 ? v : 0))),
+    bandLabel: 'Shelf empty 3 open hours or more',
+    xTick: dayTick,
+    tooltip: (i): Tooltip => ({ title: day(DAYS[i]), rows: [
+      { label: 'forecast', value: d.forecast[i].toFixed(1), color: C.record },
+      { label: 'shoppers', value: num(d.demand[i]), color: C.reality },
+      { label: 'recorded sales', value: num(d.recorded[i]) },
+      { label: 'open hours empty', value: hrs(d.empty_hours[i]) },
+    ] }),
+  });
+
+  const log = root.querySelector('[data-agent-log]') as HTMLElement;
+  log.replaceChildren();
+  (root.querySelector('[data-agent-log-head]') as HTMLElement).hidden = k === 'none';
+  if (k !== 'none') {
+    const ul = h('ul', 'agent-actions');
+    for (const e of run.log) {
+      const li = h('li');
+      li.append(h('span', 'when', when(e.ts)), h('strong', '', `${cap(NAMES[e.sku] ?? e.sku)}: ${ACTION[e.action] ?? e.action}`), document.createTextNode(` ${e.detail}`));
+      ul.append(li);
+    }
+    log.append(ul);
+  }
+
+  const m = a.seeds.runs;
+  const better = m[k].hero_lost_units.filter((v, i) => v < m.none.hero_lost_units[i]).length;
+  (root.querySelector('[data-agent-seeds]') as HTMLElement).textContent = k === 'none'
+    ? `Over ${a.seeds.n} more Junes with different shoppers and the same failures, 5 kg atta lost ${num(m.none.mean.hero_lost_units)} bags on average with no agent.`
+    : `Over ${a.seeds.n} more Junes with different shoppers and the same failures, 5 kg atta lost ${num(m[k].mean.hero_lost_units)} bags on average with this agent, against ${num(m.none.mean.hero_lost_units)} with none; it did better than no agent in ${better} of the ${a.seeds.n}.`;
+}
+
 // ---------- records drawer ----------
 function renderRecords(which: string, reveal: boolean) {
   const host = root.querySelector('[data-records]') as HTMLElement;
@@ -802,6 +881,13 @@ export function mountRetailDemo(el: HTMLElement) {
   const persona = q.get('persona');
   select(persona && PANELS[persona] ? persona : 'dashboard');
 
+  const agent = q.get('agent');
+  if (agent && (AGENT_KEYS as string[]).includes(agent)) state.agent = agent as AgentKey;
+  root.querySelectorAll<HTMLButtonElement>('[data-agent]').forEach((b) => {
+    b.addEventListener('click', () => { state.agent = b.dataset.agent as AgentKey; renderAgent(); });
+  });
+  renderAgent();
+
   const slider = root.querySelector<HTMLInputElement>('input[name="milk"]');
   if (slider) slider.value = String(state.milk);
   slider?.addEventListener('input', () => { state.milk = Number(slider.value); renderMilk(); });
@@ -836,5 +922,6 @@ export function mountRetailDemo(el: HTMLElement) {
       if (cb && cb.checked !== on) { cb.checked = on; cb.dispatchEvent(new Event('change')); }
     },
     milk(i: number) { if (slider) { slider.value = String(i); slider.dispatchEvent(new Event('input')); } },
+    agent(k: AgentKey) { click(`[data-agent="${k}"]`); },
   };
 }

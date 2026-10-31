@@ -1,6 +1,6 @@
 ---
 title: "Censored demand and phantom stock, hands on"
-description: "The technical companion to the retail post: Store 014's records, the data tests that pass and the domain tests that fail, an hourly gap detector scored against ground truth, a forecast on unconstrained demand, five definitions of availability, and an assistant with and without a domain layer. SQL, Python and a notebook."
+description: "The technical companion to the retail post: Store 014's records, the data tests that pass and the domain tests that fail, an hourly gap detector scored against ground truth, a forecast on unconstrained demand, five definitions of availability, an assistant with and without a domain layer, and two scripted agents. SQL, Python and a notebook."
 post: retail
 pubDate: 2026-10-20
 notebook: notebooks/retail.ipynb
@@ -16,6 +16,10 @@ import AssistantScore from '../../components/figures/AssistantScore.astro';
 import AssistantPlan from '../../components/figures/AssistantPlan.astro';
 import DomainLayer from '../../components/figures/DomainLayer.astro';
 import MilkTable from '../../components/figures/MilkTable.astro';
+import AgentOutcomes from '../../components/figures/AgentOutcomes.astro';
+import world from '../../data/retail.json';
+
+export const worldCode = `https://github.com/kvinayakpai/domain-explorer/blob/${world.meta.commit}/synthetic-data/india_grocery/world.py`;
 
 This is the practitioner's half of [Retail and grocery](../). Everything below runs on Store 014's downloadable records with DuckDB and pandas, and the notebook runs it end to end in a few seconds. The answer key is read only to score results, the way you would use a labelled holdout set. Nothing that builds a test, a detector, a forecast or an answer is allowed to look at it.
 
@@ -224,6 +228,36 @@ Every step in the second plan is a query any analyst could write. What makes it 
 
 Answers are checked against the answer key with fixed rules: the numbers within a tolerance (10% for demand, 5 points for availability, 20% for lost bags), the claims as stated. Published benchmarks find the same lever. BIRD (Li and others, 2023) pairs its questions with the external knowledge needed to map them to the data, and names that mapping as one of the benchmark's main challenges; Sequeda, Allemang and Jacob (2023) found GPT-4 three times as accurate on enterprise questions asked over a knowledge graph as over the SQL schema it was built from. The notebook prints both prompts, schema only and with the domain layer, so you can run the seven questions on your own model.
 
+## Two scripted agents
+
+The post hands the KPI to a replenishment agent. Like the assistant, the agent is scripted, so every run can be repeated: the rules below stand in for a language model's decisions. It runs inside the world's simulator rather than on the exported records, because its actions change what happens next: a check finds the cases, the shelf fills, sales resume, the next order changes. Each night at 22:00, before the store's ordering run, it does this for every warehouse item:
+
+```python
+# demand and availability, as each agent reads them
+if agent == "naive":
+    demand = recorded_sales                                     # per day
+    available = share_of_open_hours(book_stock > 0, last_3_days)
+else:  # the domain rules
+    demand = recorded_sales + expected_sales_in_censored_hours  # per day
+    available = 1 - censored_open_hours(last_3_days) / open_hours(last_3_days)
+
+# the rule both agents share
+if sum(demand[-3:]) < 0.5 * sum(forecasts_that_drove[-3:]) and available >= 0.95:
+    set_forecast(item, mean(demand[-7:]), nights=7)             # "demand has dropped"
+
+# the domain agent's extra rule: in stock means on the shelf
+if agent == "domain":
+    run = open_run_of_no_sales_while_books_show_stock(item)     # spans closing time
+    if run and exp(-run.expected_sales) < 1 / 1000 or audit_found_empty_today(item):
+        ask_for_shelf_check(item, at="08:00 tomorrow")          # a thorough count, then refill
+```
+
+Censored hours are the detector's: open hours with no stock on the books, and runs of no sales while the books show stock once a run that long is less likely than 1 in 1,000 under the item's usual hourly rate, the flagged run counted whole. Expected sales come from the item's May pattern and last night's forecast, as above. A check ends the run it was asked about. Otherwise both agents leave the store's forecast, the 28-day mean of recorded sales, alone. The code is `review()` in the world's [simulator]({worldCode}); `Scenario(agent="naive")` or `Scenario(agent="domain")` reruns June with each.
+
+<AgentOutcomes />
+
+One June is one draw, and agents' actions interact with the timing of everything after them: the first agent's smaller order moved the wrong pallet to a day later, which shortened that gap by luck. So the comparison is repeated on forty more Junes, seeds 1 to 40, with different shoppers and the same planted failures, each agent on the same draws as no agent. The first agent's cuts change little on average: while the books show stock, the reorder rule is not ordering anyway. The second agent's checks reach the cases the books cannot.
+
 ## Same store, different item: milk
 
 Milk is censored every evening it sells out. Pouch milk arrives at 05:30 on a standing order and is good for 48 hours, so the store sees sales up to the moment the crate empties and nothing after. Choosing the order is a newsvendor problem: order too much and pouches expire, too little and shoppers leave without milk. Both sides of the trade need demand above the sell-out point, which the tills never record. Here is the trade, from the answer key:
@@ -238,6 +272,7 @@ The order that earns the most on milk itself is 5% below today's, and the record
 2. Run the detector at 1 in 100 and 1 in 10,000. Plot alerts in real gaps against gaps found, and pick a threshold for a store with one person free to check shelves.
 3. Replace the Poisson zero with a negative binomial whose dispersion you estimate from May's daily sales. Does it cut the false alarms without missing the 5 kg gaps?
 4. Estimate toned milk's demand above the sell-out, from the time of each day's last sale in the till lines and the morning's delivery in the fresh deliveries. How far does the best standing order move?
+5. In the simulator, switch off the domain agent's shelf checks, or run its review every hour instead of at 22:00, and rerun the forty Junes. How much of its gain does each rule carry?
 5. Give the domain layer to a model of your choice and ask the seven questions. How many does it answer correctly without the scripted plans, and which ones does it miss?
 
 The [answer key](../../data/india-grocery/answer-key-retail.json) scores each one.

@@ -1,0 +1,60 @@
+---
+// What June cost with no agent, the agent that reads the KPIs as reported, and the agent with the
+// domain rules: this June in full, and the average over forty more (retail.json, agents).
+import data from '../../data/retail.json';
+import { inr, num } from '../../lib/demo-kit';
+
+const a = data.agents;
+const keys = ['none', 'naive', 'domain'] as const;
+const r = a.runs;
+const m = (k: (typeof keys)[number]) => a.seeds.runs[k].mean;
+const hrs = (v: number) => String(Math.round(v));
+const one = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(1));
+const rows: { group?: string; label: string; cells: string[] }[] = [
+  { group: 'This June' , label: '5 kg atta: bags shoppers could not find', cells: keys.map((k) => num(r[k].hero_lost_units)) },
+  { label: '5 kg atta: open hours with the shelf empty', cells: keys.map((k) => hrs(r[k].hero_empty_open_hours)) },
+  { label: 'Seven warehouse items: units shoppers could not find', cells: keys.map((k) => num(r[k].lost_units)) },
+  { label: 'Seven warehouse items: average stock at cost', cells: keys.map((k) => inr(r[k].stock_at_cost_inr)) },
+  { label: 'Forecasts the agent changed', cells: keys.map((k) => (k === 'none' ? '–' : String(r[k].forecast_changes))) },
+  { label: 'Shelf checks it asked for (found a gap)', cells: keys.map((k) => (k === 'none' ? '–' : `${r[k].checks} (${r[k].checks_found_gap})`)) },
+  { group: `${a.seeds.n} more Junes, on average`, label: '5 kg atta: bags shoppers could not find', cells: keys.map((k) => num(m(k).hero_lost_units)) },
+  { label: 'Seven warehouse items: units shoppers could not find', cells: keys.map((k) => num(m(k).lost_units)) },
+  { label: 'Seven warehouse items: average stock at cost', cells: keys.map((k) => inr(m(k).stock_at_cost_inr)) },
+  { label: 'Forecasts the agent changed', cells: keys.map((k) => (k === 'none' ? '–' : one(m(k).forecast_changes))) },
+  { label: 'Shelf checks it asked for (found a gap)', cells: keys.map((k) => (k === 'none' ? '–' : `${one(m(k).checks)} (${one(m(k).checks_found_gap)})`)) },
+];
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger agent-outcomes">
+      <caption>June rerun with each agent, on the same shoppers</caption>
+      <thead>
+        <tr>
+          <th scope="col"></th>
+          <th scope="col" class="n">No agent</th>
+          <th scope="col" class="n">Reads the KPIs as reported</th>
+          <th scope="col" class="n">Reads them with the domain rules</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => (
+          <>
+            {row.group && <tr class="group"><th scope="rowgroup" colspan="4">{row.group}</th></tr>}
+            <tr>
+              <th scope="row">{row.label}</th>
+              {row.cells.map((c) => <td class="n">{c}</td>)}
+            </tr>
+          </>
+        ))}
+      </tbody>
+    </table>
+  </div>
+  <figcaption>Both agents are scripted and run the same rule with the same tools; only what they read differs. The other Junes have different shoppers (seeds {a.seeds.first}–{a.seeds.last}) and the same planted failures. Stock is valued at cost at the close of each June day, misplaced cases included.</figcaption>
+</figure>
+
+<style>
+  .agent-outcomes thead th { font-weight: 500; color: var(--muted); font-size: 0.88rem; vertical-align: bottom; }
+  .agent-outcomes thead th.n { text-align: right; max-width: 9rem; }
+  .agent-outcomes tbody th { min-width: 13rem; }
+  .agent-outcomes tr.group th { font-weight: 650; padding-top: 1.1rem; border-bottom: 1px solid var(--ink); }
+</style>

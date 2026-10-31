@@ -5,6 +5,7 @@ what actually happened, why the data could not say so, and what domain knowledge
 data work, each scored against the world's answer key.
 """
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -310,22 +311,50 @@ slides["capture"] = section("capture", "\n".join([
 ]), f"Two more changes need no model at all. The store audits its shelves at eleven every Tuesday and Friday; on Friday the twelfth the audit found the five kilo bay empty while the books showed {audit['book']}. The audit table was in the warehouse all along, and no pipeline, dashboard or model joined it. And if every case is scanned into a numbered backroom bin at put-away, the record knows where the stock is: rerun June that way and five kilo atta loses {BINS['kpis']['lost_units']} bag instead of {AS_IS['kpis']['lost_units']}. Sometimes the best model is a barcode scan.",
     bg=PANEL, gap=48)
 
+ag = d["agents"]
+AR, AM = ag["runs"], ag["seeds"]["runs"]
+cut = next(x for x in AR["naive"]["log"] if x["sku"] == "ATTA-WW-5KG")
+ask = next(x for x in AR["domain"]["log"] if x["sku"] == "ATTA-WW-5KG")
+a_hours, a_book, a_exp = re.search(r"No sales for (\d+) open hours while the books show (\d+); ([\d.]+) expected", ask["detail"]).groups()
+better = sum(1 for a, b in zip(AM["domain"]["hero_lost_units"], AM["none"]["hero_lost_units"]) if a < b)
+agent_cols = [
+    ("No agent", "none", INK, "The store’s ordering run alone"),
+    ("Reads the KPIs as reported", "naive", RECORD,
+     f"{WORDS[AR['naive']['forecast_changes']].capitalize()} forecast cuts, no shelf checks"),
+    ("Reads them with the domain rules", "domain", GREEN,
+     f"{WORDS[AR['domain']['checks']].capitalize()} shelf checks, {WORDS[AR['domain']['checks_found_gap']]} at an empty shelf"),
+]
+acols = [f'<div style="display:flex;flex-direction:column;gap:14px;border-top:6px solid {c};padding:24px 0 0 0">'
+         f'<p style="{SIGN};font-size:32px;font-weight:650;line-height:1.2">{label}</p>'
+         f'<p style="{SIGN};font-size:128px;font-weight:700;line-height:1;color:{c}">{AR[k]["hero_lost_units"]}</p>'
+         f'<p style="font-size:26px;line-height:1.4">bags of 5 kg atta lost this June; {round(AM[k]["mean"]["hero_lost_units"])} on average over forty more</p>'
+         f'<p style="{SIGN};font-size:26px;line-height:1.35;color:{MUTED}">{did}</p></div>'
+         for label, k, c, did in agent_cols]
+slides["agent"] = section("agent", "\n".join([
+    h2("Now let an agent act on it"),
+    '<p style="font-size:32px;line-height:1.45;width:1560px">A scripted replenishment agent reviews every warehouse item at 22:00. The same tools and the same rule: if three days’ demand comes to less than half the forecast while the item was available, cut the forecast. One version reads the KPIs as reported. The other reads censored hours, and asks for a shelf check when a silence is too long.</p>',
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:64px">', *acols, '</div>',
+    foot("Scripted agents: rules standing in for a model’s decisions. June rerun on the same shoppers; forty more Junes with different shoppers and the same failures."),
+]), f"The detector and the assistant help people decide. An agent decides, so we gave Store 014 one and ran June again. The agent is scripted, a few rules standing in for a language model’s decisions, so every run can be repeated. At ten every night, before the store’s ordering run, it reviews the seven warehouse items. It can change an item’s forecast for a week, or ask staff to check a shelf at eight the next morning, and it has one rule: if an item’s demand over three days came to less than half its forecast while the item was available, demand has dropped, so cut the forecast. The first version reads the KPIs as reported. On Thursday night it saw {round(cut['demand_read'])} bags sold in three days against a forecast of {round(cut['forecast_read'])}, with availability at {pct(cut['availability'])} on the books, and cut the forecast. The shelf had been empty since Wednesday, with the cases behind the rice; the cut did nothing for it. The second version reads censored hours. On Wednesday night it saw {WORDS[int(a_hours)]} open hours without a sale while the books showed {a_book} bags, asked for a check, and at eight on Thursday staff found the bags in the wrong bay. Five kilo atta lost {AR['none']['hero_lost_units']} bags with no agent, {AR['naive']['hero_lost_units']} with the first version, by luck, and {AR['domain']['hero_lost_units']} with the second. Over forty more Junes the averages are {round(AM['none']['mean']['hero_lost_units'])}, {round(AM['naive']['mean']['hero_lost_units'])} and {round(AM['domain']['mean']['hero_lost_units'])}, and the second version beat no agent in {better} of the forty, with no more stock. Same rule, same tools. The second knew what the records cannot see, and had a way to go and look.",
+    gap=48)
+
 questions = [
     "Which of our tables are observations, and which are beliefs computed from other tables?",
     "Where does our data stop recording what we are trying to measure?",
     "Which independent observation do we have, and does anything join to it?",
     "What do we score our models against, and does it share their blind spot?",
     "What does our AI assistant know about how the business works, and how do we test that?",
+    "Before an agent acts on a KPI, what does it read, and what can it go and check?",
 ]
 slides["questions"] = section("questions", "\n".join([
-    h2("Five questions to ask your team"),
+    h2("Six questions to ask your team"),
     '<div style="display:flex;flex-direction:column">',
     *[f'<div style="display:grid;grid-template-columns:72px 1fr;gap:24px;border-top:2px solid {RULE};padding:22px 0 22px 0">'
-      f'<p style="{SIGN};font-size:40px;font-weight:700;line-height:1.2;color:{RECORD}">{i}</p>'
-      f'<p style="font-size:38px;line-height:1.3">{q}</p></div>' for i, q in enumerate(questions, 1)],
+      f'<p style="{SIGN};font-size:36px;font-weight:700;line-height:1.2;color:{RECORD}">{i}</p>'
+      f'<p style="font-size:34px;line-height:1.3">{q}</p></div>' for i, q in enumerate(questions, 1)],
     '</div>',
     foot("For data and AI leaders. The technical companion answers each one for Store 014."),
-]), "For data and AI leaders, five questions to take back to your team. Which of our tables are observations, and which are beliefs computed from other tables? Where does our data stop recording what we are trying to measure? Which independent observation do we have, and does anything join to it? What do we score our models against, and does it share their blind spot? And what does our AI assistant know about how the business works, and how do we test that?",
+]), "For data and AI leaders, six questions to take back to your team. Which of our tables are observations, and which are beliefs computed from other tables? Where does our data stop recording what we are trying to measure? Which independent observation do we have, and does anything join to it? What do we score our models against, and does it share their blind spot? What does our AI assistant know about how the business works, and how do we test that? And before an agent acts on a KPI, what does it read, and what can it go and check?",
     gap=48)
 
 slides["close"] = section("close", "\n".join([
@@ -342,7 +371,7 @@ slides["close"] = section("close", "\n".join([
     bg=NIGHT, fg=NIGHT_TEXT, gap=56, center=True)
 
 order = ["cover", "review", "readings", "happened", "chart", "traps", "normal", "detector", "forecast", "assistant",
-         "fiveways", "capture", "questions", "close"]
+         "fiveways", "capture", "agent", "questions", "close"]
 for sid in order:
     (OUT / "slides" / f"{sid}.html").write_text(slides[sid])
 for f in (OUT / "slides").glob("*.html"):
@@ -358,7 +387,7 @@ deck["sections"] = {
     "s1": {"description": "The Monday review, and five readings of one week by the data products", "start": "cover"},
     "s2": {"description": "What actually happened, and why the data could not say so", "start": "happened"},
     "s3": {"description": "What domain knowledge changes: the detector, the forecast and the assistant, scored", "start": "detector"},
-    "s4": {"description": "Availability five ways, changing what gets recorded, and questions for leaders", "start": "fiveways"},
+    "s4": {"description": "Availability five ways, changing what gets recorded, an agent in the loop, and questions for leaders", "start": "fiveways"},
 }
 prev.write_text(json.dumps(deck))
 print(f"wrote {OUT.relative_to(ROOT)}: {len(order)} slides")
