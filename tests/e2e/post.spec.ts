@@ -23,51 +23,42 @@ async function articleText(page: import('@playwright/test').Page, path: string) 
   return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
 }
 
-test('the retail post quotes the world and the analysis correctly', async ({ page }) => {
+test('the retail story quotes the world and the analysis correctly', async ({ page }) => {
   const text = await articleText(page, 'retail/');
   const rec5 = story.kpis.weekly.recorded_sales['ATTA-WW-5KG'];
   const w = story.kpis.weekly.recorded_sales;
   const share = (k: number) => rec5[k] / (rec5[k] + w['ATTA-WW-1KG'][k] + w['ATTA-WW-10KG'][k]);
   const generic = ai.tests.generic;
-  const hourly = option('hourly, 1 in 1,000');
-  const nightly = option('daily rule, 1 day');
   const flag = ai.detector.hero_flags[0];
   const audit = ai.tests.domain[1].failing.find((a: { sku: string }) => a.sku === 'ATTA-WW-5KG');
   const expected = [
     `down ${pct(1 - rec5[1] / rec5[0])} on the week: ${rec5[1]} bags against ${rec5[0]}`,
-    `computed from book stock, is ${pct(asIs.kpis.osa.system_in_stock)}`,
-    `${made('2026-06-09').naive} bags a day on 9 June, ${made('2026-06-14').naive} by 14 June, ${hero.month_end.naive} by the end of the month`,
-    `it looks ${pct(hero.naive_vs_recorded.bias)} too high over June`,
+    `computed from book stock, is ${pct(asIs.kpis.osa.system_in_stock)} for June`,
+    `${made('2026-06-09').naive} bags a day on 9 June, falling to ${hero.month_end.naive} by the end of the month`,
     `fell from ${pct(share(0))} to ${pct(share(1))} in a week`,
     `On Tuesday 9 June at ${story.misplaced.ts.slice(11, 16)}, fourteen cases of 5 kg atta`,
-    `On Wednesday at ${ep.start.slice(11, 16)} the shelf ran out. The books said ${ep.book_on_hand_max} bags, above the reorder point of ${ep.reorder_point[1]}`,
+    `The shelf ran out at ${ep.start.slice(11, 16)} on Wednesday. The books said ${ep.book_on_hand_max} bags, above the reorder point of ${ep.reorder_point[1]}`,
     `The shelf stood empty for ${Math.round(ep.empty_open_hours)} open hours`,
-    `Shoppers asked for ${ep.lost_units} bags they could not find`,
+    `shoppers asked for ${ep.lost_units} bags they could not find`,
     `shoppers came for ${week(0)} bags in the first week of June and ${week(1)} in the second`,
-    `${story.true_demand_per_day.may} bags a day in May, ${story.true_demand_per_day.june} in June`,
-    `Scored against the shoppers who came for it, it is ${pct(hero.naive_vs_true.bias)} too low`,
-    `shelves stood empty for ${data.meta.realism[0].detail.match(/^(\d+)\.\d% /)[1]}% of open hours in June`,
-    `flags 5 kg atta at ${flag.flag_ts.slice(11, 16)} on Wednesday, three open hours after the shelf emptied`,
-    `it raises ${hourly.flags} alerts; ${hourly.true} fall in real gaps, and it finds ${hourly.caught} of the ${hourly.gaps} gaps`,
-    `5 kg atta loses ${rerun('hourly, 1 in 1,000').hero_lost_units} bags instead of ${asIs.kpis.lost_units}`,
-    `it found ${nightly.caught} of the ${nightly.gaps} gaps, a median ${Math.round(nightly.median_open_hours_to_flag)} open hours in`,
-    `${hero.month_end.aware} bags a day at the end of June instead of ${hero.month_end.naive}, against the ${hero.month_end.true_june_mean} that shoppers came for`,
-    `bias over June falls from ${signed(hero.naive_vs_true.bias)} to ${signed(hero.aware_vs_true.bias)}`,
-    `rises from ${ai.forecast.order_up_to_month_end.naive[1]} bags to ${ai.forecast.order_up_to_month_end.aware[1]}`,
-    `found the 5 kg bay empty while the books showed ${audit.book}`,
+    `${story.true_demand_per_day.may} bags a day in May and ${story.true_demand_per_day.june} in June`,
+    `found the 5 kg bay empty while the books showed ${audit.book} bags`,
+    `ends June at ${hero.month_end.aware} bags a day instead of ${hero.month_end.naive}`,
     `5 kg atta loses ${scenario('off|scanned').kpis.lost_units} bag in June instead of ${asIs.kpis.lost_units}`,
   ];
   for (const e of expected) expect(text, e).toContain(e);
   // Numbers the prose gives in words.
-  expect(text).toContain('Eleven pass. The twelfth flags full-cream milk below zero on six days');
+  expect(text).toContain('Eleven of twelve data tests pass; the twelfth warns that the full-cream milk book went below zero on six days');
   expect(generic.filter((t: { pass: boolean }) => t.pass).length).toBe(11);
   expect(generic.find((t: { pass: boolean }) => !t.pass).failing_rows).toBe(6);
   expect(text).toContain('it gets one right');
   expect(ai.assistant.score.naive).toBe(1);
-  expect(text).toContain('It answers all seven');
+  expect(text).toContain('answers seven questions of seven');
   expect(ai.assistant.score.domain).toBe(7);
+  expect(text).toContain('flags 5 kg atta three open hours after the shelf emptied');
   expect(flag.open_hours_to_flag).toBe(3);
   expect(story.misplaced.cases).toBe(14);
+  expect(hero.naive_vs_recorded.bias).toBeGreaterThan(0);
 });
 
 test('the agent section quotes the agents’ runs in the world', async ({ page }) => {
@@ -76,39 +67,28 @@ test('the agent section quotes the agents’ runs in the world', async ({ page }
   const runs = ag.runs;
   const heroLog = (k: string) => runs[k].log.filter((x: { sku: string }) => x.sku === 'ATTA-WW-5KG');
   const cut = heroLog('naive')[0];
-  const [ask1, checked1, ask2] = heroLog('domain');
-  const signal = (d: string) => d.match(/No sales for (\d+) open hours while the books show (\d+); ([\d.]+) expected/)!.slice(1).map(Number);
-  const [h1, b1, e1] = signal(ask1.detail);
-  const [h2, b2] = signal(ask2.detail);
+  const [ask1, checked1] = heroLog('domain');
   const words: Record<number, string> = { 2: 'two', 3: 'three', 5: 'five', 6: 'six' };
   const ep = (k: string, from: string) => runs[k].episodes.find((e: { start: string }) => e.start.startsWith(from));
-  const logistics = JSON.parse(readFileSync(new URL('../../src/data/logistics.json', import.meta.url), 'utf8'));
   const seeds = ag.seeds.runs;
-  const better = seeds.domain.hero_lost_units.filter((v: number, i: number) => v < seeds.none.hero_lost_units[i]).length;
+  const b1 = Number(ask1.detail.match(/while the books show (\d+)/)![1]);
   const expected = [
-    `At 22:00 on Thursday ${Number(cut.ts.slice(8, 10))} June the first agent saw three days of 5 kg atta sales come to ${Math.round(cut.demand_read)} bags against a forecast of ${Math.round(cut.forecast_read)}, with availability at ${pct(cut.availability)} on the books`,
-    `cut the forecast from ${cut.forecast_from.toFixed(1)} bags a day to ${cut.forecast_to.toFixed(1)} for a week`,
-    `The shelf had been empty since Wednesday afternoon, with ${story.misplaced.units} bags behind the rice`,
-    `In June the first agent changed ${words[runs.naive.forecast_changes]} forecasts and checked no shelves`,
-    `it saw ${words[h1]} open hours without a sale while the books showed ${b1} bags, against ${Math.round(e1)} it expected`,
-    `staff found the ${b1} bags in the wrong bay`,
+    `${pct(cut.availability)} available on the books but selling less than half its forecast, and cut the forecast from ${cut.forecast_from.toFixed(1)} bags a day to ${cut.forecast_to.toFixed(1)}`,
+    `In June it changed ${words[runs.naive.forecast_changes]} forecasts and checked no shelves`,
+    `at 08:00 on Thursday staff found the ${b1} bags`,
     `The shelf was empty for ${Math.round(ep('domain', '2026-06-10').empty_open_hours)} open hours instead of ${Math.round(ep('none', '2026-06-10').empty_open_hours)}`,
-    `On ${Number(ask2.ts.slice(8, 10))} June, the day after the wrong pallet, it saw the same signal against ${b2} bags on the books`,
-    `${Math.round(ep('domain', '2026-06-23').empty_open_hours)} open hours empty instead of ${logistics.story.episode.empty_open_hours}`,
-    `Of its ${words[runs.domain.checks]} checks in June, ${words[runs.domain.checks_found_gap]} found the 5 kg gaps and ${words[runs.domain.checks - runs.domain.checks_found_gap]} found shelves that were stocked`,
     `5 kg atta lost ${runs.none.hero_lost_units} bags with no agent, ${runs.naive.hero_lost_units} with the first agent and ${runs.domain.hero_lost_units} with the second`,
-    `The first agent's ${runs.none.hero_lost_units - runs.naive.hero_lost_units} bags were luck`,
-    `so we ran forty more`,
-    `On average 5 kg atta lost ${Math.round(seeds.none.mean.hero_lost_units)} bags with no agent, ${Math.round(seeds.naive.mean.hero_lost_units)} with the first agent and ${Math.round(seeds.domain.mean.hero_lost_units)} with the second, which did better than no agent in ${better} of the ${ag.seeds.n}`,
-    `the detector gets the loss down to ${rerun('hourly, 1 in 1,000').hero_lost_units} bags`,
+    `lost ${Math.round(seeds.none.mean.hero_lost_units)} bags on average with no agent, ${Math.round(seeds.naive.mean.hero_lost_units)} with the first and ${Math.round(seeds.domain.mean.hero_lost_units)} with the second, which held no more stock and asked for about six shelf checks a month`,
   ];
   for (const e of expected) expect(text, e).toContain(e);
+  expect(cut.demand_read).toBeLessThan(0.5 * cut.forecast_read);
   expect(ag.seeds.n).toBe(40);
+  expect(Math.round(seeds.domain.mean.checks)).toBe(6);
   expect(ask1.ts).toBe('2026-06-10T22:00');
+  expect(checked1.ts).toBe('2026-06-11T08:00');
   expect(checked1.detail).toContain(`Staff found ${b1} in the wrong bay`);
   expect(heroLog('naive').every((x: { action: string }) => x.action === 'lower forecast')).toBe(true);
-  // "Which held about the same stock", this June and across the forty.
-  expect(Math.abs(runs.domain.stock_at_cost_inr / runs.none.stock_at_cost_inr - 1)).toBeLessThan(0.03);
+  expect(runs.naive.checks).toBe(0);
   expect(seeds.domain.mean.stock_at_cost_inr).toBeLessThanOrEqual(seeds.none.mean.stock_at_cost_inr);
 
   // The figures: every 5 kg action by either agent, and the outcomes.
@@ -155,13 +135,17 @@ test('the post renders its figures without JavaScript', async ({ browser }) => {
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
   await page.goto('retail/');
-  // The book against the shelf, and the forecast on censored demand: one drawing of each shows.
-  await expect(page.locator('figure svg[role="img"]:visible')).toHaveCount(2);
+  // The book against the shelf: one drawing shows, whatever the screen.
+  await expect(page.locator('figure svg[role="img"]:visible')).toHaveCount(1);
+  await expect(page.locator('table.agent-outcomes')).toHaveCount(1);
+  // The companion keeps the tests, the detectors and the assistant's answers.
+  await page.goto('retail/technical/');
   await expect(page.locator('table.four-ways')).toContainText(pct(asIs.kpis.osa.system_in_stock));
   await expect(page.locator('table.four-ways')).toContainText(pct(ai.availability.books_and_tills));
   await expect(page.locator('table.tests tbody tr:not(.group)')).toHaveCount(ai.tests.generic.length + ai.tests.domain.length);
   await expect(page.locator('table.detectors tbody tr')).toHaveCount(7);
   await expect(page.locator('table.assistant tbody tr')).toHaveCount(ai.assistant.questions.length);
+  await expect(page.locator('.assistant-full dt')).toHaveCount(ai.assistant.questions.length);
   await ctx.close();
 });
 

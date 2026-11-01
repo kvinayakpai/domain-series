@@ -1,0 +1,65 @@
+---
+title: "On-shelf availability: in stock is not on the shelf"
+description: "On-shelf availability should tell you whether shoppers can find a product. At Store 014 the system said 5 kg atta was available 97% of the time; it was on the shelf 77% of the time. Why the number missed, how to catch it, and the rule to give an AI agent."
+order: 11
+part: "shelf"
+kpi: "osa"
+slug: "on-shelf-availability"
+record: "5 kg atta available 97% of the time."
+reality: "On the shelf 77% of the time."
+pubDate: 2026-11-01
+draft: false
+image: "og/on-shelf-availability.png"
+---
+
+import AgentRule from '../../components/AgentRule.astro';
+
+[On-shelf availability](https://www.ecr-community.org/osa/) asks whether a product is there when a shopper looks for it: in the words of the industry group ECR, available "in the place they expect it and at the time they want to purchase it". An empty shelf sends shoppers away: in [a worldwide study of grocery out-of-stocks](https://www.fmi.org/newsroom/news-archive/view/2002/10/14/new-industry-study-explores-root-causes-of-global-out-of-stock-dilemma), 31% of shoppers said they go to another store when an item is missing, and 9% buy nothing at all.
+
+## What the dashboard said
+
+[Store 014](../data/) is the fictional supermarket in Bengaluru that this series simulates, hour by hour, through June 2026. Its dashboard said 5 kg bags of [atta](https://en.wikipedia.org/wiki/Atta_(flour)), the wheat flour used in India for flatbreads such as rotis, were [available in 97% of the store's open hours](../retail/technical/#availability-five-definitions).
+
+Because the store is simulated, we know where every bag was: a bag was [on the shelf in 77% of those hours](../retail/technical/#availability-five-definitions).
+
+## What happened
+
+On Tuesday 9 June, fourteen cases of 5 kg atta from the morning truck were [put away in the wrong bay, behind the rice](../retail/#what-actually-happened). The shelf [ran out at 15:48 the next day](../retail/#what-actually-happened), while the system still showed 56 bags. Staff [found the cases on Saturday morning](../retail/#what-actually-happened), after the shelf had stood empty for 39 open hours, and in that time [shoppers came for 71 bags](../retail/#what-actually-happened) that were not there.
+
+[It happened again later in the month](../logistics/#what-actually-happened): a pallet labelled 5 kg turned out to hold 1 kg packs, and the 5 kg shelf stood empty for another 51.5 open hours.
+
+## Why the number missed it
+
+The dashboard never looks at the shelf: [it counts an hour as available](../retail/technical/#availability-five-definitions) if the system shows at least one bag in stock. That stock figure, called book stock, is [the last count plus deliveries, minus sales and write-offs](../retail/technical/#tests-that-pass). Nothing in that sum looks at the shelf, so [the bags behind the rice stayed on the books](../retail/#what-actually-happened), and every hour they sat there counted as available.
+
+This is common in real stores. In [a study of nearly 370,000 inventory records from 37 stores](https://ideas.repec.org/a/inm/ormnsc/v54y2008i4p627-641.html), 65% were wrong.
+
+## How to catch it
+
+[Store 014 already had two ways](../retail/#what-domain-knowledge-changes-in-the-data-work) to see the gap.
+
+The first is to look. Staff [check the shelves at 11:00 every Tuesday and Friday](../retail/#what-domain-knowledge-changes-in-the-data-work), and on Friday 12 June the check found the 5 kg bay empty while the system showed 55 bags. [No report joined that check](../retail/#what-domain-knowledge-changes-in-the-data-work) to the dashboard.
+
+The second is to listen to the tills. Shoppers come for [about 25 bags of 5 kg atta a day](../retail/#what-actually-happened), so a long run with no sales while the system shows stock usually means the shelf is empty. [A simple detector built on that idea](../retail/technical/#finding-the-censored-hours) flags the gap three open hours after the shelf emptied, instead of 39, and [researchers have built similar systems](https://uniwacris.uniwa.gr/handle/3000/2145) that spot empty shelves from sales and other store data.
+
+## If an AI agent reads it
+
+[The agents in this series are scripted](../retail/#now-let-an-agent-act-on-it): a few fixed rules stand in for a language model, so every run can be repeated and scored.
+
+A replenishment agent that [read availability from book stock](../retail/#now-let-an-agent-act-on-it) saw 5 kg atta 100% available but selling less than half its forecast, decided demand had dropped, and cut the forecast. It [never asked anyone to check the shelf](../retail/#now-let-an-agent-act-on-it).
+
+The same agent with [one more rule](../retail/#now-let-an-agent-act-on-it), that in stock means on the shelf, asked for about six shelf checks a month. Across forty simulated Junes, 5 kg atta [lost 105 bags on average instead of 214](../retail/#now-let-an-agent-act-on-it), without holding more stock.
+
+<AgentRule kpi="osa" />
+
+## Try it on your own data
+
+Pick your ten best-selling products. For each, find the last time a person looked at the shelf, and compare what they saw with what the system said at that hour. If no record shows anyone looking, that is your first finding.
+
+## Sources
+
+- ECR Community, [On Shelf Availability](https://www.ecr-community.org/osa/)
+- FMI newsroom (14 October 2002), [New industry study explores root causes of global out-of-stock dilemma](https://www.fmi.org/newsroom/news-archive/view/2002/10/14/new-industry-study-explores-root-causes-of-global-out-of-stock-dilemma)
+- Nicole DeHoratius and Ananth Raman (2008), [Inventory Record Inaccuracy: An Empirical Analysis](https://ideas.repec.org/a/inm/ormnsc/v54y2008i4p627-641.html), *Management Science* 54(4)
+- Dimitrios Papakiriakopoulos, Katerina Pramatari and Georgios Doukidis (2009), [A decision support system for detecting products missing from the shelf based on heuristic rules](https://uniwacris.uniwa.gr/handle/3000/2145), *Decision Support Systems* 46(3)
+- Wikipedia, [Atta (flour)](https://en.wikipedia.org/wiki/Atta_(flour))

@@ -1,6 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import KpiXray from '../../components/KpiXray.astro';
+import PartNav from '../../components/PartNav.astro';
+import { partLine } from '../../lib/series';
 import { getCollection, render } from 'astro:content';
 
 export async function getStaticPaths() {
@@ -18,12 +20,13 @@ const next = all[i + 1];
 const d = post.data;
 const companion = (await getCollection('companions')).find((c) => c.data.post === d.slug);
 const shown = d.updatedDate ?? d.pubDate;
+const line = d.domain ?? partLine(d, all.filter((p) => p.data.part === d.part));
 const fmt = (x: Date) => x.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
 ---
 <Layout title={d.title} description={d.description} image={d.image} type="article" published={d.draft ? undefined : d.pubDate}>
   <article>
     <header>
-      {d.domain && <p class="post-domain">{d.domain}</p>}
+      {line && <p class="post-domain">{line}</p>}
       <h1>{d.title}</h1>
       <dl class="pair">
         <div><dt>The record says</dt><dd class="rec">{d.record}</dd></div>
@@ -64,6 +67,7 @@ const fmt = (x: Date) => x.toLocaleDateString('en-IN', { day: 'numeric', month: 
     <Content />
 
     {d.demoAnchor && <p><a href={`${base}demo/#${d.demoAnchor}`}>Try this scenario in the demo</a></p>}
+    <PartNav slug={d.slug} part={d.part} />
   </article>
 
   <nav class="pager" aria-label="More in the series">

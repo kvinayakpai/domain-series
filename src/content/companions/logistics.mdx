@@ -100,6 +100,21 @@ WHERE p.sku = 'ATTA-WW-5KG' AND p.slot = 'A-07-03' AND p.cases_confirmed = 16
 
 It returns one row: {t.shipment_id}, pallet {t.sscc}, line {t.line}, {t.cases_confirmed} cases picked at {t.pick_ts.slice(11, 16)} on 22 June and confirmed by a {t.confirmed_by}. The answer key says that line held {t.actual_units} packs of 1 kg. The pair was complete when the warehouse booked its second correction, {ai.mirror.days_to_pair.toFixed(1)} days after the truck arrived; the store's count came {ai.mirror.days_to_store_count.toFixed(1)} days after, and never found the cause.
 
+## Fill rate, by the notice and by the item
+
+Fill rate asks what share of the cases ordered were shipped. From the records it is a join of the shipping notice to the store's orders:
+
+```sql
+WITH shipped AS (
+  SELECT order_id, sku, sum(cases) AS cases FROM notice_lines GROUP BY ALL)
+SELECT sum(s.cases) AS shipped, sum(o.cases) AS ordered
+FROM store_orders o JOIN shipped s USING (order_id, sku);
+```
+
+It returns {ai.fill.shipped} cases shipped of {ai.fill.ordered} ordered, {(ai.fill.by_notice * 100).toFixed(1)}%: two lines went out short, a case of dal and two of sugar. The 1 June truck carried an order placed on 31 May, which is not in June's orders file, so it is left out.
+
+The notice cannot say whether a case held the item ordered. The answer key's pallet contents can: {ai.fill.wrong_item_cases} of the cases shipped on 22 June held 1 kg packs on a 5 kg line. Counting only cases of the right item, the fill rate is {(ai.fill.right_item * 100).toFixed(1)}%.
+
 ## OTIF, reconciled
 
 The four ways of measuring OTIF in the post come straight from the records, except the last, which needs the answer key. A data team can get close to it once a count has happened: a receipt booked by a label scan is a copy of the notice, and a count is an observation, so flag the latest receipt before a count when the count takes off half or more of what it booked.

@@ -1,0 +1,53 @@
+---
+title: "Customers charged twice: no table has a column for it"
+description: "A customer is charged twice when a payment goes through but looks failed, and they pay again. At Store 014 no record showed it; 24 customers paid twice in June, ₹13,366 in extra charges. How to find them the next morning, and the rule to give an AI agent."
+order: 32
+part: "money"
+kpi: "charged-twice"
+slug: "charged-twice"
+record: "Customers charged twice: none recorded."
+reality: "24 customers, 26 extra charges."
+pubDate: 2026-11-01
+draft: false
+image: "og/charged-twice.png"
+---
+
+import AgentRule from '../../components/AgentRule.astro';
+
+A customer is charged twice when a payment goes through but looks failed, and they pay again. For payments that fail outright, [RBI requires a customer's money back within five days when a merchant never confirms the payment, with ₹100 a day in compensation after that](https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693). A double charge on a bill that was paid again falls outside that rule, so [refunding it is up to the store](../payments/technical/#clocks-that-start-at-the-harm).
+
+## What the records said
+
+Asked at the month-end review whether any customer paid twice in June, [the series' scripted AI assistant, given the till's schema, said no: all 30,077 bills have exactly one approved payment](../payments/technical/#the-assistant-with-and-without-a-domain-layer). [All ten data tests on the payment records passed](../payments/technical/#tests-that-pass).
+
+## What happened
+
+[In June, 24 customers paid twice: 26 extra charges, ₹13,366.06](../payments/#what-actually-happened). [15 of them paid during 90 minutes on Saturday 20 June](../payments/#what-actually-happened), when the bank's UPI switch slowed down, and the rest on ordinary days.
+
+Take [the customer at 6:48 that Saturday evening](../payments/#saturday-648-in-the-evening). [Her bank took ₹1,064.47, the till showed "failed: no response", and she paid again by card](../payments/#saturday-648-in-the-evening). [87 seconds after she approved the first payment, the store's bank confirmed it](../payments/#saturday-648-in-the-evening).
+
+## Why the number missed it
+
+No record says "charged twice". [A till that hears nothing back never learns the payment's reference number, so the provider's success has nothing to join to](../payments/#why-the-data-could-not-say-so). [The only record of the double charge was in the customer's bank statement](../payments/#why-the-data-could-not-say-so).
+
+## How to catch it
+
+Match timeouts to the provider's report by amount and time, then look for bills that were paid again. [The query finds all 26 extra charges, with no false alarms](../payments/technical/#the-extra-charges).
+
+[Run each morning on the provider's file, it finds them a median 0.6 days after the debit, against 2 days for complaints, and three customers never complained at all](../payments/#what-domain-knowledge-changes-in-the-data-work).
+
+Some can be prevented. [Had the till waited for the status check NPCI allows at 90 seconds before asking for another payment, double charges in June would have fallen from 24 customers to 9](../payments/#what-would-have-helped).
+
+## If an AI agent reads it
+
+An agent that reads only the till will report zero. Given the provider's report, [the same scripted assistant answered yes: 24 customers, 26 extra charges, ₹13,366.06](../payments/technical/#the-assistant-with-and-without-a-domain-layer).
+
+<AgentRule kpi="charged-twice" />
+
+## Try it on your own data
+
+Count the credits from your payment provider that have no approved sale behind them. Treat each one as a customer's money until you can show it is not.
+
+## Sources
+
+- Reserve Bank of India (20 September 2019), [Harmonisation of Turn Around Time (TAT) and customer compensation for failed transactions using authorised Payment Systems](https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693), RBI/2019-20/67

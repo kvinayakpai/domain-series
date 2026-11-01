@@ -30,69 +30,55 @@ async function open(page: Page, query = '') {
   return { errors, root };
 }
 
-test('the payments post quotes the world correctly', async ({ page }) => {
+test('the payments story quotes the world correctly', async ({ page }) => {
   await page.goto('payments/');
-  const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ');
+  const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'");
   const sc = st.scene;
   const hours = Object.fromEntries(st.slowdown_day_by_hour.map((h: { hour: number }) => [h.hour, h]));
   const d = Object.fromEntries(asIs.daily.map((x: { date: string }) => [x.date, x]));
-  const twice = asIs.complaints.filter((c: { kind: string }) => c.kind === 'charged twice').length;
-  const refunds = asIs.refunds.reduce((a: number, f: { amount_inr: number }) => a + f.amount_inr, 0);
-  const longestReturn = Math.max(...asIs.returns.map((r: { days: number }) => r.days));
-  const expected = [
-    `basket comes to ${inr2(sc.amount_inr)}`,
-    `${secs(sc.attempts[0].ts, sc.credited_ts)} seconds after she approved the UPI payment`,
-    `the tills gave up on ${slow.upi_timeouts} UPI payments, and cashiers asked for another payment ${slow.second_payments} times`,
-    `fell to ${pct(hours[18].approved_at_till / hours[18].upi_attempts)} and ${pct(hours[19].approved_at_till / hours[19].upi_attempts)} of UPI attempts in the 18:00 and 19:00 hours`,
-    `there were ${d['2026-06-20'].provider_credits} credits against ${d['2026-06-20'].till_approved} approvals, and on Sunday ${d['2026-06-21'].provider_credits} against ${d['2026-06-21'].till_approved}. The ${d['2026-06-20'].unmatched + d['2026-06-21'].unmatched} credits`,
-    `takes ${asIs.complaints.length} complaints about payments in June, ${twice} of them`,
-    `${inr0(refunds)} of refunds`,
-    'about a third of UPI attempts at Store 014 got no answer',
-    `Store 014 took ${slow.bills} bills. Of ${slow.upi_attempts} UPI attempts, the tills gave up on ${slow.upi_timeouts}. ${slow.charged_twice} customers paid twice, two of them three times: ${slow.extra_charges} extra charges, ${inr2(slow.charged_twice_inr)} in all.`,
-    `Across June, ${june.charged_twice} customers paid twice, ${june.extra_charges} extra charges worth ${inr2(june.charged_twice_inr)}; ${june.charged_twice - slow.charged_twice} of them outside the Saturday slowdown`,
-    `The median wait was ${ref.median_days_to_refund} days, the longest ${ref.max_days_to_refund}, and when June closed four extra charges, ${inr2(ref.unrefunded_inr)}`,
-    `double charges in June fall from ${asIs.kpis.june.charged_twice} customers to ${check.kpis.june.charged_twice}`,
-    `the tills spend ${Math.round(check.kpis.slowdown.till_minutes)} minutes taking payment instead of ${Math.round(asIs.kpis.slowdown.till_minutes)}`,
-    `The median wait for a refund falls from ${asIs.kpis.refunds.median_days_to_refund} days to ${billRef.kpis.refunds.median_days_to_refund}`,
-    `complaints fall from ${asIs.kpis.refunds.complaints} to ${billRef.kpis.refunds.complaints}`,
-    pct(slow.four_ways.till), pct(slow.four_ways.bank), pct(slow.four_ways.charged_once), pct1(june.four_ways.till),
-    sc.rrn, sc.bill_id,
-  ];
-  for (const e of expected) expect(text, e).toContain(e);
   const m = pai.matcher;
   const f = pai.find;
   const wait = pai.assistant.questions.find((x: { id: string }) => x.id === 'wait');
   const bursts = pai.hours.bursts.map((b: { share: number }) => pct(b.share));
-  const dataAi = [
-    'The data tests pass, all ten',
-    `Match each of June's ${m.timeouts} timeouts`,
-    `every one matches: ${m.outcomes['late credit']} were credited to the store late, ${m.outcomes['debited and returned']} were debited and returned by the customer's bank, and ${m.outcomes['never debited']} never left the customer's account`,
-    `The query finds ${m.extra_charges}, on ${m.customers} customers, ${inr2(m.extra_inr)}`,
-    `it finds them a median ${f.matcher_median_days} days after the debit. Complaints found them a median ${Math.round(f.complaint_median_days)} days after, and three customers never complained`,
-    `From the complaint, refunds took a median ${Math.round(wait.naive.value)} days. From the extra debit, which is when the customer lost the money, they took ${f.refund_median_days_from_debit}`,
-    `by that clock, ${f.over_tat} of the ${m.extra_charges - f.not_refunded} refunds were late`,
-    `In the 18:00 and 19:00 hours on 20 June the tills got no answer on ${bursts[0]} and ${bursts[1]} of attempts`,
-    "It answers all seven. Given the till's schema alone, it answered one.",
-    `all ${june.bills.toLocaleString('en-IN')} bills have exactly one approved payment`,
+  const expected = [
+    `Store 014's ${june.bills.toLocaleString('en-IN')} June bills`,
+    `basket comes to ${inr2(sc.amount_inr)}`,
+    `${secs(sc.attempts[0].ts, sc.credited_ts)} seconds after she approved the UPI payment`,
+    `The tills approved ${pct1(june.four_ways.till)} of June's UPI attempts`,
+    `approvals fell to ${pct(hours[18].approved_at_till / hours[18].upi_attempts)} and ${pct(hours[19].approved_at_till / hours[19].upi_attempts)} in the 18:00 and 19:00 hours`,
+    `cashiers asked for another payment ${slow.second_payments} times`,
+    `there were ${d['2026-06-20'].provider_credits} UPI credits against ${d['2026-06-20'].till_approved} approved payments, and on Sunday ${d['2026-06-21'].provider_credits} against ${d['2026-06-21'].till_approved}. The ${d['2026-06-20'].unmatched + d['2026-06-21'].unmatched} credits`,
+    `${asIs.complaints.length} customers complain about payments in June`,
+    'about a third of UPI attempts at Store 014 got no answer',
+    `the tills gave up on ${slow.upi_timeouts} of ${slow.upi_attempts}`,
+    `${slow.charged_twice} customers paid twice, two of them three times: ${slow.extra_charges} extra charges, ${inr2(slow.charged_twice_inr)}`,
+    `${june.charged_twice} customers paid twice: ${june.extra_charges} extra charges, ${inr2(june.charged_twice_inr)}`,
+    `four extra charges, ${inr2(ref.unrefunded_inr)}, were still sitting in suspense`,
+    `Matching each of June's ${m.timeouts} timeouts`,
+    `matches every one: ${m.outcomes['late credit']} were credited late, ${m.outcomes['debited and returned']} were debited and returned, and ${m.outcomes['never debited']} never left the customer's account`,
+    `It finds all ${m.extra_charges} extra charges, with no false alarms`,
+    `a median ${f.matcher_median_days} days after the debit, against ${Math.round(f.complaint_median_days)} days for complaints, and three customers never complained`,
+    `From the complaint, refunds took a median ${Math.round(wait.naive.value)} days; from the extra debit, ${f.refund_median_days_from_debit}, and ${f.over_tat} of the ${m.extra_charges - f.not_refunded} refunds took longer than five days`,
+    `the tills got no answer on ${bursts[0]} and ${bursts[1]} of attempts`,
+    'answers seven questions of seven',
+    `double charges in June fall from ${asIs.kpis.june.charged_twice} customers to ${check.kpis.june.charged_twice}`,
+    `the tills spend ${Math.round(check.kpis.slowdown.till_minutes)} minutes taking payment instead of ${Math.round(asIs.kpis.slowdown.till_minutes)}`,
+    `the median wait falls from ${asIs.kpis.refunds.median_days_to_refund} days to ${billRef.kpis.refunds.median_days_to_refund}`,
+    `complaints fall from ${asIs.kpis.refunds.complaints} to ${billRef.kpis.refunds.complaints}`,
+    sc.rrn, sc.bill_id,
   ];
-  for (const e of dataAi) expect(text.replace(/[’‘]/g, "'"), e).toContain(e);
+  for (const e of expected) expect(text, e).toContain(e);
   expect([m.true_positives, m.false_positives, m.missed, m.outcomes_right]).toEqual([m.answer_key.extra_charges, 0, 0, m.timeouts]);
   expect(f.never_complained).toBe(3);
   expect(f.not_refunded).toBe(ref.unrefunded_at_month_end);
   expect(pai.assistant.score).toEqual({ naive: 1, domain: 7, of: 7 });
-  expect(pai.hours.bursts.map((b: { hour: string }) => b.hour)).toEqual(['2026-06-20T18:00', '2026-06-20T19:00']);
-  // "about a third": the share of slowdown attempts the tills gave up on.
-  expect(slow.upi_timeouts / slow.upi_attempts).toBeGreaterThan(0.3);
+  expect(slow.upi_timeouts / slow.upi_attempts).toBeGreaterThan(0.3); // "about a third"
   expect(slow.upi_timeouts / slow.upi_attempts).toBeLessThan(0.37);
   expect(slow.extra_charges - slow.charged_twice).toBe(2); // "two of them three times"
   expect(ref.unrefunded_at_month_end).toBe(4); // "four extra charges"
-  expect(june.debited_and_returned).toBe(6); // "Six customers were debited"
-  expect(longestReturn).toBeLessThanOrEqual(3); // "within three days"
-  expect(weekday(sc.complaint.complaint_ts)).toBe('Tuesday'); // "On Tuesday she phones the store"
+  expect(weekday(sc.complaint.complaint_ts)).toBe('Tuesday'); // "She phones the store on Tuesday"
   expect(weekday(sc.refunded_ts)).toBe('Sunday'); // "on the following Sunday"
   expect(Math.round(secs(sc.attempts[0].ts, sc.refunded_ts) / 86400)).toBe(8); // "eight days after her shopping"
-  expect(st.mdr_on_june_bills.fee_inr).toBeGreaterThan(7500); // "about ₹8,000 a month"
-  expect(st.mdr_on_june_bills.fee_inr).toBeLessThan(8500);
   expect(billRef.kpis.refunds.unrefunded_at_month_end).toBe(0); // "nothing is left in suspense"
 });
 
@@ -102,8 +88,8 @@ test('the payments post renders its figures without JavaScript', async ({ browse
   await page.goto('payments/');
   await expect(page.locator('figure svg[role="img"]:visible')).toHaveCount(1);
   await expect(page.locator('table.docs')).toContainText(st.scene.rrn);
+  await page.goto('payments/technical/');
   await expect(page.locator('table.pay-ways')).toContainText(pct(slow.four_ways.charged_once));
-  await expect(page.locator('table.policy-table tbody tr')).toHaveCount(4);
   await expect(page.locator('table.tests tbody tr:not(.group)')).toHaveCount(pai.tests.generic.length + pai.tests.domain.length);
   await expect(page.locator('table.match').first()).toContainText(String(pai.matcher.outcomes['late credit']));
   await expect(page.locator('table.assistant tbody tr')).toHaveCount(pai.assistant.questions.length);

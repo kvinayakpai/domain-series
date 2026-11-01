@@ -1,0 +1,39 @@
+---
+// The posts in the current post's part, in reading order, with this one marked. KPI posts are listed
+// by the KPI's name.
+import { getCollection } from 'astro:content';
+import { DOMAINS } from '../lib/kpis';
+import { partOf } from '../lib/series';
+
+interface Props { slug: string; part?: string }
+const { slug, part } = Astro.props;
+const p = partOf(part);
+const base = import.meta.env.BASE_URL;
+const kpiName = (id?: string) => DOMAINS.flatMap((d) => d.kpis).find((k) => k.id === id)?.name;
+const posts = p && p.id !== 'start'
+  ? (await getCollection('posts', (x) => x.data.part === p.id && !x.data.draft)).sort((a, b) => a.data.order - b.data.order)
+  : [];
+---
+{posts.length > 1 && p && (
+  <nav class="part-nav" aria-labelledby="part-nav-title">
+    <h2 id="part-nav-title">{p.name}</h2>
+    <ol>
+      {posts.map((x) => {
+        const label = kpiName(x.data.kpi) ?? x.data.title;
+        const note = x.data.kpi ? undefined : p.domain ? 'the story' : undefined;
+        return x.data.slug === slug
+          ? <li aria-current="page"><strong>{label}</strong>{note && <span class="note">{note}</span>}</li>
+          : <li><a href={`${base}${x.data.slug}/`}>{label}</a>{note && <span class="note">{note}</span>}</li>;
+      })}
+    </ol>
+  </nav>
+)}
+
+<style>
+  .part-nav { margin: 2.6rem 0 0; padding: 1rem 1.1rem 0.6rem; background: var(--panel); font-family: var(--font-sign); }
+  .part-nav h2 { font-size: 1.15rem; margin: 0 0 0.5rem; }
+  .part-nav ol { margin: 0 0 0.4rem; padding-left: 1.4rem; }
+  .part-nav li { padding: 0.12rem 0; }
+  .part-nav li .note { color: var(--muted); margin-left: 0.4rem; }
+  .part-nav li[aria-current] strong { font-weight: 650; }
+</style>

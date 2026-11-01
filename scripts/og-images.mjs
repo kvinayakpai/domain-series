@@ -33,9 +33,9 @@ function readPosts() {
   return readdirSync(dir).filter((f) => /\.mdx?$/.test(f)).map((f) => {
     const fm = readFileSync(path.join(dir, f), 'utf8').split('---')[1];
     const get = (k) => (fm.match(new RegExp(`^${k}:\\s*"(.*)"\\s*$`, 'm')) || [])[1];
-    const order = Number((fm.match(/^order:\s*(\d+)/m) || [])[1] ?? 0);
-    // A domain post names its domain beside the series; the opener speaks for the whole series.
-    return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality'), domain: order > 0 ? get('domain') : undefined };
+    // A post names its part beside the series; the opener speaks for the whole series.
+    const part = { shelf: 'the shelf', truck: 'the truck', money: 'the money', together: 'putting it together' }[get('part')];
+    return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality'), domain: get('domain') ?? part };
   });
 }
 
@@ -70,7 +70,7 @@ function html(c) {
     .url { margin-top: auto; font-family: Anek; font-size: 24px; color: #59626d; }
   </style></head><body>
     ${c.name === 'home' ? '' : `<div class="series">Why Domain Matters${c.domain ? `: ${esc(c.domain.toLowerCase())}` : ''}</div>`}
-    <h1>${esc(c.title)}</h1>
+    <h1 style="font-size:${c.title.length > 60 ? 64 : c.title.length > 40 ? 76 : 92}px">${esc(c.title)}</h1>
     ${body}
     <div class="url">kvinayakpai.github.io/domain-series</div>
   </body></html>`;

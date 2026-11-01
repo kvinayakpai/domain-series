@@ -5,8 +5,12 @@ const posts = defineCollection({
   loader: glob({ pattern: '**/*.{md,mdx}', base: './src/content/posts' }),
   schema: z.object({
     title: z.string(),
-    /** The domain the post covers, shown above the title, e.g. 'Retail and grocery'. */
+    /** Overrides the line above the title, which otherwise comes from the post's part. */
     domain: z.string().optional(),
+    /** The part of the series the post belongs to (src/lib/series.ts). */
+    part: z.enum(['start', 'shelf', 'truck', 'money', 'together']).optional(),
+    /** For a KPI post: the KPI's id in src/lib/kpis.ts. */
+    kpi: z.string().optional(),
     description: z.string(),
     order: z.number(),
     slug: z.string(),

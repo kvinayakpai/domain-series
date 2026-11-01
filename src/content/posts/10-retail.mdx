@@ -1,0 +1,105 @@
+---
+title: "Sales are not demand"
+description: "Store 014's data said 5 kg atta sales fell 59% in a week. The data tests passed, the forecast eased, and the AI assistant blamed shoppers switching packs. The shelf had been empty for 39 open hours. The story behind the eight shelf KPIs in this series."
+order: 10
+part: "shelf"
+slug: "retail"
+demoAnchor: "retail"
+record: "5 kg atta: sales −59% week on week."
+reality: "The shelf was empty for 39 open hours."
+pubDate: 2026-10-20
+updatedDate: 2026-11-01
+draft: false
+image: "og/retail.png"
+---
+
+import ai from '../../data/retail-ai.json';
+import BookVsShelf from '../../components/figures/BookVsShelf.astro';
+import Answer from '../../components/figures/Answer.astro';
+import Media from '../../components/figures/Media.astro';
+import AgentLog from '../../components/figures/AgentLog.astro';
+import AgentOutcomes from '../../components/figures/AgentOutcomes.astro';
+
+export const why = ai.assistant.questions.find((q) => q.id === 'why');
+
+This is the story behind the eight shelf KPIs in this series. [Store 014](../data/) is a fictional supermarket in Jayanagar, Bengaluru, simulated hour by hour through June 2026, so [we know what really happened on its shelves](../data/#retail-records) and can score every reading of its data against it.
+
+<Media kind="links" />
+
+## Monday, 9 a.m.: the weekly review
+
+It is Monday 15 June, and Store 014's weekly review opens on the sales dashboard. [Whole wheat atta in 5 kg bags is down 59% on the week: 88 bags against 217](../demo/#retail). [The overnight pipeline ran green](../retail/technical/#tests-that-pass), [the forecast has eased](../retail/technical/#unconstraining-demand), and the replenishment plan follows it.
+
+Someone asks [the store's AI assistant, which is scripted so its answers can be repeated](../retail/technical/#the-assistant-with-and-without-a-domain-layer), why sales fell:
+
+<Answer who="AI assistant, given the warehouse schema" text={why.naive.answer} caption="Its queries: weekly sales of 5 kg atta, book stock that week, and 5 kg's share of atta sales." />
+
+Every number in that answer is right. The conclusion is not.
+
+## Five readings of one week
+
+Nobody here is careless. Each data product reads its inputs correctly.
+
+- **The pipeline.** [Eleven of twelve data tests pass](../retail/technical/#tests-that-pass); the twelfth warns that the full-cream milk book went below zero on six days, a familiar sign of scan errors.
+- **The dashboard.** [On-shelf availability for 5 kg atta, computed from book stock, is 97% for June](../retail/technical/#availability-five-definitions).
+- **The forecast.** [The store forecasts each item as the 28-day average of recorded sales](../retail/technical/#the-records): [24.3 bags a day on 9 June, falling to 20.2 by the end of the month](../retail/technical/#unconstraining-demand).
+- **The mix analysis.** [5 kg's share of atta sales fell from 40% to 25% in a week](../retail/technical/#the-assistant-with-and-without-a-domain-layer), which reads like shoppers switching to the 1 kg pack.
+- **The AI assistant.** Asked seven questions about the first half of June, [it gets one right](../retail/technical/#the-assistant-with-and-without-a-domain-layer): the one about what the tills scanned.
+
+## What actually happened
+
+[On Tuesday 9 June at 06:17, fourteen cases of 5 kg atta from the morning truck were put away behind the rice, in the wrong bay](../data/#retail-records). [The shelf ran out at 15:48 on Wednesday](../data/#retail-records). The books said 56 bags, above [the reorder point of 40](../data/#retail-records), so nothing was ordered.
+
+[The shelf stood empty for 39 open hours, until staff restacking the rice found the cases on Saturday morning](../data/#retail-records). In that time, [shoppers asked for 71 bags they could not find](../data/#retail-records).
+
+<BookVsShelf />
+
+Demand did ease that week: [shoppers came for 224 bags in the first week of June and 148 in the second](../retail/technical/#unconstraining-demand), because households stock up at the start of the month. [Across the month demand was flat, 24.7 bags a day in May and 24.9 in June](../data/#retail-records). The rest of the drop was a shelf with nothing on it.
+
+## Why the data could not say so
+
+[A till records a sale, not a shopper](../retail/technical/#the-records). When the shelf is empty, sales measure the shelf, not the shoppers, and [economists who tracked stock in 54 vending machines found that ignoring stock-outs biases demand estimates](https://www.nber.org/papers/w14315).
+
+[Book stock is computed, not observed: the last count plus receipts, minus sales and write-offs](../retail/technical/#tests-that-pass). That is why every reconciliation test passed, and why the book could be wrong about the shelf for three days. [In a study of nearly 370,000 inventory records from 37 stores, 65% were wrong](https://ideas.repec.org/a/inm/ormnsc/v54y2008i4p627-641.html).
+
+This is the normal case. [A worldwide study put the average grocery out-of-stock rate at 8.3%, and traced 70–75% of out-of-stocks to the store itself](https://www.fmi.org/newsroom/news-archive/view/2002/10/14/new-industry-study-explores-root-causes-of-global-out-of-stock-dilemma).
+
+## What domain knowledge changes in the data work
+
+[Store 014 already had two ways to see the gap](../retail/technical/#tests-that-ask-about-the-world).
+
+The first is to look. [The store audits its shelves at 11:00 every Tuesday and Friday](../data/#retail-records), and [on Friday 12 June the audit found the 5 kg bay empty while the books showed 55 bags](../retail/technical/#tests-that-ask-about-the-world). [No report joined the audit to the dashboard](../retail/technical/#tests-that-ask-about-the-world).
+
+The second is to listen to the tills. [A gap detector that knows each item's usual hourly sales flags 5 kg atta three open hours after the shelf emptied](../retail/technical/#finding-the-censored-hours), instead of the 39 it took staff.
+
+Two more changes follow from the same knowledge. [Filling the empty hours with expected sales before forecasting ends June at 25.6 bags a day instead of 20.2](../retail/technical/#unconstraining-demand). And [given definitions, the till lines, the audits and four views built from them, the same assistant answers seven questions of seven](../retail/technical/#the-assistant-with-and-without-a-domain-layer).
+
+Sometimes the fix is a scan, not a model: [if every case is scanned into a numbered backroom bin, 5 kg atta loses 1 bag in June instead of 157](../demo/#retail).
+
+## Now let an agent act on it
+
+An assistant helps people decide; an agent decides. [We gave Store 014 a scripted replenishment agent and ran June again](../retail/technical/#two-scripted-agents): a few fixed rules stand in for a language model, so every run can be repeated and scored. At 22:00 each night, if three days of an item's demand come to less than half its forecast while it looks available, [the agent decides demand has dropped and cuts the forecast](../retail/technical/#two-scripted-agents).
+
+<AgentLog />
+
+[Reading the KPIs as reported, the agent saw 5 kg atta 100% available on the books but selling less than half its forecast, and cut the forecast from 23.8 bags a day to 20.6](../retail/technical/#two-scripted-agents). [In June it changed two forecasts and checked no shelves](../retail/technical/#two-scripted-agents).
+
+With one more rule, that in stock means on the shelf, [the same agent asked for a shelf check at 22:00 on Wednesday, and at 08:00 on Thursday staff found the 56 bags](../retail/technical/#two-scripted-agents). [The shelf was empty for 7 open hours instead of 39](../retail/technical/#two-scripted-agents).
+
+<AgentOutcomes />
+
+[In June, 5 kg atta lost 157 bags with no agent, 137 with the first agent and 51 with the second](../retail/technical/#two-scripted-agents). [Across forty simulated Junes it lost 221 bags on average with no agent, 214 with the first and 105 with the second, which held no more stock and asked for about six shelf checks a month](../retail/technical/#two-scripted-agents).
+
+Both agents had the same tools and the same rule. The second did better because it knew what the records cannot see, and had a way to go and look.
+
+## Go deeper
+
+The eight posts that follow take one shelf KPI each, starting with [on-shelf availability](../on-shelf-availability/). For the code, the [technical companion](./technical/) has the tests in SQL, the gap detector and the forecast in Python, and a notebook; the [demo](../demo/#retail) replays the month; and the [records](../data/#retail-records) are free to download.
+
+<Media kind="walkthrough" />
+
+## Sources
+
+- Christopher T. Conlon and Julie Holland Mortimer (2013), [Demand Estimation under Incomplete Product Availability](https://www.nber.org/papers/w14315), *American Economic Journal: Microeconomics* 5(4); NBER working paper 14315
+- Nicole DeHoratius and Ananth Raman (2008), [Inventory Record Inaccuracy: An Empirical Analysis](https://ideas.repec.org/a/inm/ormnsc/v54y2008i4p627-641.html), *Management Science* 54(4), 627–641
+- FMI newsroom (14 October 2002), [New industry study explores root causes of global out-of-stock dilemma](https://www.fmi.org/newsroom/news-archive/view/2002/10/14/new-industry-study-explores-root-causes-of-global-out-of-stock-dilemma)

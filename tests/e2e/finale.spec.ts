@@ -21,29 +21,34 @@ test('the finale quotes the map correctly', async ({ page }) => {
   const t = f.trace;
   const expected = [
     'Eight of twelve joins compare a record with its own copy.',
-    `Twenty-four customers paid twice`,
-    `with ${shelf.joined.what.match(/(\d+) on the books/)[1]} bags on the books; staff found the bags in the wrong bay ${Math.round(shelf.hours_found)} hours after`,
-    `names the wrong pallet line four and a half hours after the 5 kg shelf emptied; the manager's count found it ${Math.round(truck.hours_found)} hours after`,
-    `finds an extra charge a median ${Math.round(money.hours_joined)} hours after the debit. Complaints took a median ${Math.round(money.hours_found)}, and three customers never complained`,
-    `The shipping notice matches the pick confirmations on all ${J['picks-notice'].compared} lines, and the goods receipts match the notice on all ${J['notice-receipts'].compared}`,
-    `on all ${J['book-ledger'].compared} item-days. All ${num(J['payments-provider'].compared)} UPI payments the tills approved are successes`,
+    `the wrong pallet line four and a half hours after the 5 kg shelf emptied`,
+    `each double charge a median ${Math.round(money.hours_joined)} hours after the debit`,
+    `staff found the atta bags ${Math.round(shelf.hours_found)} hours after the shelf emptied`,
+    `the manager's count found the missing bags ${Math.round(truck.hours_found)} hours after`,
+    `complaints took a median ${Math.round(money.hours_found)} hours, while three customers never complained at all`,
+    `Eight of the twelve joins agree on every row`,
+    `The shipping notice matches the pick confirmations on all ${J['picks-notice'].compared} lines, the book stock equals its own ledger on all ${J['book-ledger'].compared} item-days, and all ${num(J['payments-provider'].compared)} UPI payments the tills approved are successes`,
     `The book stock disagrees with ${J['book-counts'].compared - J['book-counts'].agree} of ${J['book-counts'].compared} stock counts`,
     `the count on 26 June found ${t.silence.book_at_flag} bags of 5 kg atta that were not there`,
     `It disagrees with two of ${J['book-audits'].compared} shelf audits`,
     `found the 5 kg shelf empty with ${f.audits_disagreeing.find((a: { sku: string }) => a.sku === 'ATTA-WW-5KG').book_at_audit} bags on the books`,
     `One goods receipt in ten did not survive the next count`,
-    `And ${J['timeouts-provider'].compared - J['timeouts-provider'].agree} of ${J['timeouts-provider'].compared} timeouts disagree with the provider's report`,
-    `None of June's ${f.evidence.pallets.n} pallets was weighed or case-scanned, all ${f.evidence.picks_by_slot_scan.n} picks were confirmed by scanning the slot, and all ${f.evidence.receipts_by_label.n} receipts by scanning the label`,
+    `${J['timeouts-provider'].compared - J['timeouts-provider'].agree} of ${J['timeouts-provider'].compared} timeouts disagree with the provider's report`,
+    `none of June's ${f.evidence.pallets.n} pallets was weighed or case-scanned, all ${f.evidence.picks_by_slot_scan.n} picks were confirmed by scanning the slot, and all ${f.evidence.receipts_by_label.n} receipts by scanning the label`,
     `show 5 kg atta silent since 4 pm, with ${t.silence.book_at_flag} bags on the books`,
-    `names line ${t.names.line} of shipment ${t.names.shipment_id}, and the answer key agrees: it held ${t.answer_key.units} packs of 1 kg`,
-    `${Math.round(t.hours_before_pair)} hours before the warehouse's own corrections pair up and ${Math.round(t.hours_before_count)} hours before the store's count`,
-    '22 bags lost instead of 72',
-    `The four corrections from the wrong pallet net to ₹80`,
-    'GPT-4 answered 16% of its questions correctly from the SQL tables, and 54% when the same data was given to it as a knowledge graph',
-    'raised accuracy to 72%, with another 8% answered "I don\'t know"',
+    `names line ${t.names.line} of the 22 June shipment, and the answer key agrees: it held ${t.answer_key.units} packs of 1 kg`,
+    `${Math.round(t.hours_before_pair)} hours before the warehouse's own corrections pair up, and ${Math.round(t.hours_before_count)} hours before the store's count`,
+    'answered one question in seven from the schema, and seven in seven with that domain\'s layer',
+    'GPT-4 answered 16% of enterprise questions correctly from the SQL tables, and 54% when the same data was given to it as a knowledge graph',
+    'raised accuracy to 72%',
   ];
   for (const e of expected) expect(text, e).toContain(flat(e));
   expect(t.right).toBe(true);
+  expect(text).toContain('the empty atta shelf three open hours after it emptied');
+  expect(Math.round(shelf.hours_joined)).toBe(3);
+  expect(truck.hours_joined).toBe(4.5);
+  expect(t.names.shipment_id).toBe('SHP-260622');
+  expect(J['receipts-counts']).toMatchObject({ agree: 9, compared: 10 });
   const truth = key.pallet_contents_june.find((p: { sscc: string; line: number }) => p.sscc === t.hit.sscc && p.line === t.hit.line);
   expect([truth.sku_actual, truth.units_actual]).toEqual([t.names.sku, -t.names.units]);
   expect(f.map.unseen).toEqual(['pallet']);
@@ -72,9 +77,6 @@ test('the finale figures render, on any screen', async ({ page }, info) => {
   }
   await expect(page.locator('.trace .hops li')).toHaveCount(5);
   await expect(page.locator('.trace .verdict')).toContainText('Right.');
-  await expect(page.locator('table.shows tbody tr')).toHaveCount(3);
-  await expect(page.locator('table.across')).toContainText('3 of 21');
-  await expect(page.locator('table.across')).toContainText('21 of 21');
   expect(errors).toEqual([]);
 });
 
@@ -89,11 +91,11 @@ test('the map downloads as JSON, and the series links to the finale', async ({ p
   for (const r of map.records) expect((await request.head(`data/india-grocery/${r.file}`)).status(), r.file).toBe(200);
 
   await page.goto('./');
-  await expect(page.locator('.finale a[href$="/who-saw-what/"]')).toHaveCount(1);
+  await expect(page.locator('.part-posts a[href$="/who-saw-what/"]')).toHaveCount(1);
   await page.goto('why-domain/');
   await expect(page.locator('article a[href$="/who-saw-what/"]')).toHaveCount(1);
   await page.goto('data/');
   await expect(page.locator('a[href$="/store-014-map.json"]')).toHaveCount(1);
-  await page.goto('payments/');
+  await page.goto('technical-declines/');
   await expect(page.locator('nav.pager a[href$="/who-saw-what/"]')).toHaveCount(1);
 });

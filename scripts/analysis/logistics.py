@@ -481,6 +481,28 @@ def assistant(con, pairs, wtrace, survival, ways, gap, key, rkey) -> dict:
 
 
 # ---------------------------------------------------------------- main
+# ---------------------------------------------------------------- fill rate
+FILL = """
+WITH shipped AS (
+  SELECT order_id, sku, sum(cases) AS cases FROM notice_lines GROUP BY ALL)
+SELECT sum(s.cases) AS shipped, sum(o.cases) AS ordered
+FROM store_orders o JOIN shipped s USING (order_id, sku);
+""".strip()
+
+
+def fill_rate(con, contents: dict) -> dict:
+    """Cases shipped over cases ordered, by the notice; then counting only cases that held the item
+    ordered, which needs the answer key's pallet contents."""
+    f = rows(con, FILL)[0]
+    lines = rows(con, "SELECT n.sscc, n.line, n.sku, n.cases FROM notice_lines n JOIN store_orders o USING (order_id, sku)")
+    wrong = sum(r["cases"] for r in lines if contents[(r["sscc"], r["line"])]["sku_actual"] != r["sku"])
+    left_out = rows(con, "SELECT DISTINCT order_id FROM notice_lines WHERE order_id NOT IN (SELECT order_id FROM store_orders)")
+    return {"sql": FILL, "shipped": int(f["shipped"]), "ordered": int(f["ordered"]),
+            "by_notice": round(f["shipped"] / f["ordered"], 4), "wrong_item_cases": wrong,
+            "right_item": round((f["shipped"] - wrong) / f["ordered"], 4),
+            "orders_not_in_june_file": [r["order_id"] for r in left_out]}
+
+
 def main() -> None:
     con = connect()
     key = json.loads((DATA / "answer-key-logistics.json").read_text())
@@ -558,6 +580,7 @@ def main() -> None:
         "pallets": {"total": len(rows(con, "SELECT sscc FROM pallets")), "weighed": len(rows(con, "SELECT sscc FROM pallets WHERE weight_check <> 'not weighed'")),
                     "case_scanned": len(case_scanned)},
         "gap": {k: v for k, v in gap.items() if k != "hours"},
+        "fill": fill_rate(con, contents),
         "assistant": assistant(con, pairs, wtrace, survival, ways, gap, key, rkey),
     }
     OUT.write_text(json.dumps(out, indent=1, default=str) + "\n")

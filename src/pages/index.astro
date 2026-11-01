@@ -1,70 +1,58 @@
 ---
+// The series' contents: the opener, then the parts in reading order, each post with the line that
+// says what actually happened.
 import Layout, { SITE_NAME } from '../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
-import { heroKpi, KPI_COUNT } from '../lib/kpis';
+import { DOMAINS } from '../lib/kpis';
+import { PARTS } from '../lib/series';
 
-const all = (await getCollection('posts')).sort((a, b) => a.data.order - b.data.order);
-const opener = all.find((p) => !heroKpi(p.data.slug));
-const posts = all.filter((p) => heroKpi(p.data.slug));
-// After the domain posts: the one that puts all three on one map.
-const finale = all.find((p) => !heroKpi(p.data.slug) && p !== opener && p.data.order > posts[posts.length - 1].data.order);
+const all = (await getCollection('posts', (p) => !p.data.draft)).sort((a, b) => a.data.order - b.data.order);
+const opener = all.find((p) => p.data.part === 'start');
+const kpiOf = (id?: string) => DOMAINS.flatMap((d) => d.kpis).find((k) => k.id === id);
+const blurb: Record<string, string> = {
+  shelf: 'Retail. One item, 5 kg atta, goes missing from its shelf while the books say it is there.',
+  truck: 'Logistics. A truck arrives on time with one pallet line of the wrong pack size.',
+  money: 'Payments. On a slow Saturday evening, the tills call paid UPI payments failed.',
+  together: 'Who saw what across all three, and two practical posts for data and AI teams.',
+};
+const parts = PARTS.filter((p) => p.id !== 'start').map((p) => ({ ...p, posts: all.filter((x) => x.data.part === p.id) }));
+const count = all.length;
 const base = import.meta.env.BASE_URL;
-const words: Record<number, string> = { 18: 'eighteen' };
 ---
 <Layout title={SITE_NAME} wide>
   <section class="hero" aria-labelledby="hero-title">
     <h1 id="hero-title">Why domain matters</h1>
-    <p class="lede">Every KPI is computed from a record, and every record has a blind spot. AI agents now act on those numbers. Domain knowledge is knowing what the record cannot see, and in the agentic era it is the part of the work a model cannot supply.</p>
+    <p class="lede">Every KPI is computed from a record, and every record has a blind spot. AI agents now act on those numbers. This series shows, one KPI at a time, what a record cannot see and how a data or AI team can catch it.</p>
     {opener && (
-      <p class="start"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{opener.data.description}</span></p>
+      <p class="start"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>Three numbers from one supermarket, each computed correctly and each wrong about what it measures.</span></p>
     )}
+  </section>
 
-    <table class="audit">
-      <caption>Three KPIs from one grocery basket, each measured twice</caption>
-      <thead>
-        <tr>
-          <th scope="col">Post</th>
-          <th scope="col">The KPI, as reported</th>
-          <th scope="col">As observed</th>
-        </tr>
-      </thead>
-      <tbody>
-        {posts.map((p) => {
-          const k = heroKpi(p.data.slug)!.kpi;
-          return (
-            <tr>
-              <th scope="row">
-                <a href={`${base}${p.data.slug}/`}>{p.data.title}</a>
-                <span class="domain">{p.data.domain}</span>
-                {p.data.draft && <span class="status">Outline</span>}
-              </th>
-              <td data-label="The KPI, as reported">
-                <span class="kpi-name">{k.name}</span>
-                <span class="num rec">{k.reported!.value}</span>
-                <span class="basis">{k.reported!.how}</span>
-              </td>
-              <td data-label="As observed">
-                <span class="kpi-name" aria-hidden="true">&nbsp;</span>
-                <span class="num"><span class="gap">{k.observed!.value}</span></span>
-                <span class="basis">{k.observed!.how}</span>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-    {finale && (
-      <p class="finale"><a href={`${base}${finale.data.slug}/`}>Then all three on one map: {finale.data.title}</a> <span>Which records copy each other, which look at the world, and what joining them across departments finds.</span></p>
-    )}
-    <p class="all-kpis"><a href={`${base}kpis/`}>All {words[KPI_COUNT] ?? KPI_COUNT} KPIs, x-rayed</a>: what each drives, what its record cannot see, and the rule an AI agent needs before acting on it.</p>
+  <section class="contents" aria-labelledby="contents-title">
+    <h2 id="contents-title">The series, in {count} short posts</h2>
+    <p class="contents-note">Every post is about one idea, and every claim in it links to its evidence. The numbers come from Store 014, a supermarket in Bengaluru simulated hour by hour through June 2026, so each one can be checked against what really happened.</p>
+    {parts.map((p) => (
+      <section class="part" aria-labelledby={`part-${p.id}`}>
+        <h3 id={`part-${p.id}`}>{p.name}</h3>
+        <p class="part-blurb">{blurb[p.id]}</p>
+        <ol class="part-posts">
+          {p.posts.map((x) => {
+            const k = kpiOf(x.data.kpi);
+            return (
+              <li class={k ? 'is-kpi' : 'is-story'}>
+                <a href={`${base}${x.data.slug}/`}>{k ? k.name : x.data.title}</a>
+                <span class="note">{x.data.reality}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    ))}
   </section>
 
   <section class="how" aria-labelledby="how-title">
-    <h2 id="how-title">How each post works</h2>
-    <p>Each post follows one failure through the records: what the pipeline, the dashboard, the models and an AI assistant made of it, and what changes when the domain is built in. Because the world behind it is synthetic, every result can be scored against an answer key, which real data never has.</p>
-    <p>Each comes with a demo scenario you can run, the records to download, a short slide deck and a captioned video. For practitioners, a technical companion has the SQL, the models and a notebook that runs on the records, for <a href={`${base}retail/technical/`}>retail</a>, <a href={`${base}logistics/technical/`}>logistics</a> and <a href={`${base}payments/technical/`}>payments</a>.</p>
-    <p>To take it to work: <a href={`${base}kit/`}>the kit</a> has the series’ tests as a dbt project, its domain layers as YAML, and twenty-two questions with an answer key for testing an assistant or an agent.</p>
-    <p><a href={`${base}demo/`}>Open the demo</a></p>
+    <h2 id="how-title">Take it further</h2>
+    <p><a href={`${base}kpis/`}>All eighteen KPIs, x-rayed</a> on one page, with the rule an AI agent needs for each. For practitioners, technical companions for <a href={`${base}retail/technical/`}>retail</a>, <a href={`${base}logistics/technical/`}>logistics</a> and <a href={`${base}payments/technical/`}>payments</a> have the SQL, the models and a notebook. <a href={`${base}kit/`}>The kit</a> has the tests as a dbt project, the domain layers as YAML and a benchmark with an answer key, and <a href={`${base}demo/`}>the demo</a> replays the month.</p>
   </section>
 </Layout>
 
@@ -75,33 +63,16 @@ const words: Record<number, string> = { 18: 'eighteen' };
   .start { max-width: 40rem; margin-top: 1.4rem; padding: 0.8rem 1rem; background: var(--panel); border-left: 3px solid var(--ink); font-family: var(--font-sign); }
   .start a { font-weight: 650; font-size: 1.15rem; }
   .start span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 0.2rem; }
-  .audit { width: 100%; border-collapse: collapse; margin-top: 2.4rem; font-size: 1.05rem; }
-  .audit caption { text-align: left; font-family: var(--font-sign); color: var(--muted); font-size: 0.95rem; padding-bottom: 0.6rem; }
-  .audit th, .audit td { text-align: left; vertical-align: top; padding: 0.9rem 1rem 0.9rem 0; border-top: 1px solid var(--rule); }
-  .audit thead th { font-family: var(--font-sign); font-weight: 500; color: var(--muted); font-size: 0.95rem; border-top: 0; padding-top: 0; }
-  .audit tbody th { font-family: var(--font-sign); font-weight: 650; font-stretch: 85%; font-size: 1.25rem; width: 34%; }
-  .audit tbody th a { color: var(--ink); text-decoration: none; }
-  .audit tbody th a:hover { text-decoration: underline; }
-  .audit .domain { display: block; font-weight: 450; font-stretch: 100%; font-size: 0.9rem; color: var(--muted); margin-top: 0.15rem; }
-  .audit td { font-family: var(--font-sign); }
-  .audit .kpi-name { display: block; color: var(--muted); font-size: 0.9rem; }
-  .audit .num { display: block; font-size: 1.9rem; font-weight: 650; font-stretch: 85%; line-height: 1.15; margin-top: 0.1rem; }
-  .audit .num.rec { font-family: var(--font-record); font-weight: 400; font-size: 1.6rem; }
-  .audit .basis { display: block; color: var(--muted); font-size: 0.9rem; }
-  .status { display: block; font-weight: 450; font-stretch: 100%; font-size: 0.85rem; color: var(--correction); margin-top: 0.2rem; }
-  .finale { max-width: 40rem; margin-top: 1.2rem; padding: 0.8rem 1rem; background: var(--panel); border-left: 3px solid var(--correction); font-family: var(--font-sign); }
-  .finale a { font-weight: 650; font-size: 1.1rem; }
-  .finale span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 0.2rem; }
-  .all-kpis { max-width: 40rem; font-family: var(--font-sign); margin-top: 1.2rem; }
-  .all-kpis a { font-weight: 650; }
-  .how { max-width: 40rem; margin-top: 3.4rem; }
-  @media (max-width: 640px) {
-    .audit thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-    .audit, .audit caption, .audit tbody, .audit tr, .audit th, .audit td { display: block; width: auto !important; }
-    .audit tr { border-top: 1px solid var(--rule); padding: 1rem 0; }
-    .audit th, .audit td { border: 0; padding: 0.15rem 0; }
-    .audit td::before { content: attr(data-label); display: block; font-family: var(--font-sign); color: var(--muted); font-size: 0.85rem; letter-spacing: 0; }
-    .audit td .kpi-name[aria-hidden] { display: none; }
-    .audit td + td { margin-top: 0.5rem; }
-  }
+  .contents { max-width: 44rem; margin-top: 3rem; }
+  .contents-note { color: var(--muted); font-family: var(--font-sign); font-size: 1rem; }
+  .part { margin-top: 2rem; }
+  .part h3 { font-size: 1.45rem; font-stretch: 85%; margin: 0; }
+  .part-blurb { margin: 0.25rem 0 0.6rem; color: var(--muted); font-family: var(--font-sign); }
+  .part-posts { list-style: none; margin: 0; padding: 0; font-family: var(--font-sign); counter-reset: post; }
+  .part-posts li { padding: 0.55rem 0; border-top: 1px solid var(--rule); }
+  .part-posts li:last-child { border-bottom: 1px solid var(--rule); }
+  .part-posts a { display: inline-block; font-weight: 600; font-size: 1.08rem; }
+  .part-posts .is-story a { font-weight: 700; color: var(--ink); }
+  .part-posts .note { display: block; color: var(--muted); font-size: 0.95rem; line-height: 1.4; margin-top: 0.1rem; }
+  .how { max-width: 40rem; margin-top: 3rem; }
 </style>

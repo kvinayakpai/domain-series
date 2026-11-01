@@ -1,0 +1,99 @@
+---
+title: "Who saw what"
+description: "June at Store 014 had three failures in three domains, and the data tests passed. Join the month's records two at a time and eight of twelve joins always agree, because one record was copied from the other; each failure sits on one of the other four. A map of who saw what is the domain layer an agent needs."
+order: 40
+part: "together"
+slug: "who-saw-what"
+record: "The records agree."
+reality: "Eight of twelve joins compare a record with its own copy."
+pubDate: 2026-11-01
+draft: false
+image: "og/who-saw-what.png"
+---
+
+import TimeToFind from '../../components/figures/TimeToFind.astro';
+import JoinTable from '../../components/figures/JoinTable.astro';
+import RecordMap from '../../components/figures/RecordMap.astro';
+import TracePath from '../../components/figures/TracePath.astro';
+import Media from '../../components/figures/Media.astro';
+
+The three stories in this series followed three failures through June at Store 014: [bags of 5 kg atta in the wrong bay](../retail/), [a pallet line of the wrong pack size](../logistics/), and [customers charged twice when the tills gave up on UPI payments](../payments/). Each time [the data tests passed](../kit/#dbt), and [an AI assistant given only the schema said nothing was wrong](../kit/#bench).
+
+This post puts the three on one map. It asks two questions any data team can ask of its own records: which records are copies of each other, and which look at the world?
+
+<Media kind="links" post="who-saw-what" pages={13} />
+
+## Hours by joining, days by waiting
+
+<TimeToFind />
+
+Joining two of the store's own records shows each failure within hours: [the empty atta shelf three open hours after it emptied](../retail/technical/#finding-the-censored-hours), [the wrong pallet line four and a half hours after the 5 kg shelf emptied](#across-the-shelf-and-the-truck), and [each double charge a median 14 hours after the debit](../payments/technical/#the-extra-charges).
+
+Waiting took days: [staff found the atta bags 66 hours after the shelf emptied](../retail/#what-actually-happened), [the manager's count found the missing bags 66 hours after](../logistics/#what-actually-happened), and [complaints took a median 48 hours, while three customers never complained at all](../payments/#what-domain-knowledge-changes-in-the-data-work).
+
+## Join the records two at a time
+
+Take every pair of June's records that share a key, and count how often they agree.
+
+<JoinTable />
+
+[Eight of the twelve joins agree on every row](../data/india-grocery/store-014-map.json). [The shipping notice matches the pick confirmations on all 70 lines, the book stock equals its own ledger on all 297 item-days, and all 18,384 UPI payments the tills approved are successes in the provider's report](../data/india-grocery/store-014-map.json).
+
+They agree because [one record was written from the other](../data/india-grocery/store-014-map.json). A test on such a join can only pass: it catches a lost load or a broken key, never a wrong pallet, because the mistake is in both records.
+
+[The other four joins disagree, and each of June's failures sits on one of them](../data/india-grocery/store-014-map.json). [The book stock disagrees with 21 of 25 stock counts](../data/india-grocery/store-014-map.json), and [the count on 26 June found 63 bags of 5 kg atta that were not there](../logistics/#four-corrections-one-mistake). [It disagrees with two of 88 shelf audits](../data/india-grocery/store-014-map.json), and [one of them, at 11:00 on 12 June, found the 5 kg shelf empty with 55 bags on the books](../retail/technical/#tests-that-ask-about-the-world). [One goods receipt in ten did not survive the next count](../data/india-grocery/store-014-map.json), and [32 of 48 timeouts disagree with the provider's report](../data/india-grocery/store-014-map.json): the till said failed, and the customer's bank had sent the money.
+
+On each of those four joins, [one side looks at the world](../data/india-grocery/store-014-map.json): someone counting, someone looking at the shelf, the customer's bank.
+
+## Who saw what
+
+Draw the records as a map: what writes each one, what it looks at, and which KPI reads it.
+
+<RecordMap />
+
+Three things stand out. [The headline KPIs read copies: OTIF reads the goods receipts, on-shelf availability reads the book stock, and payment success reads the till](../data/india-grocery/store-014-map.json). [The records that look at the world, the counts, the audits and the provider's report, sit at the bottom, and no headline KPI reads them](../data/india-grocery/store-014-map.json). And [nothing looked at what was on a pallet: none of June's 30 pallets was weighed or case-scanned, all 70 picks were confirmed by scanning the slot, and all 70 receipts by scanning the label](../data/india-grocery/store-014-map.json).
+
+The map is domain knowledge, written down. Most of its edges can be drawn from the schema, and [W3C's PROV standard has names for them](https://www.w3.org/TR/prov-o/): a record *was generated by* an activity, and *was derived from* another record. The edges to the world, which record looks at which thing, are the part only someone who knows the domain can draw. They are also the part an agent needs most.
+
+## Across the shelf and the truck
+
+A map earns its keep when a question crosses departments. At 8 pm on Tuesday 23 June, [the store's records show 5 kg atta silent since 4 pm, with 63 bags on the books](../logistics/technical/#the-shelf-side). Follow the map from there.
+
+<TracePath />
+
+One query, shown under the figure, crosses five records and two buildings and names line 1 of the 22 June shipment, and [the answer key agrees: it held 160 packs of 1 kg](../data/#logistics-records). [It does so 38 hours before the warehouse's own corrections pair up, and 61 hours before the store's count](../logistics/technical/#the-trace).
+
+## Give the agent the map
+
+[In each story, the same scripted assistant answered one question in seven from the schema, and seven in seven with that domain's layer](../kit/#bench). [On the one question that crosses domains, only the assistant given the map gets it right](../kit/#bench).
+
+Outside this synthetic world the evidence points the same way. [GPT-4 answered 16% of enterprise questions correctly from the SQL tables, and 54% when the same data was given to it as a knowledge graph of the business](https://arxiv.org/abs/2311.07509). [Checking each generated query against the business's ontology raised accuracy to 72%](https://arxiv.org/abs/2405.11706).
+
+A domain layer for an agent is this map, as data:
+
+- every record, the event that writes it, and what it looks at in the world;
+- every join, and how often it agrees;
+- every KPI, the record it reads, and the observation that can contradict it;
+- the rules for reading a silence or a timeout as a question.
+
+[Store 014's map is free to download as JSON, with the SQL for every join](../data/india-grocery/store-014-map.json), and [its domain layer as YAML](../kit/store-014-domain-layer.yaml).
+
+## For data and AI leaders: five questions to ask your team
+
+1. For each KPI an agent acts on, which record does it read, and is that record a copy?
+2. Which of our joins have never disagreed, and do we know why?
+3. What in our business does no record look at?
+4. When two departments' records disagree, who joins them, and how soon?
+5. Can our agents read the map: what each record sees, and what can contradict it?
+
+## Go deeper
+
+The two posts that follow are for practitioners: [test your AI assistant on the Store 014 Bench](../bench/), and [write domain tests in dbt](../dbt-tests/). [Domain KPIs, x-rayed](../kpis/) gives all eighteen KPIs their blind spot and the rule for an agent.
+
+<Media kind="walkthrough" post="who-saw-what" />
+
+## Sources
+
+- Juan Sequeda, Dean Allemang and Bryon Jacob (13 November 2023), [A Benchmark to Understand the Role of Knowledge Graphs on Large Language Model's Accuracy for Question Answering on Enterprise SQL Databases](https://arxiv.org/abs/2311.07509), arXiv:2311.07509
+- Dean Allemang and Juan Sequeda (20 May 2024), [Increasing the LLM Accuracy for Question Answering: Ontologies to the Rescue!](https://arxiv.org/abs/2405.11706), arXiv:2405.11706
+- W3C (30 April 2013), [PROV-O: The PROV Ontology](https://www.w3.org/TR/prov-o/), W3C Recommendation

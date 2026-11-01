@@ -1,14 +1,14 @@
 # Why Domain Matters
 
-A blog series on why domain knowledge matters to data and AI work. Each post takes one operational failure from Indian grocery retail, shows what the pipeline, the dashboard, the models and an AI assistant made of it, and measures what changes when the domain is built in, scored against the synthetic world's answer key. Each ships with a demo scenario, downloadable records, a slide deck and a captioned video. Retail, reworked first for data and AI readers, also has a technical companion with SQL, Python and a notebook.
+A blog series on why domain knowledge matters to data and AI work, in 25 short posts on one synthetic Indian supermarket, Store 014. An opener; three stories (the shelf, the truck, the money), each followed by one post per KPI it touches (eighteen in all: what the KPI measures, what it said at Store 014, why it missed, how to catch it, and the rule to give an AI agent); and a finale with two practical posts (a benchmark with an answer key, and domain tests in dbt). Every claim links to its evidence: a Store 014 number to the analysis that computed it, a real-world fact to its source. The stories ship with demo scenarios, downloadable records, slide decks, captioned videos and technical companions with SQL, Python and a notebook.
 
 Live site: https://kvinayakpai.github.io/domain-series/
 
 ## Layout
 
-- `src/content/posts/`: one file per post (`.mdx` when the post uses figure components, `.md` otherwise). Front matter holds the title, the "record says" and "what actually happened" lines, dates and draft status.
+- `src/content/posts/`: one file per post (`.mdx` when the post uses figure components, `.md` otherwise). Front matter holds the title, the "record says" and "what actually happened" lines, the post's part (`start`, `shelf`, `truck`, `money`, `together`), the KPI id for a KPI post, dates and draft status. `order` sets reading order: 0, then 10s, 20s, 30s and 40s by part. `src/lib/series.ts` names the parts; a KPI post's rule for an agent comes from `src/lib/kpis.ts`.
 - `src/content/companions/`: technical companions, one per post that has one, served at `/<post>/technical/` and linked from the post's header. Front matter names the post and the notebook.
-- `src/pages/`: home (audit table of the posts), one route per post (`[slug]/index.astro`) and per companion (`[slug]/technical.astro`), the demo, the downloadable records (`data/`), RSS (`rss.xml`). The sitemap is generated at build time.
+- `src/pages/`: home (the posts by part), one route per post (`[slug]/index.astro`) and per companion (`[slug]/technical.astro`), the demo, the downloadable records (`data/`), RSS (`rss.xml`). The sitemap is generated at build time.
 - `scripts/analysis/`: the data work behind the retail post. `retail.py` reads the downloadable records with DuckDB and pandas and writes `src/data/retail-ai.json`: the data tests, the gap detector, the unconstrained forecast, availability five ways and the scripted assistant, each scored against the answer key. `make_retail_notebook.py` builds `public/notebooks/retail.ipynb` from the same steps.
 - `src/components/`: the retail, logistics and payments demos and the post figures. Figures are static SVG with a table view, so they read without JavaScript. The demos' logic lives in `src/lib/` (`demo-kit.ts` holds what they share).
 - `src/styles/global.css`: design tokens. Blue monospace is what a system records, serif ink is what happened, yellow marks the gap.
