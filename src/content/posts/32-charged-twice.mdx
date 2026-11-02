@@ -14,7 +14,7 @@ image: "og/charged-twice.png"
 
 import AgentRule from '../../components/AgentRule.astro';
 
-Which table in your system has a column called "charged twice"? I have not found one yet. A customer is charged twice when a payment goes through but looks failed, and they pay again. For payments that fail outright, [RBI requires a customer's money back within five days when a merchant never confirms the payment, with ₹100 a day in compensation after that](https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693). A double charge on a bill that was paid again falls outside that rule, so [refunding it is up to the store](../payments/technical/#clocks-that-start-at-the-harm).
+Which table in your system has a column called "charged twice"? I have not found one yet. A customer is charged twice when a payment goes through but looks failed, and they pay again. For payments that fail outright, [RBI requires a customer's money back within five days when a merchant never confirms the payment, with ₹100 a day in compensation after that](https://www.rbi.org.in/scripts/NotificationUser.aspx?Id=11693). A double charge on a bill that was paid again falls outside that rule, so refunding it is up to the store.
 
 ## What the records said
 
@@ -22,35 +22,35 @@ I asked the series' scripted AI assistant at the month-end review whether any cu
 
 Me – Did any customer pay twice in June?
 
-Assistant (given the till's schema) – [No, all 30,077 bills have exactly one approved payment](../payments/technical/#the-assistant-with-and-without-a-domain-layer)
+Assistant (given the till's schema) – No, all 30,077 bills have exactly one approved payment
 
-[All ten data tests on the payment records passed](../payments/technical/#tests-that-pass).
+All ten data tests on the payment records passed.
 
 ## What happened
 
-[In June, 24 customers paid twice: 26 extra charges, ₹13,366.06](../payments/#what-actually-happened). [15 of them paid during 90 minutes on Saturday 20 June](../payments/#what-actually-happened), when the bank's UPI switch slowed down, and the rest on ordinary days.
+In June, 24 customers paid twice: 26 extra charges, ₹13,366.06. 15 of them paid during 90 minutes on Saturday 20 June, when the bank's UPI switch slowed down, and the rest on ordinary days.
 
-Take [the customer at 6:48 that Saturday evening](../payments/#saturday-648-in-the-evening). [Her bank took ₹1,064.47, the till showed "failed: no response", and she paid again by card](../payments/#saturday-648-in-the-evening). [87 seconds after she approved the first payment, the store's bank confirmed it](../payments/#saturday-648-in-the-evening).
+Take the customer at 6:48 that Saturday evening. Her bank took ₹1,064.47, the till showed "failed: no response", and she paid again by card. 87 seconds after she approved the first payment, the store's bank confirmed it.
 
 **Zero double charges in the records, and 24 customers in reality.**
 
 ## Why the number missed it
 
-No record says "charged twice". [A till that hears nothing back never learns the payment's reference number, so the provider's success has nothing to join to](../payments/#why-the-data-could-not-say-so). [The only record of the double charge was in the customer's bank statement](../payments/#why-the-data-could-not-say-so).
+No record says "charged twice". A till that hears nothing back never learns the payment's reference number, so the provider's success has nothing to join to. The only record of the double charge was in the customer's bank statement.
 
 ## How to catch it
 
-Match timeouts to the provider's report by amount and time, then look for bills that were paid again. [The query finds all 26 extra charges, with no false alarms](../payments/technical/#the-extra-charges).
+Match timeouts to the provider's report by amount and time, then look for bills that were paid again. The query finds all 26 extra charges, with no false alarms.
 
-[Run each morning on the provider's file, it finds them a median 0.6 days after the debit, against 2 days for complaints, and three customers never complained at all](../payments/#what-domain-knowledge-changes-in-the-data-work).
+Run each morning on the provider's file, it finds them a median 0.6 days after the debit, against 2 days for complaints, and three customers never complained at all.
 
-Some can be prevented. [Had the till waited for the status check NPCI allows at 90 seconds before asking for another payment, double charges in June would have fallen from 24 customers to 9](../payments/#what-would-have-helped).
+Some can be prevented. Had the till waited for the status check NPCI allows at 90 seconds before asking for another payment, double charges in June would have fallen from 24 customers to 9.
 
 ## If an AI agent reads it
 
 An agent that reads only the till will report zero. Given the provider's report, the same assistant answers differently.
 
-Assistant (given the provider's report) – [Yes, 24 customers, 26 extra charges, ₹13,366.06](../payments/technical/#the-assistant-with-and-without-a-domain-layer)
+Assistant (given the provider's report) – Yes, 24 customers, 26 extra charges, ₹13,366.06
 
 <AgentRule kpi="charged-twice" />
 
