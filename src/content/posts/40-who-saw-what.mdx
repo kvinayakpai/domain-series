@@ -17,11 +17,13 @@ import RecordMap from '../../components/figures/RecordMap.astro';
 import TracePath from '../../components/figures/TracePath.astro';
 import Media from '../../components/figures/Media.astro';
 
-The three stories in this series followed three failures through June at Store 014: [bags of 5 kg atta in the wrong bay](../retail/), [a pallet line of the wrong pack size](../logistics/), and [customers charged twice when the tills gave up on UPI payments](../payments/). Each time [the data tests passed](../kit/#dbt), and [an AI assistant given only the schema said nothing was wrong](../kit/#bench).
+In my previous blogs I had written about three failures from June at Store 014: [bags of 5 kg atta in the wrong bay](../retail/), [a pallet line of the wrong pack size](../logistics/), and [customers charged twice when the tills gave up on UPI payments](../payments/). Each time [the data tests passed](../kit/#dbt), and [an AI assistant given only the schema said nothing was wrong](../kit/#bench).
 
-This post puts the three on one map. It asks two questions any data team can ask of its own records: which records are copies of each other, and which look at the world?
+In this blog I want to put the three on one map. It asks two questions any data team can ask of its own records. Which records are copies of each other, and which ones look at the world?
 
 <Media kind="links" post="who-saw-what" pages={13} />
+
+[GAP: a place in your own organization where two departments' records disagree, and who found out, two or three lines]
 
 ## Hours by joining, days by waiting
 
@@ -33,31 +35,33 @@ Waiting took days: [staff found the atta bags 66 hours after the shelf emptied](
 
 ## Join the records two at a time
 
-Take every pair of June's records that share a key, and count how often they agree.
+Let me explain what I did. I took every pair of June's records that share a key, and counted how often they agree.
 
 <JoinTable />
 
 [Eight of the twelve joins agree on every row](../data/india-grocery/store-014-map.json). [The shipping notice matches the pick confirmations on all 70 lines, the book stock equals its own ledger on all 297 item-days, and all 18,384 UPI payments the tills approved are successes in the provider's report](../data/india-grocery/store-014-map.json).
 
-They agree because [one record was written from the other](../data/india-grocery/store-014-map.json). A test on such a join can only pass: it catches a lost load or a broken key, never a wrong pallet, because the mistake is in both records.
+They agree because [one record was written from the other](../data/india-grocery/store-014-map.json). A test on such a join can only pass. It catches a lost load or a broken key, never a wrong pallet, because the mistake is in both records.
 
-[The other four joins disagree, and each of June's failures sits on one of them](../data/india-grocery/store-014-map.json). [The book stock disagrees with 21 of 25 stock counts](../data/india-grocery/store-014-map.json), and [the count on 26 June found 63 bags of 5 kg atta that were not there](../logistics/#four-corrections-one-mistake). [It disagrees with two of 88 shelf audits](../data/india-grocery/store-014-map.json), and [one of them, at 11:00 on 12 June, found the 5 kg shelf empty with 55 bags on the books](../retail/technical/#tests-that-ask-about-the-world). [One goods receipt in ten did not survive the next count](../data/india-grocery/store-014-map.json), and [32 of 48 timeouts disagree with the provider's report](../data/india-grocery/store-014-map.json): the till said failed, and the customer's bank had sent the money.
+[The other four joins disagree, and each of June's failures sits on one of them](../data/india-grocery/store-014-map.json). [The book stock disagrees with 21 of 25 stock counts](../data/india-grocery/store-014-map.json), and [the count on 26 June found 63 bags of 5 kg atta that were not there](../logistics/#four-corrections-one-mistake). [It disagrees with two of 88 shelf audits](../data/india-grocery/store-014-map.json), and [one of them, at 11:00 on 12 June, found the 5 kg shelf empty with 55 bags on the books](../retail/technical/#tests-that-ask-about-the-world). [One goods receipt in ten did not survive the next count](../data/india-grocery/store-014-map.json), and [32 of 48 timeouts disagree with the provider's report](../data/india-grocery/store-014-map.json). The till said failed, and the customer's bank had sent the money.
 
 On each of those four joins, [one side looks at the world](../data/india-grocery/store-014-map.json): someone counting, someone looking at the shelf, the customer's bank.
 
+**The joins that always agree compare a record with its own copy. The failures hide in the joins that sometimes disagree.**
+
 ## Who saw what
 
-Draw the records as a map: what writes each one, what it looks at, and which KPI reads it.
+Now draw the records as a map: what writes each one, what it looks at, and which KPI reads it.
 
 <RecordMap />
 
 Three things stand out. [The headline KPIs read copies: OTIF reads the goods receipts, on-shelf availability reads the book stock, and payment success reads the till](../data/india-grocery/store-014-map.json). [The records that look at the world, the counts, the audits and the provider's report, sit at the bottom, and no headline KPI reads them](../data/india-grocery/store-014-map.json). And [nothing looked at what was on a pallet: none of June's 30 pallets was weighed or case-scanned, all 70 picks were confirmed by scanning the slot, and all 70 receipts by scanning the label](../data/india-grocery/store-014-map.json).
 
-The map is domain knowledge, written down. Most of its edges can be drawn from the schema, and [W3C's PROV standard has names for them](https://www.w3.org/TR/prov-o/): a record *was generated by* an activity, and *was derived from* another record. The edges to the world, which record looks at which thing, are the part only someone who knows the domain can draw. They are also the part an agent needs most.
+The map is domain knowledge, written down. Most of its edges can be drawn from the schema, and [W3C's PROV standard has names for them](https://www.w3.org/TR/prov-o/): a record *was generated by* an activity, and *was derived from* another record. The edges to the world, which record looks at which thing, are the part only someone who knows the domain can draw. I believe they are also the part an agent needs most.
 
 ## Across the shelf and the truck
 
-A map earns its keep when a question crosses departments. At 8 pm on Tuesday 23 June, [the store's records show 5 kg atta silent since 4 pm, with 63 bags on the books](../logistics/technical/#the-shelf-side). Follow the map from there.
+A map earns its keep when a question crosses departments. At 8 pm on Tuesday 23 June, [the store's records show 5 kg atta silent since 4 pm, with 63 bags on the books](../logistics/technical/#the-shelf-side). Let us follow the map from there.
 
 <TracePath />
 
@@ -71,9 +75,9 @@ Outside this synthetic world the evidence points the same way. [GPT-4 answered 1
 
 A domain layer for an agent is this map, as data:
 
-- every record, the event that writes it, and what it looks at in the world;
-- every join, and how often it agrees;
-- every KPI, the record it reads, and the observation that can contradict it;
+- every record, the event that writes it, and what it looks at in the world,
+- every join, and how often it agrees,
+- every KPI, the record it reads, and the observation that can contradict it,
 - the rules for reading a silence or a timeout as a question.
 
 [Store 014's map is free to download as JSON, with the SQL for every join](../data/india-grocery/store-014-map.json), and [its domain layer as YAML](../kit/store-014-domain-layer.yaml).
@@ -88,9 +92,13 @@ A domain layer for an agent is this map, as data:
 
 ## Go deeper
 
-The two posts that follow are for practitioners: [test your AI assistant on the Store 014 Bench](../bench/), and [write domain tests in dbt](../dbt-tests/). [Domain KPIs, x-rayed](../kpis/) gives all eighteen KPIs their blind spot and the rule for an agent.
+The two blogs that follow are for practitioners: [test your AI assistant on the Store 014 Bench](../bench/), and [write domain tests in dbt](../dbt-tests/). [Domain KPIs, x-rayed](../kpis/) gives all eighteen KPIs their blind spot and the rule for an agent.
 
 <Media kind="walkthrough" post="who-saw-what" />
+
+So in summary, my learning from these three stories is simple. Check which of your records are copies of each other, and give your agent a map of who saw what. In the agentic era, I believe that map is the domain knowledge your data and AI teams should be building.
+
+Curious to know what you think 🙏
 
 ## Sources
 
