@@ -44,7 +44,7 @@ test('the logistics story quotes the world correctly', async ({ page }) => {
     `${cases('ATTA-WW-5KG')} cases of 5 kg atta, ${cases('ATTA-WW-1KG')} of 1 kg atta, ${cases('RICE-SM-5KG')} of rice and ${cases('SUGAR-1KG')} of sugar`,
     `including ${st.line.units} bags of 5 kg atta`,
     `the ${st.line.cases} bales on line 1 hold 1 kg packs, ${st.actual.units_actual} of them`,
-    `says ${pct(k.otif.scorecard)} of June's ${k.shipments} deliveries arrived in the slot and in full; the warehouse's own report says ${pct(k.otif.dc_report)}`,
+    `says ${pct(k.otif.scorecard)} of June's ${k.shipments} deliveries arrived in the slot and in full, and the warehouse's own report says ${pct(k.otif.dc_report)}`,
     `the truck made the slot on ${k.in_slot} of ${k.shipments} mornings`,
     `found the books at ${five.book_before} bags of 5 kg and the bay empty, and ${one.adjustment} more 1 kg packs than the books showed`,
     `went to slot ${pick.slot} for ${pick.cases_confirmed} cases of 5 kg atta, scanned the slot's label, and took ${pick.cases_confirmed} bales from ${data.slots['ATTA-WW-1KG']}`,

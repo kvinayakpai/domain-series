@@ -58,7 +58,7 @@ test('the payments story quotes the world correctly', async ({ page }) => {
     `matches every one: ${m.outcomes['late credit']} were credited late, ${m.outcomes['debited and returned']} were debited and returned, and ${m.outcomes['never debited']} never left the customer's account`,
     `It finds all ${m.extra_charges} extra charges, with no false alarms`,
     `a median ${f.matcher_median_days} days after the debit, against ${Math.round(f.complaint_median_days)} days for complaints, and three customers never complained`,
-    `From the complaint, refunds took a median ${Math.round(wait.naive.value)} days; from the extra debit, ${f.refund_median_days_from_debit}, and ${f.over_tat} of the ${m.extra_charges - f.not_refunded} refunds took longer than five days`,
+    `From the complaint, refunds took a median ${Math.round(wait.naive.value)} days, from the extra debit ${f.refund_median_days_from_debit}, and ${f.over_tat} of the ${m.extra_charges - f.not_refunded} refunds took longer than five days`,
     `the tills got no answer on ${bursts[0]} and ${bursts[1]} of attempts`,
     'answers seven questions of seven',
     `double charges in June fall from ${asIs.kpis.june.charged_twice} customers to ${check.kpis.june.charged_twice}`,

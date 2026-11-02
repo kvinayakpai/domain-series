@@ -67,7 +67,7 @@ test('the opener quotes the world correctly', async ({ page }) => {
   }
   const expected = [
     `In those 90 minutes on Saturday evening, ${slow.charged_twice} customers paid twice`,
-    `${dbt.pipeline.pass} of the store's ${dbt.pipeline.tests} data tests passed; the other one warned about milk`,
+    `${dbt.pipeline.pass} of the store's ${dbt.pipeline.tests} data tests passed, and the other one warned about milk`,
     'book stock cannot see the shelf, a shipping notice cannot see inside a pallet, and a till cannot see the customer\'s bank',
     'across forty simulated Junes 5 kg atta lost half as many sales',
     'does this for all eighteen of the series\' KPIs',

@@ -48,7 +48,7 @@ test('the retail story quotes the world and the analysis correctly', async ({ pa
   ];
   for (const e of expected) expect(text, e).toContain(e);
   // Numbers the prose gives in words.
-  expect(text).toContain('Eleven of twelve data tests pass; the twelfth warns that the full-cream milk book went below zero on six days');
+  expect(text).toContain('Eleven of twelve data tests pass, and the twelfth warns that the full-cream milk book went below zero on six days');
   expect(generic.filter((t: { pass: boolean }) => t.pass).length).toBe(11);
   expect(generic.find((t: { pass: boolean }) => !t.pass).failing_rows).toBe(6);
   expect(text).toContain('it gets one right');
