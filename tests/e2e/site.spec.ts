@@ -61,8 +61,7 @@ test('home leads with the opener and lists every post by part', async ({ page })
   await expect(page.locator('a[href$="/kpis/"]').first()).toBeVisible();
 });
 
-// Every claim in the series links to its evidence, so every link on every post must land: the page
-// must exist, and so must the section it points at.
+// Every link on every post must land: the page must exist, and so must the section it points at.
 test('every link on every post lands on a page and a section that exist', async ({ page, request }) => {
   test.setTimeout(120_000);
   await page.goto('./');
@@ -91,6 +90,26 @@ test('every link on every post lands on a page and a section that exist', async 
       const found = await idsOf(u.pathname);
       if (u.hash) expect(found.has(decodeURIComponent(u.hash.slice(1))), `${post} -> ${href}`).toBe(true);
     }
+  }
+});
+
+// Since 2 November 2026 a post's prose links only to outside sources, and every post says that it was
+// written by AI and engineered by its author. The layout's header, navigation, figures and media links stay.
+test('posts link only to outside sources and carry the AI line', async ({ page }) => {
+  await page.goto('./');
+  const posts = [...new Set(await page.locator('.start a, .part-posts a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).pathname)))];
+  expect(posts).toHaveLength(25);
+  for (const post of posts) {
+    await page.goto(post.replace('/domain-series/', ''));
+    const prose = 'article > p a[href], article > ul a[href], article > ol a[href], article > blockquote a[href]';
+    const own = await page.locator(prose).evaluateAll((as) =>
+      as
+        .map((a) => a as HTMLAnchorElement)
+        .filter((a) => a.origin === location.origin && !a.pathname.endsWith('/demo/'))
+        .map((a) => a.getAttribute('href')),
+    );
+    expect(own, post).toEqual([]);
+    await expect(page.locator('article'), post).toContainText(/written by AI,? (and )?engineered by me/);
   }
 });
 
