@@ -11,9 +11,10 @@ const pages = [
   { path: 'payments/', og: 'payments' },
   { path: 'payments/technical/', og: 'payments' },
   { path: 'who-saw-what/', og: 'who-saw-what' },
-  ...['on-shelf-availability', 'lost-sales', 'like-for-like', 'forecast-accuracy', 'inventory-accuracy', 'days-of-supply', 'shrink',
-    'fresh-waste', 'otif', 'fill-rate', 'pick-accuracy', 'net-adjustments', 'on-time-arrival', 'payment-success', 'charged-twice',
-    'match-rate', 'refund-turnaround', 'technical-declines', 'bench', 'dbt-tests'].map((slug) => ({ path: `${slug}/`, og: slug })),
+  // The KPI posts in reading order, then the two for practitioners.
+  ...['sales', 'on-shelf-availability', 'lost-sales', 'inventory-accuracy', 'shrink', 'forecast-accuracy', 'days-of-supply',
+    'fresh-waste', 'pick-accuracy', 'fill-rate', 'on-time-arrival', 'otif', 'net-adjustments', 'payment-success',
+    'technical-declines', 'charged-twice', 'match-rate', 'refund-turnaround', 'bench', 'dbt-tests'].map((slug) => ({ path: `${slug}/`, og: slug })),
   { path: 'kit/', og: 'kit' },
   { path: 'demo/', og: 'demo' },
   { path: 'data/', og: 'home' },
@@ -55,7 +56,7 @@ test('link-preview images are served', async ({ request }) => {
 test('home leads with the opener and lists every post by part', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('.start a[href$="/why-domain/"]')).toHaveCount(1);
-  for (const slug of ['retail', 'logistics', 'payments', 'who-saw-what', 'on-shelf-availability', 'technical-declines', 'dbt-tests']) {
+  for (const slug of ['sales', 'retail', 'logistics', 'payments', 'who-saw-what', 'on-shelf-availability', 'technical-declines', 'dbt-tests']) {
     await expect(page.locator(`.part-posts a[href$="/${slug}/"]`)).toHaveCount(1);
   }
   await expect(page.locator('a[href$="/kpis/"]').first()).toBeVisible();
@@ -115,17 +116,51 @@ test('posts link only to outside sources and carry the AI line', async ({ page }
 
 test('each KPI post has the same shape and gives its agent the KPI page’s rule', async ({ page }) => {
   await page.goto('kpis/');
-  const rules = Object.fromEntries(await page.locator('section.kpi').evaluateAll((els) => els.map((e) => [e.id, (e.querySelector('.kpi-rule') as HTMLElement).innerText.trim()])));
-  const links = await page.locator('section.kpi .kpi-post a').evaluateAll((as) => as.map((a) => [(a.closest('section.kpi') as HTMLElement).id, (a as HTMLAnchorElement).pathname]));
-  expect(links).toHaveLength(18);
-  for (const [id, path] of links) {
-    await page.goto(path.replace('/domain-series/', ''));
+  const flat = (t: string) => t.replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"').trim();
+  const kpis = await page.locator('section.kpi').evaluateAll((els) => els.map((e) => ({
+    id: e.id,
+    n: (e.querySelector('.kpi-n') as HTMLElement).innerText.trim(),
+    rule: (e.querySelector('.kpi-rule') as HTMLElement).innerText,
+    path: (e.querySelector('.kpi-post a') as HTMLAnchorElement).pathname,
+  })));
+  expect(kpis.map((k) => k.n)).toEqual(Array.from({ length: 18 }, (_, i) => `KPI ${i + 1}`));
+  for (const k of kpis) {
+    await page.goto(k.path.replace('/domain-series/', ''));
     const h2 = await page.locator('article h2').allInnerTexts();
-    for (const section of ['Why the number missed it', 'How to catch it', 'If an AI agent reads it', 'Try it on your own data']) expect(h2, `${path}: ${section}`).toContain(section);
-    await expect(page.locator('.agent-rule-text')).toHaveText(rules[id]);
-    await expect(page.locator('.post-domain')).toHaveText(/^The (shelf|truck|money): KPI \d of [58]$/);
-    await expect(page.locator('dl.pair .rec')).not.toBeEmpty();
+    expect(h2.slice(0, 4), k.path).toEqual(['What is it?', 'What did it say at Store 014?', 'What could it not see?', 'How do you catch it?']);
+    const text = flat(await page.locator('article').innerText());
+    const esc = flat(k.rule).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    expect(text, k.path).toMatch(new RegExp(`The rule I would give any AI agent that reads (it|sales) – ${esc}`));
+    expect(text, k.path).toContain('Curious to know what you think');
+    await expect(page.locator('.post-domain'), k.path).toHaveText(new RegExp(`^${k.n} of 18 · the (shelf|truck|money)$`));
+    // Every KPI post opens, summarises and closes with a picture.
+    await expect(page.locator('article figure.picture img'), k.path).toHaveCount(3);
   }
+});
+
+// The pictures that open, summarise and close each post are served, and say what they show.
+test('every picture in every post is served and described', async ({ page, request }) => {
+  await page.goto('./');
+  const posts = [...new Set(await page.locator('.start a, .part-posts a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).pathname)))];
+  expect(posts).toHaveLength(25);
+  for (const post of posts) {
+    await page.goto(post.replace('/domain-series/', ''));
+    const imgs = await page.locator('article figure.picture img').evaluateAll((els) => els.map((e) => ({ src: (e as HTMLImageElement).getAttribute('src')!, alt: (e as HTMLImageElement).alt })));
+    expect(imgs.length, post).toBe(3);
+    for (const img of imgs) {
+      expect(img.alt.length, `${post} ${img.src}`).toBeGreaterThan(60);
+      const res = await request.head(img.src.replace('/domain-series/', ''));
+      expect(res.status(), img.src).toBe(200);
+      expect(res.headers()['content-type'], img.src).toContain('image/png');
+    }
+  }
+});
+
+// The old like-for-like post became KPI 1, Sales. Old links still land.
+test('the old like-for-like address redirects to the sales post', async ({ page }) => {
+  await page.goto('like-for-like/');
+  await expect(page).toHaveURL(/\/domain-series\/sales\/$/);
+  await expect(page.locator('h1')).toContainText('Sales');
 });
 
 test('posts show a byline and link to their demo scenario', async ({ page }) => {

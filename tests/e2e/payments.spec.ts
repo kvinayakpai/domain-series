@@ -30,64 +30,47 @@ async function open(page: Page, query = '') {
   return { errors, root };
 }
 
-test('the payments story quotes the world correctly', async ({ page }) => {
+test('the money linking post quotes the world correctly', async ({ page }) => {
   await page.goto('payments/');
-  const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'");
+  const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
   const sc = st.scene;
-  const hours = Object.fromEntries(st.slowdown_day_by_hour.map((h: { hour: number }) => [h.hour, h]));
   const d = Object.fromEntries(asIs.daily.map((x: { date: string }) => [x.date, x]));
+  const parked = d['2026-06-20'].unmatched + d['2026-06-21'].unmatched;
   const m = pai.matcher;
   const f = pai.find;
   const wait = pai.assistant.questions.find((x: { id: string }) => x.id === 'wait');
-  const bursts = pai.hours.bursts.map((b: { share: number }) => pct(b.share));
+  const hm = (iso: string) => iso.slice(11, 16);
   const expected = [
-    `Store 014's ${june.bills.toLocaleString('en-IN')} June bills`,
-    `basket comes to ${inr2(sc.amount_inr)}`,
-    `${secs(sc.attempts[0].ts, sc.credited_ts)} seconds after she approved the UPI payment`,
-    `The tills approved ${pct1(june.four_ways.till)} of June's UPI attempts`,
-    `approvals fell to ${pct(hours[18].approved_at_till / hours[18].upi_attempts)} and ${pct(hours[19].approved_at_till / hours[19].upi_attempts)} in the 18:00 and 19:00 hours`,
-    `cashiers asked for another payment ${slow.second_payments} times`,
-    `there were ${d['2026-06-20'].provider_credits} UPI credits against ${d['2026-06-20'].till_approved} approved payments, and on Sunday ${d['2026-06-21'].provider_credits} against ${d['2026-06-21'].till_approved}. The ${d['2026-06-20'].unmatched + d['2026-06-21'].unmatched} credits`,
-    `${asIs.complaints.length} customers complain about payments in June`,
-    'about a third of UPI attempts at Store 014 got no answer',
-    `the tills gave up on ${slow.upi_timeouts} of ${slow.upi_attempts}`,
-    `${slow.charged_twice} customers paid twice, two of them three times: ${slow.extra_charges} extra charges, ${inr2(slow.charged_twice_inr)}`,
-    `${june.charged_twice} customers paid twice: ${june.extra_charges} extra charges, ${inr2(june.charged_twice_inr)}`,
-    `four extra charges, ${inr2(ref.unrefunded_inr)}, were still sitting in suspense`,
-    `Matching each of June's ${m.timeouts} timeouts`,
-    `matches every one: ${m.outcomes['late credit']} were credited late, ${m.outcomes['debited and returned']} were debited and returned, and ${m.outcomes['never debited']} never left the customer's account`,
-    `It finds all ${m.extra_charges} extra charges, with no false alarms`,
-    `a median ${f.matcher_median_days} days after the debit, against ${Math.round(f.complaint_median_days)} days for complaints, and three customers never complained`,
-    `From the complaint, refunds took a median ${Math.round(wait.naive.value)} days, from the extra debit ${f.refund_median_days_from_debit}, and ${f.over_tat} of the ${m.extra_charges - f.not_refunded} refunds took longer than five days`,
-    `the tills got no answer on ${bursts[0]} and ${bursts[1]} of attempts`,
-    'answers seven questions of seven',
+    `Saturday 20 June, ${hm(slow.start)}. The bank's UPI switch slows down. Over the next ${secs(slow.start, slow.end) / 60} minutes, ${slow.upi_timeouts} of ${slow.upi_attempts} UPI attempts get no answer within the till's ${secs(sc.attempts[0].ts, sc.attempts[1].ts)} seconds`,
+    `${hm(sc.paid_ts)}. A customer's bank takes ${inr2(sc.amount_inr)}. Her till shows "${sc.attempts[0].till_status}", so she pays again by ${sc.attempts[1].tender}`,
+    `confirms her first payment ${secs(sc.paid_ts, sc.credited_ts)} seconds later`,
+    `${hm(slow.end)}. The switch recovers. Cashiers have asked for another payment ${slow.second_payments} times, and ${slow.charged_twice} customers have paid twice, ${inr0(slow.charged_twice_inr)} in extra charges`,
+    `reconciliation has parked ${parked} credits with no approved payment behind them in suspense`,
+    `Payment success rate (KPI 14): ${pct(slow.four_ways.till)} at the till`,
+    `Technical decline rate (KPI 15): ${((june.upi_technical_failures / june.upi_attempts) * 100).toFixed(2)}% for June`,
+    'Double debits (KPI 16): zero, because every bill had exactly one approved payment',
+    `Reconciliation (KPI 17): ${parked} items in suspense`,
+    `Refund turnaround (KPI 18): a median ${Math.round(wait.naive.value)} days, from the complaint`,
+    `Across all of June, ${june.charged_twice} customers paid twice, and four extra charges were still unrefunded when the month closed`,
+    `finds every extra charge, with no false alarms, a median ${f.matcher_median_days} days after the debit`,
     `double charges in June fall from ${asIs.kpis.june.charged_twice} customers to ${check.kpis.june.charged_twice}`,
-    `the tills spend ${Math.round(check.kpis.slowdown.till_minutes)} minutes taking payment instead of ${Math.round(asIs.kpis.slowdown.till_minutes)}`,
-    `the median wait falls from ${asIs.kpis.refunds.median_days_to_refund} days to ${billRef.kpis.refunds.median_days_to_refund}`,
+    `${Math.round(check.kpis.slowdown.till_minutes)} minutes in the slowdown instead of ${Math.round(asIs.kpis.slowdown.till_minutes)}`,
+    `the median wait for a refund falls from ${asIs.kpis.refunds.median_days_to_refund} days to ${billRef.kpis.refunds.median_days_to_refund}`,
     `complaints fall from ${asIs.kpis.refunds.complaints} to ${billRef.kpis.refunds.complaints}`,
-    sc.rrn, sc.bill_id,
   ];
   for (const e of expected) expect(text, e).toContain(e);
-  expect([m.true_positives, m.false_positives, m.missed, m.outcomes_right]).toEqual([m.answer_key.extra_charges, 0, 0, m.timeouts]);
-  expect(f.never_complained).toBe(3);
-  expect(f.not_refunded).toBe(ref.unrefunded_at_month_end);
-  expect(pai.assistant.score).toEqual({ naive: 1, domain: 7, of: 7 });
-  expect(slow.upi_timeouts / slow.upi_attempts).toBeGreaterThan(0.3); // "about a third"
-  expect(slow.upi_timeouts / slow.upi_attempts).toBeLessThan(0.37);
-  expect(slow.extra_charges - slow.charged_twice).toBe(2); // "two of them three times"
-  expect(ref.unrefunded_at_month_end).toBe(4); // "four extra charges"
-  expect(weekday(sc.complaint.complaint_ts)).toBe('Tuesday'); // "She phones the store on Tuesday"
-  expect(weekday(sc.refunded_ts)).toBe('Sunday'); // "on the following Sunday"
+  expect([m.true_positives, m.false_positives, m.missed]).toEqual([m.answer_key.extra_charges, 0, 0]);
+  expect(ref.unrefunded_at_month_end).toBe(4); // "four extra charges were still unrefunded"
+  expect(sc.complaint.complaint_ts.slice(0, 10)).toBe('2026-06-23');
+  expect(weekday(sc.complaint.complaint_ts)).toBe('Tuesday'); // "Tuesday 23 June. The customer from 18:48 phones support"
+  expect(weekday(sc.refunded_ts)).toBe('Sunday'); // "the following Sunday"
   expect(Math.round(secs(sc.attempts[0].ts, sc.refunded_ts) / 86400)).toBe(8); // "eight days after her shopping"
   expect(billRef.kpis.refunds.unrefunded_at_month_end).toBe(0); // "nothing is left in suspense"
 });
 
-test('the payments post renders its figures without JavaScript', async ({ browser }) => {
+test('the payments companion renders its tables without JavaScript', async ({ browser }) => {
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
-  await page.goto('payments/');
-  await expect(page.locator('figure svg[role="img"]:visible')).toHaveCount(1);
-  await expect(page.locator('table.docs')).toContainText(st.scene.rrn);
   await page.goto('payments/technical/');
   await expect(page.locator('table.pay-ways')).toContainText(pct(slow.four_ways.charged_once));
   await expect(page.locator('table.tests tbody tr:not(.group)')).toHaveCount(pai.tests.generic.length + pai.tests.domain.length);
