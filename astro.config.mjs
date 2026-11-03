@@ -7,6 +7,8 @@ export default defineConfig({
   base: '/domain-series/',
   trailingSlash: 'always',
   integrations: [mdx(), sitemap()],
+  // KPI 1 was the like-for-like post before the series became one KPI per post.
+  redirects: { '/like-for-like/': '/domain-series/sales/' },
   markdown: {
     shikiConfig: { themes: { light: 'github-light', dark: 'github-dark' }, wrap: false },
   },

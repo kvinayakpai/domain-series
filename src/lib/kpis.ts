@@ -106,7 +106,7 @@ export const DOMAINS: Domain[] = [
       },
       {
         id: 'lfl',
-        name: 'Like-for-like sales growth',
+        name: 'Sales',
         drives: 'Trading reviews, range and space decisions, conversations with suppliers.',
         computed: 'Recorded sales, week on week or year on year.',
         blind: 'An empty shelf looks like falling demand, and the recovery afterwards looks like growth.',
@@ -142,7 +142,7 @@ export const DOMAINS: Domain[] = [
       },
       {
         id: 'days-of-supply',
-        name: 'Days of supply and inventory turns',
+        name: 'Days of supply',
         drives: 'Working capital, order quantities, markdowns.',
         computed: 'Book stock divided by the forecast (days of supply); cost of sales over average book inventory (turns).',
         blind: 'Phantom stock counts as supply, and a censored forecast stretches it further.',
@@ -154,7 +154,7 @@ export const DOMAINS: Domain[] = [
       },
       {
         id: 'shrink',
-        name: 'Shrink and count adjustments',
+        name: 'Shrink',
         drives: 'Loss prevention, audit, margin.',
         computed: 'Count adjustments and write-offs, at cost, per item and period.',
         blind: 'An adjustment says the book was wrong, not why. Theft, damage and scan errors look alike.',
@@ -166,12 +166,12 @@ export const DOMAINS: Domain[] = [
       },
       {
         id: 'fresh-waste',
-        name: 'Fresh waste against availability',
+        name: 'Fresh waste',
         drives: 'Standing orders for milk, bread and produce.',
         computed: 'Write-offs (waste) and sales. Availability is rarely measured for fresh at all.',
         blind: 'Demand above the sell-out is never recorded, so cutting the order always looks free.',
         check: 'The time of each day’s last sale, and an estimate of demand above the sell-out.',
-        agent: 'Waste and empty shelves trade off. Never optimise one without estimating the other.',
+        agent: 'Waste and empty shelves trade off. Never optimize one without estimating the other.',
         reported: { value: inr(milk[0.95].net_inr), how: `margin after waste, up from ${inr(milk[1].net_inr)}` },
         observed: { value: num(milk[0.95].lost), how: `pouches not found, up from ${num(milk[1].lost)}` },
         example: `A 5% leaner toned-milk order lifts the margin after waste from ${inr(milk[1].net_inr)} to ${inr(milk[0.95].net_inr)}, and the milk sells out on ${evenings(0.95)} days in June instead of ${evenings(1)}. Only the answer key sees the shoppers who left without it.`,
@@ -215,11 +215,11 @@ export const DOMAINS: Domain[] = [
       {
         id: 'pick-accuracy',
         name: 'Pick accuracy',
-        drives: 'Warehouse process design, labour, the cost of errors downstream.',
+        drives: 'Warehouse process design, labor, the cost of errors downstream.',
         computed: 'Pick confirmations, usually a scan of the slot’s label, and later claims.',
         blind: 'A slot scan confirms the place, not the product.',
         check: 'Mirror-image count variances in adjacent slots; store counts on the same days.',
-        agent: 'A slot scan is not a product scan. Mirror-image variances in neighbouring slots are one mis-pick.',
+        agent: 'A slot scan is not a product scan. Mirror-image variances in neighboring slots are one mis-pick.',
         reported: { value: '100%', how: 'every pick confirmed by slot scan' },
         observed: { value: '1 mis-pick', how: `${ls.actual.units_actual} packs of 1 kg as ${ls.line.units} of 5 kg` },
         example: `On 22 June a line was picked from the neighbouring 1 kg slot: ${ls.actual.units_actual} packs of 1 kg shipped as ${ls.line.units} bags of 5 kg. The next day the warehouse wrote off ${Math.abs(ls.dc_adjustments[0].cases)} cases of 1 kg as a “short pick”.`,
@@ -239,7 +239,7 @@ export const DOMAINS: Domain[] = [
       {
         id: 'on-time',
         name: 'On-time arrival',
-        drives: 'Receiving labour, shelf-refill timing, carrier scorecards.',
+        drives: 'Receiving labor, shelf-refill timing, carrier scorecards.',
         computed: 'Trip logs and receipt timestamps against the delivery slot.',
         blind: 'A punctual truck can bring the wrong goods. Arrival time says nothing about the shelf.',
         check: 'Measure shelf-ready time, and pair on-time with in-full checked at case level.',
@@ -274,10 +274,10 @@ export const DOMAINS: Domain[] = [
       },
       {
         id: 'charged-twice',
-        name: 'Customers charged twice',
+        name: 'Double debits',
         drives: 'Refunds, complaints, trust in the store.',
         computed: 'Complaints, after the fact.',
-        blind: 'No record says “charged twice”. A payment that timed out has no reference to join on.',
+        blind: 'No record says a customer paid twice. A payment that timed out has no reference to join on.',
         check: 'Credits with no approved payment, matched to bills by amount and time.',
         agent: 'A credit with no approved payment is a customer charged twice until proven otherwise.',
         reported: { value: '0', how: 'in any system' },
@@ -323,6 +323,17 @@ export const DOMAINS: Domain[] = [
     ],
   },
 ];
+
+// The order the series introduces the KPIs in, one post each: KPI 1 to KPI 18.
+export const SERIES_ORDER = [
+  'lfl', 'osa', 'lost-sales', 'ira', 'shrink', 'forecast', 'days-of-supply', 'fresh-waste',
+  'pick-accuracy', 'fill-rate', 'on-time', 'otif', 'net-adjustments',
+  'success-rate', 'technical-declines', 'charged-twice', 'match-rate', 'refund-tat',
+];
+for (const d of DOMAINS) d.kpis.sort((a, b) => SERIES_ORDER.indexOf(a.id) - SERIES_ORDER.indexOf(b.id));
+
+/** A KPI's number in the series, 1 to 18. */
+export const kpiNumber = (id: string) => SERIES_ORDER.indexOf(id) + 1;
 
 export const KPI_COUNT = DOMAINS.reduce((a, d) => a + d.kpis.length, 0);
 

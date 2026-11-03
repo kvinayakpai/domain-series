@@ -3,17 +3,18 @@
 // says what actually happened.
 import Layout, { SITE_NAME } from '../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
-import { DOMAINS } from '../lib/kpis';
+import { DOMAINS, kpiNumber } from '../lib/kpis';
 import { PARTS } from '../lib/series';
 
 const all = (await getCollection('posts', (p) => !p.data.draft)).sort((a, b) => a.data.order - b.data.order);
 const opener = all.find((p) => p.data.part === 'start');
 const kpiOf = (id?: string) => DOMAINS.flatMap((d) => d.kpis).find((k) => k.id === id);
 const blurb: Record<string, string> = {
-  shelf: 'Retail. One item, 5 kg atta, goes missing from its shelf while the books say it is there.',
-  truck: 'Logistics. A truck arrives on time with one pallet line of the wrong pack size.',
-  money: 'Payments. On a slow Saturday evening, the tills call paid UPI payments failed.',
-  together: 'Who saw what across all three, and two practical posts for data and AI teams.',
+  shelf: 'Retail. Eight KPIs from the store: sales, the shelf, stock records, forecasts and fresh food.',
+  truck: 'Logistics. Five KPIs from the warehouse, the truck and the supplier scorecard.',
+  money: 'Payments. Five KPIs from the till, the bank and the refund desk.',
+  together: 'The eighteen KPIs were not eighteen separate problems. Three incidents moved them, and one map shows who saw what.',
+  practice: 'For data and AI teams: test an assistant against an answer key, and write domain tests in dbt.',
 };
 const parts = PARTS.filter((p) => p.id !== 'start').map((p) => ({ ...p, posts: all.filter((x) => x.data.part === p.id) }));
 const count = all.length;
@@ -24,13 +25,13 @@ const base = import.meta.env.BASE_URL;
     <h1 id="hero-title">Why domain matters</h1>
     <p class="lede">Every KPI is computed from a record, and every record has a blind spot. AI agents now act on those numbers. This series shows, one KPI at a time, what a record cannot see and how a data or AI team can catch it.</p>
     {opener && (
-      <p class="start"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>Three numbers from one supermarket, each computed correctly and each wrong about what it measures.</span></p>
+      <p class="start"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{opener.data.reality}</span></p>
     )}
   </section>
 
   <section class="contents" aria-labelledby="contents-title">
     <h2 id="contents-title">The series, in {count} short posts</h2>
-    <p class="contents-note">Every post is about one idea, and every claim in it links to its evidence. The numbers come from Store 014, a supermarket in Bengaluru simulated hour by hour through June 2026, so each one can be checked against what really happened.</p>
+    <p class="contents-note">Eighteen posts introduce one KPI each, four posts link them, and two are for practitioners. The numbers come from Store 014, a supermarket in Bengaluru simulated hour by hour through June 2026, so each one can be checked against what really happened.</p>
     {parts.map((p) => (
       <section class="part" aria-labelledby={`part-${p.id}`}>
         <h3 id={`part-${p.id}`}>{p.name}</h3>
@@ -40,7 +41,7 @@ const base = import.meta.env.BASE_URL;
             const k = kpiOf(x.data.kpi);
             return (
               <li class={k ? 'is-kpi' : 'is-story'}>
-                <a href={`${base}${x.data.slug}/`}>{k ? k.name : x.data.title}</a>
+                <a href={`${base}${x.data.slug}/`}>{k ? `KPI ${kpiNumber(k.id)}: ${k.name}` : x.data.title}</a>
                 <span class="note">{x.data.reality}</span>
               </li>
             );

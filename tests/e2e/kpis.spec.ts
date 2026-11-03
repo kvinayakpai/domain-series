@@ -55,33 +55,24 @@ async function articleText(page: Page, path: string) {
 
 test('the opener quotes the world correctly', async ({ page }) => {
   const text = await articleText(page, 'why-domain/');
-  const dbt = read('dbt-kit.json');
-  const seeds = retail.agents.seeds.runs;
-  // The three KPIs, each measured twice and named in plain text: since 2 November 2026 posts link
-  // only to outside sources.
-  const rows = page.locator('.kpi-pairs li');
-  await expect(rows).toHaveCount(3);
-  for (const [i, h] of [heroes[0], heroes[1], heroes[2]].entries()) {
-    await expect(rows.nth(i).locator('.kp-v.rec')).toHaveText((h as { reported: string }).reported);
-    await expect(rows.nth(i).locator('.kp-v.gap')).toHaveText((h as { observed: string }).observed);
-    await expect(rows.nth(i).locator('a')).toHaveCount(0);
-  }
+  const [osa, otif, pay] = heroes;
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
   const expected = [
-    `In those 90 minutes on Saturday evening, ${slow.charged_twice} customers paid twice`,
-    `${dbt.pipeline.pass} of the store's ${dbt.pipeline.tests} data tests passed, and the other one warned about milk`,
-    'book stock cannot see the shelf, a shipping notice cannot see inside a pallet, and a till cannot see the customer\'s bank',
-    'across forty simulated Junes 5 kg atta lost half as many sales',
-    'does this for all eighteen of the series\' KPIs',
-    'The series has 25 short posts, one idea each, in five parts.',
+    `I followed ${words[retail.record_accuracy.items]} everyday items on its shelves hour by hour through June 2026`,
+    // The three KPIs, each measured twice and named in plain text: since 2 November 2026 posts link
+    // only to outside sources.
+    `On-shelf availability of 5 kg atta in June: ${osa.reported} by the books, ${osa.observed} on the shelf.`,
+    `On time, in full for June's deliveries: ${otif.reported} by the warehouse's report, ${otif.observed} with every case right.`,
+    `Payment success for UPI one Saturday evening: ${pay.reported} at the till, ${pay.observed} at the store's bank.`,
+    "Book stock cannot see the shelf, a shipping notice cannot see inside a pallet, and a till cannot see the customer's bank.",
+    'The series has 25 short blogs, one idea each.',
+    'Eighteen KPI blogs, one KPI each',
+    'Four linking blogs',
+    'Two blogs for practitioners',
   ];
   for (const e of expected) expect(text, e).toContain(e);
-  expect(dbt.pipeline.tests - dbt.pipeline.pass).toBe(1);
-  expect(retail.agents.seeds.n).toBe(40);
-  const half = seeds.domain.mean.hero_lost_units / seeds.naive.mean.hero_lost_units;
-  expect(half).toBeGreaterThan(0.45);
-  expect(half).toBeLessThan(0.55);
-  expect(seeds.domain.mean.stock_at_cost_inr).toBeLessThanOrEqual(seeds.none.mean.stock_at_cost_inr);
-  // The opener has no x-ray of its own, and every other post is one of the twenty-five.
+  await expect(page.locator('article figure.picture img')).toHaveCount(3);
+  // The opener has no x-ray of its own; it starts the series.
   await expect(page.locator('.xray')).toHaveCount(0);
   await expect(page.locator('.post-domain')).toHaveText('Start here');
 });
@@ -168,17 +159,21 @@ test('each domain post opens with its KPI x-rayed, linked to the KPI page', asyn
 
 test('the home page lists the twenty-five posts by part, each with what actually happened', async ({ page }) => {
   await page.goto('./');
-  await expect(page.locator('.part')).toHaveCount(4);
-  const counts = { shelf: 9, truck: 6, money: 6, together: 3 } as const;
+  await expect(page.locator('.part')).toHaveCount(5);
+  const counts = { shelf: 8, truck: 5, money: 5, together: 4, practice: 2 } as const;
   for (const [part, n] of Object.entries(counts)) await expect(page.locator(`#part-${part} + .part-blurb + .part-posts li`)).toHaveCount(n);
   await expect(page.locator('.part-posts li')).toHaveCount(24);
+  // The KPI posts are numbered in reading order, 1 to 18.
+  const kpiLinks = await page.locator('.part-posts .is-kpi a').allInnerTexts();
+  expect(kpiLinks.map((t) => Number(t.match(/^KPI (\d+):/)?.[1]))).toEqual(Array.from({ length: 18 }, (_, i) => i + 1));
   for (const [h, slug] of [[heroes[0], 'on-shelf-availability'], [heroes[1], 'otif'], [heroes[2], 'payment-success']] as const) {
     const row = page.locator('.part-posts li', { has: page.locator(`a[href$="/${slug}/"]`) });
     await expect(row.locator('.note')).toContainText(h.observed);
   }
-  for (const slug of ['retail', 'logistics', 'payments']) await expect(page.locator(`.part-posts .is-story a[href$="/${slug}/"]`)).toHaveCount(1);
+  for (const slug of ['retail', 'logistics', 'payments', 'who-saw-what']) await expect(page.locator(`#part-together ~ .part-posts .is-story a[href$="/${slug}/"]`)).toHaveCount(1);
   await expect(page.locator('#contents-title')).toHaveText('The series, in 25 short posts');
   // Every page leads readers to the opener and the KPI page.
   await expect(page.locator('header nav a[href$="/why-domain/"]')).toHaveText('Start here');
   await expect(page.locator('header nav a[href$="/kpis/"]')).toHaveText('KPIs');
 });
+

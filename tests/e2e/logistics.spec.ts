@@ -24,74 +24,57 @@ async function open(page: Page, query = '') {
   return { errors, root };
 }
 
-test('the logistics story quotes the world correctly', async ({ page }) => {
+test('the truck linking post quotes the world correctly', async ({ page }) => {
   await page.goto('logistics/');
   const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'");
   const st = data.story;
   const ep = st.episode;
-  const r = ep.responses;
   const k = asIs.kpis;
-  const lines = data.records.notice.filter((a: { shipment_id: string }) => a.shipment_id === st.shipment.shipment_id);
-  const cases = (sku: string) => lines.find((a: { sku: string }) => a.sku === sku).cases;
   const pick = st.picks.find((p: { sku: string }) => p.sku === st.line.sku);
   const five = st.corrections.find((c: { sku: string }) => c.sku === 'ATTA-WW-5KG');
   const one = st.corrections.find((c: { sku: string }) => c.sku === 'ATTA-WW-1KG');
-  const pallet = st.pallets.find((p: { sscc: string }) => p.sscc === st.line.sscc);
-  const light = pick.cases_confirmed * (data.case_kg['ATTA-WW-5KG'] - data.case_kg['ATTA-WW-1KG']);
-  const m = lai.mirror;
+  const [short, over] = st.dc_adjustments;
+  const finale = JSON.parse(readFileSync(new URL('../../src/data/finale.json', import.meta.url), 'utf8'));
+  const truck = finale.incidents.find((i: { id: string }) => i.id === 'truck');
+  const hours = (a: string, b: string) => Math.round((Date.parse(`${b}Z`) - Date.parse(`${a}Z`)) / 3.6e6);
   const expected = [
-    `at ${Number(hm(st.shipment.arrived_ts).slice(0, 2))}:${hm(st.shipment.arrived_ts).slice(3)}, twelve minutes into its 06:00–06:30 slot`,
-    `${cases('ATTA-WW-5KG')} cases of 5 kg atta, ${cases('ATTA-WW-1KG')} of 1 kg atta, ${cases('RICE-SM-5KG')} of rice and ${cases('SUGAR-1KG')} of sugar`,
-    `including ${st.line.units} bags of 5 kg atta`,
-    `the ${st.line.cases} bales on line 1 hold 1 kg packs, ${st.actual.units_actual} of them`,
-    `says ${pct(k.otif.scorecard)} of June's ${k.shipments} deliveries arrived in the slot and in full, and the warehouse's own report says ${pct(k.otif.dc_report)}`,
-    `the truck made the slot on ${k.in_slot} of ${k.shipments} mornings`,
-    `found the books at ${five.book_before} bags of 5 kg and the bay empty, and ${one.adjustment} more 1 kg packs than the books showed`,
-    `went to slot ${pick.slot} for ${pick.cases_confirmed} cases of 5 kg atta, scanned the slot's label, and took ${pick.cases_confirmed} bales from ${data.slots['ATTA-WW-1KG']}`,
-    `held ${st.line.units} bags of 5 kg that did not exist, while ${st.actual.units_actual} packs of 1 kg sat in the backroom`,
-    `saw ${ep.book_on_hand_max} bags on the books against a reorder point of ${ep.reorder_point[0]} or ${ep.reorder_point[1]}`,
-    `stayed empty for ${ep.empty_open_hours} open hours`,
-    `Customers wanted ${ep.lost_units} bags of 5 kg during the gap and could not buy them: ${r.elsewhere} of those became trips to another store, ${r.other_pack} a different pack size and ${r.other_brand} another brand, ${r.delay} shoppers came back later, and ${r.skip} bags were never bought.`,
-    `none of June's ${lai.pallets.total} pallets was weighed or case-scanned`,
-    `net to about ${inr(st.adjustments_net.value_at_cost_inr)} at cost, against ${inr(m.gross_atta_value_inr)} gross`,
-    `fails for all ${lai.tests.domain[3].failing.length} of June's pallets`,
-    `returns one row, line ${m.traced_line.line} of the 22 June shipment`,
-    `brings OTIF from the records to ${pct(lai.otif.ways.reconciled)}`,
-    `the scorecard and the shelf agree at ${pct(pickScan.kpis.otif.scorecard)}`,
-    `weighs about ${Math.round(pallet.notice_kg - light)} kg against the ${Math.round(pallet.notice_kg)} kg its notice implies, ${pct(light / pallet.notice_kg)} light`,
-    `reaches the store at ${hm(weigh.shipment.arrived_ts)}, outside its slot`,
-    `the scorecard falls to ${pct(weigh.kpis.otif.scorecard)}`,
+    `Monday 22 June, ${hm(pick.pick_ts)}. A picker scans the label on the 5 kg atta slot and takes ${pick.cases_confirmed} bales of 1 kg packs from the slot next to it`,
+    `${hm(st.shipment.arrived_ts)}. The truck arrives inside its slot. The store books ${st.line.units} bags of 5 kg that do not exist`,
+    `The warehouse's 1 kg slot comes up ${-short.cases} cases short, booked as a short pick`,
+    `for three nights the reorder system sees ${ep.book_on_hand_max} bags on the books and orders nothing`,
+    `The warehouse's 5 kg slot comes up ${over.cases} cases over, booked as a count variance`,
+    `Friday 26 June, ${hm(five.count_ts)}. After complaints, the manager asks for a count: ${-five.adjustment} bags of 5 kg missing, ${one.adjustment} packs of 1 kg too many`,
+    `shoppers had come for ${ep.lost_units} bags`,
+    'Pick accuracy (KPI 9): 100%, every pick confirmed by a slot scan',
+    `Fill rate (KPI 10): ${(k.case_fill.by_notice * 100).toFixed(1)}%`,
+    `On-time arrival (KPI 11): on time at ${hm(st.shipment.arrived_ts)}`,
+    `OTIF (KPI 12): ${pct(k.otif.dc_report)}, with this delivery counted as perfect`,
+    `Net inventory adjustments (KPI 13): four corrections netting to ${inr(st.adjustments_net.value_at_cost_inr)}`,
+    `lost sales (KPI 3) grew by ${ep.lost_units} bags that no report showed, inventory accuracy (KPI 4) carried ${five.book_before} bags`,
+    `days of supply (KPI 7) counted those ${ep.book_on_hand_max} bags as stock`,
+    `all ${['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'][lai.tests.generic.length]} data tests on the shipping records passed`,
+    `At ${hm(truck.joined.ts)} on Tuesday 23 June, the store's records showed 5 kg atta silent since the afternoon, with ${ep.book_on_hand_max} bags on the books`,
+    `names line ${lai.mirror.traced_line.line} of the 22 June shipment. That is ${hours(truck.joined.ts, truck.also.ts)} hours before the warehouse's own corrections pair up, and ${hours(truck.joined.ts, truck.found.ts)} hours before the store's count`,
+    'made the truck half an hour late, and left only one shopper all week without a 5 kg bag',
   ];
   for (const e of expected) expect(text, e).toContain(e);
-  expect(text).toContain('All ten pass');
-  expect(lai.tests.generic).toHaveLength(10);
-  expect(text).toContain('16 cases short in its 1 kg atta slot on Tuesday and 16 cases over in its 5 kg slot on Thursday');
-  expect(st.dc_adjustments.map((a: { cases: number }) => Math.abs(a.cases))).toEqual([16, 16]);
-  expect(text).toContain('five mirror pairs');
-  expect(m.pairs).toHaveLength(5);
-  expect(text).toContain('answers seven questions of seven, against one with the schema alone');
-  expect([lai.assistant.score.naive, lai.assistant.score.domain, lai.assistant.score.of]).toEqual([1, 7, 7]);
-  expect(text).toContain('ran out at 3:30 on Tuesday afternoon');
-  expect(ep.start).toBe('2026-06-23T15:30');
-  expect(text).toContain('a day before the store');
-  expect(Math.round(m.days_to_store_count - m.days_to_pair)).toBe(1);
-  expect(text).toContain('only one customer all week misses a 5 kg bag');
+  expect(st.picks.every((p: { confirmed_by: string; cases_confirmed: number; cases_ordered: number }) => p.confirmed_by === 'slot label scan' && p.cases_confirmed === p.cases_ordered)).toBe(true);
+  expect(st.dc_adjustments.map((a: { adjusted_ts: string }) => a.adjusted_ts.slice(0, 10))).toEqual(['2026-06-23', '2026-06-25']); // Tuesday, Thursday
+  expect(ep.start).toBe('2026-06-23T15:30'); // "That afternoon the 5 kg shelf at the store runs out"
+  expect(ep.end).toBe('2026-06-26T22:00'); // "from Tuesday afternoon to Friday night"
+  expect(lai.tests.generic.every((t: { pass: boolean }) => t.pass)).toBe(true);
+  expect(Date.parse(`${weigh.shipment.arrived_ts}Z`) - Date.parse(`${asIs.shipment.arrived_ts}Z`)).toBe(30 * 60 * 1000);
   expect(weigh.kpis.lost_units_after).toBe(1);
-  expect(text).toContain(`no customer finds the 5 kg shelf empty, and the scorecard falls to ${pct(caseScan.kpis.otif.scorecard)}`);
-  expect(caseScan.kpis.lost_units_after).toBe(0);
-  expect(lai.otif.ways.reconciled).toBe(asIs.kpis.otif.at_the_shelf);
-  expect(pickScan.kpis.otif.at_the_shelf).toBe(pickScan.kpis.otif.scorecard);
-  expect(weigh.kpis.otif.scorecard).toBeLessThan(k.otif.scorecard); // "Two of the three fixes make the headline number worse"
+  // "Two of the three fixes I tested lower the scorecard and keep the shelf full."
+  expect(weigh.kpis.otif.scorecard).toBeLessThan(k.otif.scorecard);
   expect(caseScan.kpis.otif.scorecard).toBeLessThan(k.otif.scorecard);
+  expect(pickScan.kpis.otif.scorecard).toBe(k.otif.scorecard);
+  expect(caseScan.kpis.lost_units_after).toBe(0);
 });
 
-test('the logistics post renders its figures without JavaScript', async ({ browser }) => {
+test('the logistics companion renders its tables without JavaScript', async ({ browser }) => {
   const ctx = await browser.newContext({ javaScriptEnabled: false });
   const page = await ctx.newPage();
-  await page.goto('logistics/');
-  await expect(page.locator('figure svg[role="img"]:visible')).toHaveCount(1);
-  await expect(page.locator('table.docs')).toContainText(`${data.story.actual.units_actual} packs`);
-  await expect(page.locator('table.ledger.net')).toContainText(inr(data.story.adjustments_net.value_at_cost_inr));
   await page.goto('logistics/technical/');
   await expect(page.locator('table.four-ways')).toContainText(pct(asIs.kpis.otif.at_the_shelf));
   await expect(page.locator('table.tests tbody tr:not(.group)')).toHaveCount(lai.tests.generic.length + lai.tests.domain.length);

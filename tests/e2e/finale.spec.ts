@@ -6,7 +6,6 @@ import { readFileSync } from 'node:fs';
 const read = (f: string) => JSON.parse(readFileSync(new URL(`../../src/data/${f}`, import.meta.url), 'utf8'));
 const f = read('finale.json');
 const pai = read('payments-ai.json');
-const key = JSON.parse(readFileSync(new URL('../../public/data/india-grocery/answer-key-logistics.json', import.meta.url), 'utf8'));
 const J = Object.fromEntries(f.joins.map((j: { id: string }) => [j.id, j]));
 const num = (n: number) => n.toLocaleString('en-IN');
 const [shelf, truck, money] = f.incidents;
@@ -18,41 +17,34 @@ test('the finale quotes the map correctly', async ({ page }) => {
   const copies = f.joins.filter((j: { kind: string }) => j.kind === 'copy');
   const obs = f.joins.filter((j: { kind: string }) => j.kind === 'observation');
   expect([copies.length, obs.length]).toEqual([8, 4]);
-  const t = f.trace;
+  const bench = read('bench.json').baselines;
+  const off = (id: string) => J[id].compared - J[id].agree;
   const expected = [
-    'Eight of twelve joins compare a record with its own copy.',
-    `the wrong pallet line four and a half hours after the 5 kg shelf emptied`,
-    `each double charge a median ${Math.round(money.hours_joined)} hours after the debit`,
-    `staff found the atta bags ${Math.round(shelf.hours_found)} hours after the shelf emptied`,
-    `the manager's count found the missing bags ${Math.round(truck.hours_found)} hours after`,
-    `complaints took a median ${Math.round(money.hours_found)} hours, while three customers never complained at all`,
-    `Eight of the twelve joins agree on every row`,
-    `The shipping notice matches the pick confirmations on all ${J['picks-notice'].compared} lines, the book stock equals its own ledger on all ${J['book-ledger'].compared} item-days, and all ${num(J['payments-provider'].compared)} UPI payments the tills approved are successes`,
-    `The book stock disagrees with ${J['book-counts'].compared - J['book-counts'].agree} of ${J['book-counts'].compared} stock counts`,
-    `the count on 26 June found ${t.silence.book_at_flag} bags of 5 kg atta that were not there`,
-    `It disagrees with two of ${J['book-audits'].compared} shelf audits`,
-    `found the 5 kg shelf empty with ${f.audits_disagreeing.find((a: { sku: string }) => a.sku === 'ATTA-WW-5KG').book_at_audit} bags on the books`,
-    `One goods receipt in ten did not survive the next count`,
-    `${J['timeouts-provider'].compared - J['timeouts-provider'].agree} of ${J['timeouts-provider'].compared} timeouts disagree with the provider's report`,
-    `none of June's ${f.evidence.pallets.n} pallets was weighed or case-scanned, all ${f.evidence.picks_by_slot_scan.n} picks were confirmed by scanning the slot, and all ${f.evidence.receipts_by_label.n} receipts by scanning the label`,
-    `show 5 kg atta silent since 4 pm, with ${t.silence.book_at_flag} bags on the books`,
-    `names line ${t.names.line} of the 22 June shipment, and the answer key agrees: it held ${t.answer_key.units} packs of 1 kg`,
-    `${Math.round(t.hours_before_pair)} hours before the warehouse's own corrections pair up, and ${Math.round(t.hours_before_count)} hours before the store's count`,
-    'answered one question in seven from the schema, and seven in seven with that domain\'s layer',
-    'GPT-4 answered 16% of enterprise questions correctly from the SQL tables, and 54% when the same data was given to it as a knowledge graph',
+    'twelve joins in all, and counted how often each pair agrees',
+    'Eight of the twelve agree on every row.',
+    `The shipping notice matches the pick confirmations on all ${J['picks-notice'].compared} lines, the book stock matches its own ledger on all ${J['book-ledger'].compared} item-days, and all ${num(J['payments-provider'].compared)} UPI payments the tills approved are successes in the provider's report`,
+    `The book stock disagrees with ${off('book-counts')} of ${J['book-counts'].compared} stock counts and with two of ${J['book-audits'].compared} shelf checks`,
+    'One goods receipt in ten did not survive the next count',
+    `And ${off('timeouts-provider')} of ${J['timeouts-provider'].compared} timeouts disagree with the provider's report`,
+    'The headline KPIs read copies. On-shelf availability reads the book stock, OTIF reads the goods receipts, and payment success reads the till.',
+    `none of the ${f.evidence.pallets.n} pallets was weighed or case-scanned`,
+    'The empty atta shelf shows three open hours after it emptied',
+    'The wrong pallet line shows four and a half hours after the 5 kg shelf emptied',
+    `Each double charge shows a median ${Math.round(money.hours_joined)} hours after the debit`,
+    `Staff found the atta bags ${Math.round(shelf.hours_found)} hours after the shelf emptied, the manager's count found the missing 5 kg bags ${Math.round(truck.hours_found)} hours after, and complaints took a median ${Math.round(money.hours_found)} hours, while three customers never complained at all`,
+    `a scripted assistant answers ${bench.map.of} questions about Store 014. Given only the schema, it gets ${bench['schema-only'].right} right. Given each domain's definitions and rules, it gets ${bench['domain-layers'].right}, and given the map, all ${bench.map.right}`,
+    'GPT-4 answered 16% of enterprise questions correctly from the SQL tables, and 54% when the same data came as a knowledge graph of the business',
     'raised accuracy to 72%',
   ];
   for (const e of expected) expect(text, e).toContain(flat(e));
-  expect(t.right).toBe(true);
-  expect(text).toContain('the empty atta shelf three open hours after it emptied');
+  expect(off('book-audits')).toBe(2);
+  expect(J['receipts-counts']).toMatchObject({ agree: 9, compared: 10 });
   expect(Math.round(shelf.hours_joined)).toBe(3);
   expect(truck.hours_joined).toBe(4.5);
-  expect(t.names.shipment_id).toBe('SHP-260622');
-  expect(J['receipts-counts']).toMatchObject({ agree: 9, compared: 10 });
-  const truth = key.pallet_contents_june.find((p: { sscc: string; line: number }) => p.sscc === t.hit.sscc && p.line === t.hit.line);
-  expect([truth.sku_actual, truth.units_actual]).toEqual([t.names.sku, -t.names.units]);
+  expect(f.evidence.pallets.checked).toBe(0);
   expect(f.map.unseen).toEqual(['pallet']);
-  expect(f.agents.assistants).toMatchObject({ naive: 3, domain: 21, of: 21 });
+  expect(pai.find.never_complained).toBe(3);
+  expect(bench.map.right).toBe(bench.map.of);
   expect(J['timeouts-provider'].agree).toBe(pai.matcher.outcomes['never debited']);
 });
 
@@ -60,7 +52,6 @@ test('the finale figures render, on any screen', async ({ page }, info) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
   await page.goto('who-saw-what/');
-  await expect(page.locator('.ttf-row')).toHaveCount(3);
   await expect(page.locator('table.joins tbody tr.copy')).toHaveCount(8);
   await expect(page.locator('table.joins tbody tr.observation')).toHaveCount(4);
   await expect(page.locator('table.joins')).toContainText(`${num(J['payments-provider'].agree)} of ${num(J['payments-provider'].compared)}`);
@@ -75,8 +66,7 @@ test('the finale figures render, on any screen', async ({ page }, info) => {
     await expect(page.locator('.record-map svg g.thing.unseen')).toContainText('What is on a pallet');
     await expect(page.locator('.record-map svg g.pill.observation')).toHaveCount(4);
   }
-  await expect(page.locator('.trace .hops li')).toHaveCount(5);
-  await expect(page.locator('.trace .verdict')).toContainText('Right.');
+  await expect(page.locator('figure.picture img')).toHaveCount(3);
   expect(errors).toEqual([]);
 });
 
@@ -97,6 +87,6 @@ test('the map downloads as JSON, and the series links to the finale', async ({ p
   await expect(page.locator('article a[href$="/who-saw-what/"]')).toHaveCount(0);
   await page.goto('data/');
   await expect(page.locator('a[href$="/store-014-map.json"]')).toHaveCount(1);
-  await page.goto('technical-declines/');
+  await page.goto('payments/');
   await expect(page.locator('nav.pager a[href$="/who-saw-what/"]')).toHaveCount(1);
 });

@@ -34,14 +34,14 @@ function readPosts() {
     const fm = readFileSync(path.join(dir, f), 'utf8').split('---')[1];
     const get = (k) => (fm.match(new RegExp(`^${k}:\\s*"(.*)"\\s*$`, 'm')) || [])[1];
     // A post names its part beside the series; the opener speaks for the whole series.
-    const part = { shelf: 'the shelf', truck: 'the truck', money: 'the money', together: 'putting it together' }[get('part')];
+    const part = { shelf: 'the shelf', truck: 'the truck', money: 'the money', together: 'linking the KPIs', practice: 'for practitioners' }[get('part')];
     return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality'), domain: get('domain') ?? part };
   });
 }
 
 const cards = [
   { name: 'home', title: 'Why domain matters', lede: 'Every KPI is computed from a record, and every record has a blind spot. In the agentic era, domain knowledge is what knows it.' },
-  { name: 'kpis', title: 'Domain KPIs, x-rayed', lede: 'Eighteen retail, logistics and payments KPIs, each measured twice: as the systems report it, and as it really was.' },
+  { name: 'kpis', title: 'Domain KPIs, x-rayed', lede: 'Eighteen retail, logistics and payments KPIs, one per post, each measured twice: as the systems report it, and as it really was.' },
   { name: 'demo', title: 'One grocery basket, three domains', lede: 'A supermarket in Bengaluru, its warehouse and its milk route. Synthetic, seeded, and the same for every reader.' },
   { name: 'kit', title: 'Take it to work', lede: 'A benchmark with an answer key, domain tests in dbt, and a domain layer for your agents. All on one synthetic store.' },
   ...readPosts(),
@@ -76,7 +76,13 @@ function html(c) {
   </body></html>`;
 }
 
-const browser = await chromium.launch();
+// Playwright's own browser in CI; a system Chrome where that is not installed.
+let browser;
+try {
+  browser = await chromium.launch();
+} catch {
+  browser = await chromium.launch({ executablePath: process.env.CHROME ?? '/usr/bin/google-chrome' });
+}
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
 for (const c of cards) {
   await page.setContent(html(c), { waitUntil: 'load' });
