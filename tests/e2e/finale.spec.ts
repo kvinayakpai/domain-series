@@ -92,8 +92,9 @@ test('the map downloads as JSON, and the series links to the finale', async ({ p
 
   await page.goto('./');
   await expect(page.locator('.part-posts a[href$="/who-saw-what/"]')).toHaveCount(1);
+  // Since 2 November 2026 posts link only to outside sources; the home page and the pager link the finale.
   await page.goto('why-domain/');
-  await expect(page.locator('article a[href$="/who-saw-what/"]')).toHaveCount(1);
+  await expect(page.locator('article a[href$="/who-saw-what/"]')).toHaveCount(0);
   await page.goto('data/');
   await expect(page.locator('a[href$="/store-014-map.json"]')).toHaveCount(1);
   await page.goto('technical-declines/');

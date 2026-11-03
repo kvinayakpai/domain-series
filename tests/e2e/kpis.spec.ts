@@ -57,13 +57,14 @@ test('the opener quotes the world correctly', async ({ page }) => {
   const text = await articleText(page, 'why-domain/');
   const dbt = read('dbt-kit.json');
   const seeds = retail.agents.seeds.runs;
-  // The three KPIs, each measured twice, each linked to its own post.
+  // The three KPIs, each measured twice and named in plain text: since 2 November 2026 posts link
+  // only to outside sources.
   const rows = page.locator('.kpi-pairs li');
   await expect(rows).toHaveCount(3);
-  for (const [i, [h, slug]] of [[heroes[0], 'on-shelf-availability'], [heroes[1], 'otif'], [heroes[2], 'payment-success']].entries()) {
+  for (const [i, h] of [heroes[0], heroes[1], heroes[2]].entries()) {
     await expect(rows.nth(i).locator('.kp-v.rec')).toHaveText((h as { reported: string }).reported);
     await expect(rows.nth(i).locator('.kp-v.gap')).toHaveText((h as { observed: string }).observed);
-    await expect(rows.nth(i).locator(`a[href$="/${slug}/"]`)).toHaveCount(1);
+    await expect(rows.nth(i).locator('a')).toHaveCount(0);
   }
   const expected = [
     `In those 90 minutes on Saturday evening, ${slow.charged_twice} customers paid twice`,
