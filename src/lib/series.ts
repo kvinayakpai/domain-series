@@ -1,5 +1,5 @@
-// The series' six parts, in reading order. A post names its part in frontmatter; its place in the
-// series comes from `order` (its post number, 1 to 25). A KPI post's number among the eighteen KPIs
+// The series' five parts, in reading order. A post names its part in frontmatter; its place in the
+// series comes from `order` (its post number, 1 to 23). A KPI post's number among the eighteen KPIs
 // comes from SERIES_ORDER in src/lib/kpis.ts.
 import { kpiNumber, KPI_COUNT } from './kpis';
 
@@ -9,7 +9,6 @@ export const PARTS = [
   { id: 'truck', name: 'The 18 KPIs: the truck', short: 'the truck', domain: 'logistics' },
   { id: 'money', name: 'The 18 KPIs: the money', short: 'the money', domain: 'payments' },
   { id: 'together', name: 'Linking the KPIs', short: 'linking the KPIs', domain: undefined },
-  { id: 'practice', name: 'For practitioners', short: 'for practitioners', domain: undefined },
 ] as const;
 export type PartId = (typeof PARTS)[number]['id'];
 
