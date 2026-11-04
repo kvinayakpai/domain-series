@@ -135,7 +135,6 @@ const joinOf = (id) => finale.joins.find((j) => j.id === id);
 const chipK = (id, text) => ({ n: `KPI ${kpi(id).n}`, text });
 const agentsMean = finale.agents.replenishment.lost_bags_mean;
 const linkEyebrow = (i) => `Why Domain Matters · Linking the KPIs · ${i} of 4`;
-const practiceEyebrow = (i) => `Why Domain Matters · For practitioners · ${i} of 2`;
 const SHORT_TESTS = {
   every_upi_attempt_joins_by_rrn: 'UPI attempts join by reference',
   something_checks_each_pallet: 'Something checks each pallet',
@@ -673,57 +672,6 @@ export const CARDS = [
     rule: `A scripted assistant answers ${bench.baselines['schema-only'].right} of ${bench.baselines['schema-only'].of} questions from the schema, ${bench.baselines['domain-layers'].right} with each domain’s rules and ${bench.baselines.map.right} with the map.`,
     checkLabel: 'Do this',
     checks: ['List which records are copies.', 'Join the ones that look at the world.', 'Give the agent what each record can see.'],
-    next: 'For practitioners, the Store 014 Bench',
-  },
-  {
-    slug: 'bench',
-    eyebrow: practiceEyebrow(1),
-    headline: 'Test your AI assistant against an answer key',
-    scope: `Store 014 Bench: ${bench.baselines.map.of} questions about June 2026, with an answer key`,
-    reported: { label: 'Schema only', value: `${bench.baselines['schema-only'].right} of ${bench.baselines['schema-only'].of}`, how: 'right, scripted assistant' },
-    observed: { label: 'With the map', value: `${bench.baselines.map.right} of ${bench.baselines.map.of}`, how: 'right, the same assistant' },
-    blind: 'Count the answers, do not judge them.',
-    chart: {
-      type: 'hbars',
-      title: 'The same assistant, three levels of domain knowledge',
-      sub: `Questions answered right on the Store 014 Bench, out of ${bench.baselines.map.of}`,
-      labelW: 900,
-      max: bench.baselines.map.of,
-      rows: [
-        { label: 'Schema only', v: bench.baselines['schema-only'].right, kind: 'rec', text: `${bench.baselines['schema-only'].right}` },
-        { label: 'With domain layers', v: bench.baselines['domain-layers'].right, kind: 'grey', text: `${bench.baselines['domain-layers'].right}` },
-        { label: 'With the map', v: bench.baselines.map.right, kind: 'real', text: `${bench.baselines.map.right}` },
-      ],
-      note: 'The one question the domain layers miss crosses the store and the warehouse.',
-    },
-    lesson: 'Count the answers, not the impressions',
-    ruleLabel: 'The bench',
-    rule: `${bench.baselines.map.of} questions, an answer key and a scorer that needs only Python 3.`,
-    checkLabel: 'Do this',
-    checks: ['Run it with your schema alone.', 'Run it again with a domain layer.', 'Compare the two scores.'],
-    next: 'Domain tests in dbt',
-  },
-  {
-    slug: 'dbt-tests',
-    eyebrow: practiceEyebrow(2),
-    headline: 'Tests that ask about the world',
-    scope: 'Store 014’s dbt project on DuckDB, June 2026 records',
-    reported: { label: 'Data tests', value: `${dbt.pipeline.pass} of ${dbt.pipeline.tests}`, how: `pass, ${dbt.pipeline.warn} warns on a milk book` },
-    observed: { label: 'Domain tests', value: `${domainTests.length} of ${domainTests.length}`, how: 'fail, each keeping its failing rows' },
-    blind: 'Data tests check records against each other.',
-    chart: {
-      type: 'hbars',
-      title: `All ${domainTests.length} domain tests fail on June’s records`,
-      sub: 'Failing rows for the six largest domain tests, Store 014, June 2026',
-      labelW: 1080,
-      rows: domainTests.slice(0, 6).map(([k, v], i) => ({ label: SHORT_TESTS[k] ?? k, v, kind: i === 0 ? 'real' : 'grey', text: String(v) })),
-      note: `The other ${domainTests.length - 6} fail with 1 to ${domainTests[6][1]} rows each, while ${dbt.pipeline.pass} of ${dbt.pipeline.tests} data tests pass.`,
-    },
-    lesson: 'Test the records against the world',
-    ruleLabel: 'Write one this week',
-    rule: 'Pick a KPI your agents act on, the record it reads and one observation that could contradict it, and join them in a test.',
-    checkLabel: 'Do this',
-    checks: ['Set the test to warn.', 'Keep its failing rows.', 'Add one for every KPI an agent reads.'],
     footLeft: 'The end of the series. Thank you for reading.',
   },
 ];

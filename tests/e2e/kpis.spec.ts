@@ -65,10 +65,9 @@ test('the opener quotes the world correctly', async ({ page }) => {
     `On time, in full for June's deliveries: ${otif.reported} by the warehouse's report, ${otif.observed} with every case right.`,
     `Payment success for UPI one Saturday evening: ${pay.reported} at the till, ${pay.observed} at the store's bank.`,
     "Book stock cannot see the shelf, a shipping notice cannot see inside a pallet, and a till cannot see the customer's bank.",
-    'The series has 25 short blogs, one idea each.',
+    'The series has 23 short blogs, one idea each.',
     'Eighteen KPI blogs, one KPI each',
     'Four linking blogs',
-    'Two blogs for practitioners',
   ];
   for (const e of expected) expect(text, e).toContain(e);
   await expect(page.locator('article figure.picture img')).toHaveCount(3);
@@ -157,12 +156,12 @@ test('each domain post opens with its KPI x-rayed, linked to the KPI page', asyn
   }
 });
 
-test('the home page lists the twenty-five posts by part, each with what actually happened', async ({ page }) => {
+test('the home page lists the twenty-three posts by part, each with what actually happened', async ({ page }) => {
   await page.goto('./');
-  await expect(page.locator('.part')).toHaveCount(5);
-  const counts = { shelf: 8, truck: 5, money: 5, together: 4, practice: 2 } as const;
+  await expect(page.locator('.part')).toHaveCount(4);
+  const counts = { shelf: 8, truck: 5, money: 5, together: 4 } as const;
   for (const [part, n] of Object.entries(counts)) await expect(page.locator(`#part-${part} + .part-blurb + .part-posts li`)).toHaveCount(n);
-  await expect(page.locator('.part-posts li')).toHaveCount(24);
+  await expect(page.locator('.part-posts li')).toHaveCount(22);
   // The KPI posts are numbered in reading order, 1 to 18.
   const kpiLinks = await page.locator('.part-posts .is-kpi a').allInnerTexts();
   expect(kpiLinks.map((t) => Number(t.match(/^KPI (\d+):/)?.[1]))).toEqual(Array.from({ length: 18 }, (_, i) => i + 1));
@@ -171,7 +170,7 @@ test('the home page lists the twenty-five posts by part, each with what actually
     await expect(row.locator('.note')).toContainText(h.observed);
   }
   for (const slug of ['retail', 'logistics', 'payments', 'who-saw-what']) await expect(page.locator(`#part-together ~ .part-posts .is-story a[href$="/${slug}/"]`)).toHaveCount(1);
-  await expect(page.locator('#contents-title')).toHaveText('The series, in 25 short posts');
+  await expect(page.locator('#contents-title')).toHaveText('The series, in 23 short posts');
   // Every page leads readers to the opener and the KPI page.
   await expect(page.locator('header nav a[href$="/why-domain/"]')).toHaveText('Start here');
   await expect(page.locator('header nav a[href$="/kpis/"]')).toHaveText('KPIs');

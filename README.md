@@ -1,6 +1,6 @@
 # Why Domain Matters
 
-A blog series on why domain knowledge matters to data and AI work, in 25 short posts on one synthetic Indian supermarket, Store 014. An opener; three stories (the shelf, the truck, the money), each followed by one post per KPI it touches (eighteen in all: what the KPI measures, what it said at Store 014, why it missed, how to catch it, and the rule to give an AI agent); and a finale with two practical posts (a benchmark with an answer key, and domain tests in dbt). Every claim links to its evidence: a Store 014 number to the analysis that computed it, a real-world fact to its source. The stories ship with demo scenarios, downloadable records, slide decks, captioned videos and technical companions with SQL, Python and a notebook.
+A blog series on why domain knowledge matters to data and AI work, in 23 short posts on one synthetic Indian supermarket, Store 014. An opener; three stories (the shelf, the truck, the money), each followed by one post per KPI it touches (eighteen in all: what the KPI measures, what it said at Store 014, why it missed, how to catch it, and the rule to give an AI agent); and a finale that puts the KPIs on one map. Every claim links to its evidence: a Store 014 number to the analysis that computed it, a real-world fact to its source. The stories ship with demo scenarios, downloadable records, slide decks, captioned videos and technical companions with SQL, Python and a notebook.
 
 Live site: https://kvinayakpai.github.io/domain-series/
 

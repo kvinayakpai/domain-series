@@ -11,10 +11,10 @@ const pages = [
   { path: 'payments/', og: 'payments' },
   { path: 'payments/technical/', og: 'payments' },
   { path: 'who-saw-what/', og: 'who-saw-what' },
-  // The KPI posts in reading order, then the two for practitioners.
+  // The KPI posts in reading order, then the linking posts.
   ...['sales', 'on-shelf-availability', 'lost-sales', 'inventory-accuracy', 'shrink', 'forecast-accuracy', 'days-of-supply',
     'fresh-waste', 'pick-accuracy', 'fill-rate', 'on-time-arrival', 'otif', 'net-adjustments', 'payment-success',
-    'technical-declines', 'charged-twice', 'match-rate', 'refund-turnaround', 'bench', 'dbt-tests'].map((slug) => ({ path: `${slug}/`, og: slug })),
+    'technical-declines', 'charged-twice', 'match-rate', 'refund-turnaround'].map((slug) => ({ path: `${slug}/`, og: slug })),
   { path: 'kit/', og: 'kit' },
   { path: 'demo/', og: 'demo' },
   { path: 'data/', og: 'home' },
@@ -56,7 +56,7 @@ test('link-preview images are served', async ({ request }) => {
 test('home leads with the opener and lists every post by part', async ({ page }) => {
   await page.goto('./');
   await expect(page.locator('.start a[href$="/why-domain/"]')).toHaveCount(1);
-  for (const slug of ['sales', 'retail', 'logistics', 'payments', 'who-saw-what', 'on-shelf-availability', 'technical-declines', 'dbt-tests']) {
+  for (const slug of ['sales', 'retail', 'logistics', 'payments', 'who-saw-what', 'on-shelf-availability', 'technical-declines']) {
     await expect(page.locator(`.part-posts a[href$="/${slug}/"]`)).toHaveCount(1);
   }
   await expect(page.locator('a[href$="/kpis/"]').first()).toBeVisible();
@@ -67,7 +67,7 @@ test('every link on every post lands on a page and a section that exist', async 
   test.setTimeout(120_000);
   await page.goto('./');
   const posts = [...new Set(await page.locator('.start a, .part-posts a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).pathname)))];
-  expect(posts).toHaveLength(25);
+  expect(posts).toHaveLength(23);
   const ids = new Map<string, Set<string>>();
   const idsOf = async (path: string) => {
     if (!ids.has(path)) {
@@ -99,7 +99,7 @@ test('every link on every post lands on a page and a section that exist', async 
 test('posts link only to outside sources and carry the AI line', async ({ page }) => {
   await page.goto('./');
   const posts = [...new Set(await page.locator('.start a, .part-posts a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).pathname)))];
-  expect(posts).toHaveLength(25);
+  expect(posts).toHaveLength(23);
   for (const post of posts) {
     await page.goto(post.replace('/domain-series/', ''));
     const prose = 'article > p a[href], article > ul a[href], article > ol a[href], article > blockquote a[href]';
@@ -142,7 +142,7 @@ test('each KPI post has the same shape and gives its agent the KPI page’s rule
 test('every picture in every post is served and described', async ({ page, request }) => {
   await page.goto('./');
   const posts = [...new Set(await page.locator('.start a, .part-posts a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).pathname)))];
-  expect(posts).toHaveLength(25);
+  expect(posts).toHaveLength(23);
   for (const post of posts) {
     await page.goto(post.replace('/domain-series/', ''));
     const imgs = await page.locator('article figure.picture img').evaluateAll((els) => els.map((e) => ({ src: (e as HTMLImageElement).getAttribute('src')!, alt: (e as HTMLImageElement).alt })));
