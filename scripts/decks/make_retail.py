@@ -200,19 +200,19 @@ cards = [f'<div style="display:flex;flex-direction:column;gap:20px;background:{P
 slides["traps"] = section("traps", "\n".join([
     h2("Why the data could not say so"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px">', *cards, '</div>',
-    foot("Conlon and Mortimer (2013) on demand estimation when availability changes; DeHoratius and Raman (2008) on inventory record inaccuracy."),
+    foot("Wang and others (2025), FreshRetailNet-50K, on demand censored by stockouts; DeHoratius and Raman (2008) on inventory record inaccuracy."),
 ]), f"Three traps sit under this week, and anyone who has built on transaction data has stepped in at least one. Sales are censored demand: a till records a sale, not a shopper, so when the shelf is empty, sales measure the shelf, and every model trained on sales inherits the gap. Book stock is a belief, not an observation: it is computed from the last count, receipts, sales and write-offs, which is why every reconciliation test passes; it agreed with every transaction and was wrong about the shelf for three days. And the evaluation data is censored too: scored against recorded sales the store’s forecast looks {pct(hero['naive_vs_recorded']['bias'])} too high, scored against the shoppers who came for the item it is {pct(hero['naive_vs_true']['bias'])} too low. The holdout set has the same hole as the training set.",
     bg=PANEL, gap=48)
 
 slides["normal"] = section("normal", "\n".join([
     h2("None of this is rare"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:64px">',
-    stat("8.3%", "of grocery items out of stock on average, in a worldwide study that traced most out-of-stocks to the store itself"),
+    stat("1 in 5", "grocery trips in the UK meet an item that is out of stock, in a 2026 audit of more than 100 stores"),
     stat("65%", "of nearly 370,000 inventory records wrong, across 37 stores of one retailer"),
     stat(f"{d['meta']['realism'][0]['detail'].split('.')[0]}%", "of open hours with an empty shelf across the world’s seven warehouse items in June, the rate it was calibrated to"),
     '</div>',
-    foot("FMI, GMA and CIES (2002), worldwide out-of-stock study; DeHoratius and Raman (2008), Management Science 54(4); Store 014, June 2026."),
-]), "None of this is unusual. A worldwide study of grocery out-of-stocks put the average rate at 8.3 percent and traced most of them to the store itself: ordering, forecasting and shelf replenishment. In a study of nearly 370,000 inventory records from 37 stores of one retailer, 65 percent were wrong. The world behind this deck is calibrated to figures like these: across its seven warehouse items, shelves stood empty for about five percent of open hours in June.",
+    foot("Retail Economics and DHL Supply Chain (2026), The Availability Effect; DeHoratius and Raman (2008), Management Science 54(4); Store 014, June 2026."),
+]), "None of this is unusual. In 2026, Retail Economics and DHL Supply Chain audited more than 100 UK grocery stores and found that about one in five grocery trips meets an item that is out of stock. Their reading is that availability depends as much on timing, format and product mix as on supply-chain efficiency. In a study of nearly 370,000 inventory records from 37 stores of one retailer, 65 percent were wrong. The world behind this deck is calibrated to figures like these: across its seven warehouse items, shelves stood empty for about five percent of open hours in June.",
     gap=56)
 
 trow = [
