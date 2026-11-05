@@ -231,12 +231,12 @@ slides["normal"] = section("normal", "\n".join([
     h2("This is the normal case"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:64px">',
     f'<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid {INK};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1">24.07 bn</p><p style="font-size:30px;line-height:1.4">UPI transactions in September 2026, about 802 million a day</p></div>',
-    f'<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid {INK};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1">0.7–0.8%</p><p style="font-size:30px;line-height:1.4">technical declines, NPCI’s chief executive said in November 2024</p></div>',
+    f'<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid {INK};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1">0.24%</p><p style="font-size:30px;line-height:1.4">technical declines at the top 20 remitter banks in September 2026, up from 0.18% in August (NPCI data)</p></div>',
     f'<div style="display:flex;flex-direction:column;gap:12px;border-top:4px solid {INK};padding:24px 0 0 0"><p style="{SIGN};font-size:120px;font-weight:700;line-height:1">90 s</p><p style="font-size:30px;line-height:1.4">before the first status check NPCI allows on a payment, since its 2025 rules</p></div>',
     '</div>',
-    f'<p style="font-size:32px;line-height:1.45;color:{INK};background:{PANEL};padding:24px 32px">On 12 April 2025 UPI’s success rate fell to about 50% for nearly two hours, the third disruption in a week. NPCI blamed banks flooding it with status checks, and rationed them.</p>',
-    foot("Sources: NPCI via Outlook Money (2 Oct 2026); Inc42 (20 Nov 2024); MediaNama on NPCI OC 215 (Apr 2025); Outlook Money (16 Apr 2025)."),
-]), "At UPI’s scale small rates are large numbers. UPI handled 24.07 billion transactions in September 2026, about 802 million a day. NPCI’s chief executive put technical declines at 0.7 to 0.8 percent in November 2024; at September’s volume, three quarters of a percent would be about 180 million failed attempts a month. Whole-system slowdowns happen too: on 12 April 2025 success fell to about half for nearly two hours, the third disruption in a week, and NPCI blamed banks for flooding it with status checks. Its answer was to ration them: the first check no sooner than ninety seconds after a payment, and preferably no more than three in two hours. A till cannot simply ask again until it knows.",
+    f'<p style="font-size:32px;line-height:1.45;color:{INK};background:{PANEL};padding:24px 32px">Averages hide the banks that slip. In September 2026 one large remitter bank’s technical declines rose from 0.03% to 0.73% in a month, while the top-20 average moved from 0.18% to 0.24%.</p>',
+    foot("Sources: NPCI via Outlook Money (2 Oct 2026); NPCI data via MediaNama (2 Nov 2026); MediaNama on NPCI OC 215 (Apr 2025)."),
+]), "At UPI’s scale small rates are large numbers. UPI handled 24.07 billion transactions in September 2026, about 802 million a day. NPCI data for September 2026 put technical declines at 0.24 percent among the top 20 remitter banks, up from 0.18 percent in August; even a quarter of a percent of September’s volume would be about 60 million failed attempts a month. Averages hide the banks that slip: one large remitter’s rate rose from 0.03 to 0.73 percent in a month. When banks flooded NPCI with status checks, it rationed them: the first check no sooner than ninety seconds after a payment, and preferably no more than three in two hours. A till cannot simply ask again until it knows.",
     gap=56)
 
 fw, jw = slow["four_ways"], june["four_ways"]
@@ -358,7 +358,7 @@ slides["clocks"] = section("clocks", "\n".join([
     pair("Refund wait", f"{round(wait['naive']['value'])} days", "median, from the complaint, as support reports it",
          f"{F['refund_median_days_from_debit']} days", "median, from the extra debit, when the customer lost the money",
          f"{F['over_tat']} of {refunded} refunds took longer than RBI’s five days; {WORDS[F['not_refunded']]}, {inr_in(F['not_refunded_inr'], True)}, were not refunded by month end."),
-    pair("UPI decline rate", tech, "technical declines in June, in line with UPI as a whole; timeouts not counted",
+    pair("UPI decline rate", tech, "technical declines in June, well under 1%; timeouts not counted",
          f"{b18}, {b19}", "no answer, 18:00 and 19:00 on 20 June, timeouts counted",
          f"A monthly rate hides the two hours in which {slow['charged_twice']} customers paid twice."),
     '</div>',
