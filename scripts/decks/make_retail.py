@@ -200,7 +200,7 @@ cards = [f'<div style="display:flex;flex-direction:column;gap:20px;background:{P
 slides["traps"] = section("traps", "\n".join([
     h2("Why the data could not say so"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px">', *cards, '</div>',
-    foot("Wang and others (2025), FreshRetailNet-50K, on demand censored by stockouts; DeHoratius and Raman (2008) on inventory record inaccuracy."),
+    foot("Wang and others (2025), FreshRetailNet-50K, on demand censored by stockouts; ECR Retail Loss (2026) on inventory record inaccuracy."),
 ]), f"Three traps sit under this week, and anyone who has built on transaction data has stepped in at least one. Sales are censored demand: a till records a sale, not a shopper, so when the shelf is empty, sales measure the shelf, and every model trained on sales inherits the gap. Book stock is a belief, not an observation: it is computed from the last count, receipts, sales and write-offs, which is why every reconciliation test passes; it agreed with every transaction and was wrong about the shelf for three days. And the evaluation data is censored too: scored against recorded sales the store’s forecast looks {pct(hero['naive_vs_recorded']['bias'])} too high, scored against the shoppers who came for the item it is {pct(hero['naive_vs_true']['bias'])} too low. The holdout set has the same hole as the training set.",
     bg=PANEL, gap=48)
 
@@ -208,11 +208,11 @@ slides["normal"] = section("normal", "\n".join([
     h2("None of this is rare"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:64px">',
     stat("1 in 5", "grocery trips in the UK meet an item that is out of stock, in a 2026 audit of more than 100 stores"),
-    stat("65%", "of nearly 370,000 inventory records wrong, across 37 stores of one retailer"),
+    stat("60%", "of stock records wrong, in 1.3 million audits at six major retailers (ECR Retail Loss, 2026)"),
     stat(f"{d['meta']['realism'][0]['detail'].split('.')[0]}%", "of open hours with an empty shelf across the world’s seven warehouse items in June, the rate it was calibrated to"),
     '</div>',
-    foot("Retail Economics and DHL Supply Chain (2026), The Availability Effect; DeHoratius and Raman (2008), Management Science 54(4); Store 014, June 2026."),
-]), "None of this is unusual. In 2026, Retail Economics and DHL Supply Chain audited more than 100 UK grocery stores and found that about one in five grocery trips meets an item that is out of stock. Their reading is that availability depends as much on timing, format and product mix as on supply-chain efficiency. In a study of nearly 370,000 inventory records from 37 stores of one retailer, 65 percent were wrong. The world behind this deck is calibrated to figures like these: across its seven warehouse items, shelves stood empty for about five percent of open hours in June.",
+    foot("Retail Economics and DHL Supply Chain (2026), The Availability Effect; ECR Retail Loss (2026), via WatchPro, 29 July 2026; Store 014, June 2026."),
+]), "None of this is unusual. In 2026, Retail Economics and DHL Supply Chain audited more than 100 UK grocery stores and found that about one in five grocery trips meets an item that is out of stock. Their reading is that availability depends as much on timing, format and product mix as on supply-chain efficiency. In a 2026 study by ECR Retail Loss of 1.3 million stock audits at six major retailers, around 60 percent of stock records were wrong. The world behind this deck is calibrated to figures like these: across its seven warehouse items, shelves stood empty for about five percent of open hours in June.",
     gap=56)
 
 trow = [
@@ -275,8 +275,8 @@ slides["assistant"] = section("assistant", "\n".join([
     f'<p style="{SIGN};font-size:24px;font-weight:600;color:{NIGHT_MUTED}">Why did 5 kg atta sales fall? With the domain layer:</p>',
     f'<p style="{SIGN};font-size:26px;line-height:1.45;color:{NIGHT_TEXT}">{why["domain"]["answer"]}</p>',
     '</div>', '</div>',
-    foot("BIRD (Li and others, 2023): best model 40% execution accuracy, people 93%. Sequeda, Allemang and Jacob (2023): GPT-4 16% on the SQL schema, 54% on a knowledge graph.", NIGHT_MUTED),
-]), f"The third change gives the assistant the domain. Same assistant, same seven questions, now given a domain layer: definitions, such as sales measure demand only while the item is on the shelf, and book stock is a belief, not an observation; three rules; the tables that observe the shelf, the till lines and shelf audits; and four views built from them: hourly sales, the hourly book, the censored hours and a demand estimate. It answers all seven. Asked why sales fell, it finds the {flag['open_hours']} open hours with {WORDS[flag['recorded']]} bag recorded against {round(flag['expected_total'])} expected while the books showed stock, the audit that found the bay empty, and no delivery before sales resumed, so the bags were in the store but not on the shelf; with those hours filled in, the empty shelf explains about half the fall. Published work points the same way: on the BIRD text-to-SQL benchmark, the best model of 2023 reached 40 percent execution accuracy against 93 for people; on enterprise insurance questions, GPT-4 answered 16 percent correctly from the SQL schema and 54 from a knowledge graph of the same data. The assistant here is scripted so the run can be repeated; the companion shows every query.",
+    foot("dbt Labs (7 April 2026), Semantic Layer vs. Text-to-SQL: 2026 benchmark: 65% from raw tables, 98–100% with a semantic layer.", NIGHT_MUTED),
+]), f"The third change gives the assistant the domain. Same assistant, same seven questions, now given a domain layer: definitions, such as sales measure demand only while the item is on the shelf, and book stock is a belief, not an observation; three rules; the tables that observe the shelf, the till lines and shelf audits; and four views built from them: hourly sales, the hourly book, the censored hours and a demand estimate. It answers all seven. Asked why sales fell, it finds the {flag['open_hours']} open hours with {WORDS[flag['recorded']]} bag recorded against {round(flag['expected_total'])} expected while the books showed stock, the audit that found the bay empty, and no delivery before sales resumed, so the bags were in the store but not on the shelf; with those hours filled in, the empty shelf explains about half the fall. Published work points the same way: in dbt Labs’ 2026 benchmark, current AI models answered 65 percent of business questions about an insurance database correctly from the raw tables, and 98 to 100 percent once the business’s terms and rules were written down as data models and a semantic layer. The assistant here is scripted so the run can be repeated; the companion shows every query.",
     bg=NIGHT, fg=NIGHT_TEXT, gap=48)
 
 ways = [("On the books", av["on_the_books"], "Open hours with stock on the books", NIGHT_RECORD),
