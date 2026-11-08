@@ -110,7 +110,7 @@ test('posts link only to outside sources and carry the AI line', async ({ page }
         .map((a) => a.getAttribute('href')),
     );
     expect(own, post).toEqual([]);
-    await expect(page.locator('article'), post).toContainText(/written by AI,? (and )?engineered by me/);
+    await expect(page.locator('article'), post).toContainText(/written by AI,? (and )?engineered by (me|Vinayak)/);
   }
 });
 
