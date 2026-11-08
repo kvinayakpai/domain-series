@@ -33,7 +33,7 @@ test('the finale quotes the map correctly', async ({ page }) => {
     `Each double charge shows a median ${Math.round(money.hours_joined)} hours after the debit`,
     `Staff found the atta bags ${Math.round(shelf.hours_found)} hours after the shelf emptied, the manager's count found the missing 5 kg bags ${Math.round(truck.hours_found)} hours after, and complaints took a median ${Math.round(money.hours_found)} hours, while three customers never complained at all`,
     `a scripted assistant answers ${bench.map.of} questions about Store 014. Given only the schema, it gets ${bench['schema-only'].right} right. Given each domain's definitions and rules, it gets ${bench['domain-layers'].right}, and given the map, all ${bench.map.right}`,
-    'current AI models answered 65% of business questions about an insurance database correctly from the raw tables, and 98–100% once the business\'s terms and rules were written down as data models and a semantic layer',
+    'current AI models answered about 65% of 11 business questions about an insurance database correctly from the raw tables, and 98–100% through a semantic layer once three data models had spelled out the business\'s terms',
   ];
   for (const e of expected) expect(text, e).toContain(flat(e));
   expect(off('book-audits')).toBe(2);
