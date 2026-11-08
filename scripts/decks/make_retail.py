@@ -200,7 +200,7 @@ cards = [f'<div style="display:flex;flex-direction:column;gap:20px;background:{P
 slides["traps"] = section("traps", "\n".join([
     h2("Why the data could not say so"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:40px">', *cards, '</div>',
-    foot("Wang and others (2025), FreshRetailNet-50K, on demand censored by stockouts; ECR Retail Loss (2026) on inventory record inaccuracy."),
+    foot("Wang and others (2025), FreshRetailNet-50K, on demand censored by stockouts; ECR Retail Loss study on inventory record inaccuracy."),
 ]), f"Three traps sit under this week, and anyone who has built on transaction data has stepped in at least one. Sales are censored demand: a till records a sale, not a shopper, so when the shelf is empty, sales measure the shelf, and every model trained on sales inherits the gap. Book stock is a belief, not an observation: it is computed from the last count, receipts, sales and write-offs, which is why every reconciliation test passes; it agreed with every transaction and was wrong about the shelf for three days. And the evaluation data is censored too: scored against recorded sales the store’s forecast looks {pct(hero['naive_vs_recorded']['bias'])} too high, scored against the shoppers who came for the item it is {pct(hero['naive_vs_true']['bias'])} too low. The holdout set has the same hole as the training set.",
     bg=PANEL, gap=48)
 
@@ -208,11 +208,11 @@ slides["normal"] = section("normal", "\n".join([
     h2("None of this is rare"),
     '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:64px">',
     stat("1 in 5", "grocery trips in the UK meet an item that is out of stock, in a 2026 audit of more than 100 stores"),
-    stat("60%", "of stock records wrong, in 1.3 million audits at six major retailers (ECR Retail Loss, 2026)"),
+    stat("60%", "of products with an inaccurate stock record, in about 100 stores of seven European retailers (ECR Retail Loss)"),
     stat(f"{d['meta']['realism'][0]['detail'].split('.')[0]}%", "of open hours with an empty shelf across the world’s seven warehouse items in June, the rate it was calibrated to"),
     '</div>',
-    foot("Retail Economics and DHL Supply Chain (2026), The Availability Effect; ECR Retail Loss (2026), via WatchPro, 29 July 2026; Store 014, June 2026."),
-]), "None of this is unusual. In 2026, Retail Economics and DHL Supply Chain audited more than 100 UK grocery stores and found that about one in five grocery trips meets an item that is out of stock. Their reading is that availability depends as much on timing, format and product mix as on supply-chain efficiency. In a 2026 study by ECR Retail Loss of 1.3 million stock audits at six major retailers, around 60 percent of stock records were wrong. The world behind this deck is calibrated to figures like these: across its seven warehouse items, shelves stood empty for about five percent of open hours in June.",
+    foot("Retail Economics and DHL Supply Chain (2026), The Availability Effect; ECR Retail Loss study, via RGIS (page modified July 2026), and Rekik, Syntetos and Glock (2019); Store 014, June 2026."),
+]), "None of this is unusual. In 2026, Retail Economics and DHL Supply Chain audited more than 100 UK grocery stores and found that about one in five grocery trips meets an item that is out of stock. Their reading is that availability depends as much on timing, format and product mix as on supply-chain efficiency. An ECR Retail Loss study of about a million products in around 100 stores of seven European retailers found that around 60 percent had an inaccurate stock record. The underlying research dates from 2019; the page summarising it was last updated in July 2026. The world behind this deck is calibrated to figures like these: across its seven warehouse items, shelves stood empty for about five percent of open hours in June.",
     gap=56)
 
 trow = [
