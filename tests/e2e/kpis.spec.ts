@@ -65,7 +65,7 @@ test('the opener quotes the world correctly', async ({ page }) => {
     `On time, in full for June's deliveries: ${otif.reported} by the warehouse's report, ${otif.observed} with every case right.`,
     `Payment success for UPI one Saturday evening: ${pay.reported} at the till, ${pay.observed} at the store's bank.`,
     "Book stock cannot see the shelf, a shipping notice cannot see inside a pallet, and a till cannot see the customer's bank.",
-    'The series has 23 short blogs, one idea each.',
+    'The series has 24 short blogs, one idea each, counting Part 1.',
     'Eighteen KPI blogs, one KPI each',
     'Four linking blogs',
   ];
