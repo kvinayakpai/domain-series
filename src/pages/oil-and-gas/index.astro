@@ -1,0 +1,103 @@
+---
+// The Oil & Gas season's contents: the opener, then the eighteen KPIs by part (each linked once its
+// post is out), the linking posts, and Field 014's records.
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+import { OG_KPIS, ogKpiNumber } from '../../lib/oil-gas';
+import { PARTS } from '../../lib/series';
+import field from '../../data/oil-gas/field-014.json';
+
+const posts = (await getCollection('posts', (p) => !p.data.draft && PARTS.find((x) => x.id === p.data.part)?.season === 'oil-gas'))
+  .sort((a, b) => a.data.order - b.data.order);
+const opener = posts.find((p) => p.data.part === 'og-start');
+const postFor = (kpi: string) => posts.find((p) => p.data.kpi === kpi);
+const linking = posts.filter((p) => p.data.part === 'og-together');
+const blurb: Record<string, string> = {
+  well: 'Upstream. Six KPIs from Field 014’s wells and pumps.',
+  pipe: 'Midstream. Five KPIs from the meters, tanks, pipeline and ships between the field and the refinery.',
+  refinery: 'Downstream. Seven KPIs from Refinery 014: throughput, margin, yield, energy, reliability and safety.',
+};
+const parts = PARTS.filter((p) => p.season === 'oil-gas' && p.domain).map((p) => ({ ...p, kpis: OG_KPIS.filter((k) => k.part === p.id) }));
+const base = import.meta.env.BASE_URL;
+const files = `${base}data/field-014/`;
+const records = [
+  ['fiscal-meter-march-2026.csv', 'Fiscal meter', 'The field’s oil each day, as the processing station’s fiscal meter measured it'],
+  ['well-tests-feb-mar-2026.csv', 'Well tests', 'Every well test in February and March: date, hours on test, oil rate, and any delay'],
+  ['production-allocation-march-2026.csv', 'Production allocation', 'Each well’s daily oil as the allocation report shares it out: run hours, the test in force, the allocation factor'],
+  ['esp-daily-march-2026.csv', 'Pump data', 'Each pump’s daily averages: run hours, motor temperature, motor current, intake pressure, and a flow estimate from the pump’s data'],
+  ['events-march-2026.csv', 'Event log', 'Trips, restarts and maintenance on the field in March'],
+  ['answer-key-produced-march-2026.csv', 'Answer key', 'What each well really produced each day. Only a simulation has this file'],
+];
+---
+<Layout title="Oil & Gas" description="The Oil & Gas season of Why Domain Matters: eighteen KPIs from a simulated oil field and refinery in March 2026, one per post, each measured twice, as the records report it and as it really was." image="og/oil-and-gas.png" wide>
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="season">Why domain matters · season two</p>
+    <h1 id="hero-title">Oil &amp; Gas</h1>
+    <p class="lede">The same question as the Store 014 series, asked of an oil field and a refinery: what can each record not see? Field 014 and Refinery 014 are simulated through March 2026, so every KPI can be checked against what really happened.</p>
+    {opener && (
+      <p class="opener"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{opener.data.reality}</span></p>
+    )}
+  </section>
+
+  <section class="contents" aria-labelledby="contents-title">
+    <h2 id="contents-title">Eighteen KPIs, one per post</h2>
+    <p class="contents-note">Posts appear here as they are published. Field 014 has {field.meta.wells.length} wells on electric submersible pumps, piped to Refinery 014 on India’s west coast.</p>
+    {parts.map((p) => (
+      <section class="og-part" aria-labelledby={`og-part-${p.id}`}>
+        <h3 id={`og-part-${p.id}`}>{p.name}</h3>
+        <p class="part-blurb">{blurb[p.id]}</p>
+        <ol class="og-posts">
+          {p.kpis.map((k) => {
+            const post = postFor(k.id);
+            return (
+              <li class={post ? 'is-out' : 'is-coming'}>
+                {post ? <a href={`${base}${post.data.slug}/`}>KPI {ogKpiNumber(k.id)}: {k.name}</a> : <span class="coming">KPI {ogKpiNumber(k.id)}: {k.name}</span>}
+                <span class="note">{post ? post.data.reality : 'Coming soon'}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    ))}
+    <section class="og-part" aria-labelledby="og-part-together">
+      <h3 id="og-part-together">Linking the KPIs</h3>
+      <p class="part-blurb">The eighteen KPIs are not eighteen separate problems. Four posts link them, after the KPI posts.</p>
+      {linking.length > 0 && (
+        <ol class="og-posts">{linking.map((x) => <li class="is-out"><a href={`${base}${x.data.slug}/`}>{x.data.title}</a><span class="note">{x.data.reality}</span></li>)}</ol>
+      )}
+    </section>
+  </section>
+
+  <section class="records" aria-labelledby="records-title">
+    <h2 id="records-title">Field 014’s records</h2>
+    <p>The files a real field keeps, for March 2026, plus the answer key only a simulation can have. Written by <code>scripts/oil-gas/generate.py</code> with a fixed seed, so every reader gets the same numbers.</p>
+    <ul class="files">
+      {records.map(([f, name, what]) => <li><a href={`${files}${f}`}>{name}</a> <span>{what}</span></li>)}
+    </ul>
+  </section>
+</Layout>
+
+<style>
+  .hero { max-width: 56rem; }
+  .season { font-family: var(--font-sign); font-weight: 600; color: var(--muted); margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.9rem; }
+  .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); margin-top: 0.3rem; }
+  .hero .lede { max-width: 40rem; }
+  .opener { max-width: 40rem; margin-top: 1.4rem; padding: 0.8rem 1rem; background: var(--panel); border-left: 3px solid var(--ink); font-family: var(--font-sign); }
+  .opener a { font-weight: 650; font-size: 1.15rem; }
+  .opener span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 0.2rem; }
+  .contents { max-width: 44rem; margin-top: 3rem; }
+  .contents-note { color: var(--muted); font-family: var(--font-sign); font-size: 1rem; }
+  .og-part { margin-top: 2rem; }
+  .og-part h3 { font-size: 1.45rem; font-stretch: 85%; margin: 0; }
+  .part-blurb { margin: 0.25rem 0 0.6rem; color: var(--muted); font-family: var(--font-sign); }
+  .og-posts { list-style: none; margin: 0; padding: 0; font-family: var(--font-sign); }
+  .og-posts li { padding: 0.55rem 0; border-top: 1px solid var(--rule); }
+  .og-posts li:last-child { border-bottom: 1px solid var(--rule); }
+  .og-posts a { display: inline-block; font-weight: 600; font-size: 1.08rem; }
+  .og-posts .coming { font-weight: 600; font-size: 1.08rem; color: var(--muted); }
+  .og-posts .note { display: block; color: var(--muted); font-size: 0.95rem; line-height: 1.4; margin-top: 0.1rem; }
+  .records { max-width: 44rem; margin-top: 3rem; }
+  .files { padding-left: 1.2rem; font-family: var(--font-sign); }
+  .files li { margin: 0.35rem 0; }
+  .files span { display: block; color: var(--muted); font-size: 0.95rem; }
+</style>

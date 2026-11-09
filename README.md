@@ -30,6 +30,16 @@ Demo data comes from the India grocery world in the Domain Explorer project (`sy
 
 The Playwright suite checks the numbers quoted in each post against the exported data, so a re-export that changes the story fails the build until the prose is updated. The videos and the decks are not checked this way: their captions and slides are generated from the same data, but if the story numbers change, re-render the videos with `npm run video` and regenerate the decks and their PDFs.
 
+## The Oil & Gas season
+
+A second season asks the same question of an oil field and a refinery: Field 014 (sixteen wells on electric submersible pumps in western India) and Refinery 014, simulated through March 2026. It follows the Store 014 rules: one KPI per post, three pictures per post, prose links only to outside 2026 sources, numbers pinned by tests.
+
+- Posts are numbered from 101 (`src/content/posts/101-*.mdx`). Their parts are `og-start`, `well`, `pipe`, `refinery` and `og-together`; `src/lib/series.ts` maps each part to its season, and paging stays within a season. The eighteen KPIs, in reading order, and the rule for each are in `src/lib/oil-gas.ts`; `/oil-and-gas/kpis.yaml` publishes them.
+- `/oil-and-gas/` lists the season's posts and Field 014's records. Home points to it.
+- `scripts/oil-gas/generate.py` (standard library, seed 14) writes `src/data/oil-gas/field-014.json` and the records in `public/data/field-014/`: the fiscal meter, well tests, production allocation, pump data, the event log and the answer key.
+- Pictures: `scripts/images/oil-gas-cards.mjs`, rendered by the same `render.mjs` (`npm run build && node scripts/images/render.mjs every-barrel production`). Link previews: `npm run og -- every-barrel production oil-and-gas`.
+- `tests/e2e/oil-gas.spec.ts` checks the season page, the post shape, the rule and every Field 014 number the posts quote.
+
 ## Develop
 
     npm install
