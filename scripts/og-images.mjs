@@ -1,5 +1,5 @@
 // Renders the 1200x630 link-preview images into public/og/ with the site's fonts.
-// Run after changing a post's title, record or reality line: npm run og
+// Run after changing a post's title, record or reality line: npm run og (or npm run og -- <name> ... for some)
 import { chromium } from '@playwright/test';
 import { readFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -34,7 +34,10 @@ function readPosts() {
     const fm = readFileSync(path.join(dir, f), 'utf8').split('---')[1];
     const get = (k) => (fm.match(new RegExp(`^${k}:\\s*"(.*)"\\s*$`, 'm')) || [])[1];
     // A post names its part beside the series; the opener speaks for the whole series.
-    const part = { shelf: 'the shelf', truck: 'the truck', money: 'the money', together: 'linking the KPIs', practice: 'for practitioners' }[get('part')];
+    const part = {
+      shelf: 'the shelf', truck: 'the truck', money: 'the money', together: 'linking the KPIs', practice: 'for practitioners',
+      'og-start': 'oil & gas', well: 'oil & gas · the well', pipe: 'oil & gas · the pipe & ship', refinery: 'oil & gas · the refinery', 'og-together': 'oil & gas · linking the KPIs',
+    }[get('part')];
     return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality'), domain: get('domain') ?? part };
   });
 }
@@ -44,6 +47,7 @@ const cards = [
   { name: 'kpis', title: 'Domain KPIs, x-rayed', lede: 'Eighteen retail, logistics and payments KPIs, one per post, each measured twice: as the systems report it, and as it really was.' },
   { name: 'demo', title: 'One grocery basket, three domains', lede: 'A supermarket in Bengaluru, its warehouse and its milk route. Synthetic, seeded, and the same for every reader.' },
   { name: 'kit', title: 'Take it to work', lede: 'A benchmark with an answer key, domain tests in dbt, and a domain layer for your agents. All on one synthetic store.' },
+  { name: 'oil-and-gas', title: 'Oil & Gas', domain: 'season two', lede: 'Eighteen KPIs from a simulated oil field and refinery in March 2026, one per post, each measured twice: as the records report it, and as it really was.' },
   ...readPosts(),
 ];
 
@@ -84,7 +88,10 @@ try {
   browser = await chromium.launch({ executablePath: process.env.CHROME ?? '/usr/bin/google-chrome' });
 }
 const page = await browser.newPage({ viewport: { width: 1200, height: 630 }, deviceScaleFactor: 1 });
-for (const c of cards) {
+const wanted = process.argv.slice(2);
+const todo = wanted.length ? cards.filter((c) => wanted.includes(c.name)) : cards;
+if (wanted.length && todo.length !== wanted.length) throw new Error(`no card for: ${wanted.filter((w) => !cards.some((c) => c.name === w)).join(', ')}`);
+for (const c of todo) {
   await page.setContent(html(c), { waitUntil: 'load' });
   await page.evaluate(() => document.fonts.ready);
   const file = path.join(outDir, `${c.name}.png`);

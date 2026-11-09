@@ -1,0 +1,50 @@
+---
+// Eleven joins between March's records at Field 014, on the pipeline and at Refinery 014, and how
+// often each pair agrees (linking.json, from scripts/oil-gas/linking.py). The pairs that always
+// agree share a source, a blind spot or a band; each of the others has one side that looks at the
+// equipment itself.
+import link from '../../data/oil-gas/linking.json';
+
+const num = (n: number) => n.toLocaleString('en-US');
+const groups = [
+  { kind: 'always', head: 'Always agree: one is shared out from the other, or both are blind the same way' },
+  { kind: 'world', head: 'Sometimes disagree: one side looks at the equipment itself' },
+];
+---
+<figure class="figure">
+  <div class="table-wrap">
+    <table class="ledger og-joins">
+      <caption>{link.joins.length} joins between March’s records, from Field 014 to Refinery 014, and how often each pair agrees</caption>
+      <thead><tr><th scope="col">Records joined</th><th scope="col" class="n">Agree</th><th scope="col" class="bar-h"><span class="visually-hidden">Share that agree</span></th></tr></thead>
+      {groups.map((g) => {
+        const js = link.joins.filter((j) => j.kind === g.kind);
+        return (
+          <tbody>
+            <tr class="group"><th colspan="3" scope="colgroup">{g.head}: {js.length}</th></tr>
+            {js.map((j) => (
+              <tr class={j.kind}>
+                <th scope="row">{j.a} and {j.b}<span class="how">{j.how}.</span></th>
+                <td class="n">{num(j.agree)} of {num(j.rows)} <span class="unit">{j.unit}</span></td>
+                <td class="bar"><span class="track" aria-hidden="true"><span class="agree" style={`width:${(j.share * 100).toFixed(1)}%`}></span></span></td>
+              </tr>
+            ))}
+          </tbody>
+        );
+      })}
+    </table>
+  </div>
+  <figcaption>Each join compares the rows two records have in common, by day, dip, ship or trip. The three that always agree hold {num(link.summary.always_rows)} rows between them and never disagree, so a data test on any of them can only pass. Of the six problems in this blog, five show on one of the other eight. The sixth, the meter reading high, shows in the sign of its gains.</figcaption>
+</figure>
+
+<style>
+  .og-joins tr.group th { font-size: 0.9rem; color: var(--muted); font-weight: 600; padding-top: 1rem; }
+  .og-joins tbody th[scope='row'] { font-weight: 550; min-width: 15rem; }
+  .og-joins .how { display: block; font-weight: 400; font-size: 0.84rem; color: var(--muted); line-height: 1.4; }
+  .og-joins td.n { white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .og-joins .unit { color: var(--muted); font-size: 0.82rem; }
+  .og-joins td.bar { width: 7rem; vertical-align: middle; }
+  .og-joins .track { display: block; height: 0.55rem; border-radius: 2px; background: var(--correction); overflow: hidden; }
+  .og-joins tr.always .track { background: var(--c-grid); }
+  .og-joins .agree { display: block; height: 100%; background: var(--muted); opacity: 0.55; }
+  @media (max-width: 540px) { .og-joins td.bar, .og-joins th.bar-h { display: none; } .og-joins tbody th[scope='row'] { min-width: 0; } }
+</style>

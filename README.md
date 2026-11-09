@@ -30,6 +30,22 @@ Demo data comes from the India grocery world in the Domain Explorer project (`sy
 
 The Playwright suite checks the numbers quoted in each post against the exported data, so a re-export that changes the story fails the build until the prose is updated. The videos and the decks are not checked this way: their captions and slides are generated from the same data, but if the story numbers change, re-render the videos with `npm run video` and regenerate the decks and their PDFs.
 
+## The Oil & Gas season
+
+A second season asks the same question of an oil field and a refinery: Field 014 (sixteen wells on electric submersible pumps in western India), the 140 km pipeline and tank T-104, and Refinery 014 on India's west coast, simulated through March 2026. It follows the Store 014 rules: one KPI per post, three pictures per post, prose links only to outside 2026 sources, numbers pinned by tests. It has 23 posts: a start post, eighteen KPI posts (six from the well, five from the pipe and ship, seven from the refinery) and four linking posts.
+
+- Posts are numbered from 101 (`src/content/posts/101-*.mdx` to `123-*.mdx`). Their parts are `og-start`, `well`, `pipe`, `refinery` and `og-together`; `src/lib/series.ts` maps each part to its season, and paging stays within a season. The eighteen KPIs, in reading order, and the rule for each are in `src/lib/oil-gas.ts`; `/oil-and-gas/kpis.yaml` publishes them.
+- `/oil-and-gas/` lists the season's posts and all 35 record files. Home points to it.
+- The records, all standard library with fixed seeds, in this order:
+  - `scripts/oil-gas/generate.py` (seed 14): `src/data/oil-gas/field-014.json` and `public/data/field-014/`, the fiscal meter, well tests, production allocation, pump data, the event log and the answer key.
+  - `scripts/oil-gas/well.py` (seed 1402): `well-kpis.json` and the plan, loss log, monthly totals, pump history, costs and backlog for KPIs 2 to 6.
+  - `scripts/oil-gas/pipe.py` (seed 1407): `pipe-014.json` and `public/data/pipe-014/`, the dispatch and receipt meters, loss and gain, provings, T-104, the gas balance, methane and the vessel log.
+  - `scripts/oil-gas/refinery.py` (seed 1412): `refinery-014.json` and `public/data/refinery-014/`, crude runs, the plan, prices, products, the hydrocracker and VGO tank, energy, pump trips, the turnaround and process safety.
+  - `scripts/oil-gas/linking.py`: `linking.json` and `public/data/field-014/agent-forty-marches.csv`, the scripted production agent's forty simulated Marches, each KPI rule replayed on March, the eleven joins and how many days sooner each join shows a problem.
+- The linking posts use `OgReplay`, `OgJoinTable` and `OgRecordMap` from `src/components/figures/`, all reading `linking.json`.
+- Pictures: `scripts/images/oil-gas-cards.mjs`, rendered by the same `render.mjs` (`npm run build && node scripts/images/render.mjs <slugs>`). Link previews: `npm run og -- <slugs>`.
+- Tests: `tests/e2e/oil-gas.spec.ts` checks the season page, the post shape, the rule and the start and production posts; `oil-gas-well.spec.ts`, `oil-gas-pipe.spec.ts`, `oil-gas-refinery.spec.ts` and `oil-gas-linking.spec.ts` pin every number the other posts quote to the JSON.
+
 ## Develop
 
     npm install

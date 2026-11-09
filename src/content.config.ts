@@ -7,8 +7,8 @@ const posts = defineCollection({
     title: z.string(),
     /** Overrides the line above the title, which otherwise comes from the post's part. */
     domain: z.string().optional(),
-    /** The part of the series the post belongs to (src/lib/series.ts). */
-    part: z.enum(['start', 'shelf', 'truck', 'money', 'together']).optional(),
+    /** The part of the series the post belongs to (src/lib/series.ts). Store 014 parts first, then the Oil & Gas season's. */
+    part: z.enum(['start', 'shelf', 'truck', 'money', 'together', 'og-start', 'well', 'pipe', 'refinery', 'og-together']).optional(),
     /** For a KPI post: the KPI's id in src/lib/kpis.ts. */
     kpi: z.string().optional(),
     description: z.string(),

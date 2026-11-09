@@ -4,9 +4,11 @@
 import Layout, { SITE_NAME } from '../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
 import { DOMAINS, kpiNumber } from '../lib/kpis';
-import { PARTS } from '../lib/series';
+import { PARTS, seasonOf } from '../lib/series';
 
-const all = (await getCollection('posts', (p) => !p.data.draft)).sort((a, b) => a.data.order - b.data.order);
+const all = (await getCollection('posts', (p) => !p.data.draft && seasonOf(p.data.part) === 'store-014')).sort((a, b) => a.data.order - b.data.order);
+// The Oil & Gas season has its own contents page; home points to it once it has posts.
+const ogOpener = (await getCollection('posts', (p) => !p.data.draft && p.data.part === 'og-start'))[0];
 const opener = all.find((p) => p.data.part === 'start');
 const kpiOf = (id?: string) => DOMAINS.flatMap((d) => d.kpis).find((k) => k.id === id);
 const blurb: Record<string, string> = {
@@ -15,7 +17,7 @@ const blurb: Record<string, string> = {
   money: 'Payments. Five KPIs from the till, the bank and the refund desk.',
   together: 'The eighteen KPIs were not eighteen separate problems. Three incidents moved them, and one map shows who saw what.',
 };
-const parts = PARTS.filter((p) => p.id !== 'start').map((p) => ({ ...p, posts: all.filter((x) => x.data.part === p.id) }));
+const parts = PARTS.filter((p) => p.season === 'store-014' && !p.start).map((p) => ({ ...p, posts: all.filter((x) => x.data.part === p.id) }));
 const count = all.length;
 const base = import.meta.env.BASE_URL;
 ---
@@ -27,6 +29,13 @@ const base = import.meta.env.BASE_URL;
       <p class="start"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{opener.data.reality}</span></p>
     )}
   </section>
+
+  {ogOpener && (
+    <section class="season-next" aria-labelledby="season-next-title">
+      <h2 id="season-next-title">New: the Oil &amp; Gas season</h2>
+      <p>The same question, asked of an oil field and a refinery. Field 014 and Refinery 014 are simulated through March 2026, as conflict in the Gulf cut tanker traffic through the Strait of Hormuz. <a href={`${base}oil-and-gas/`}>Read the Oil &amp; Gas season</a>, starting with <a href={`${base}${ogOpener.data.slug}/`}>{ogOpener.data.title}</a>.</p>
+    </section>
+  )}
 
   <section class="contents" aria-labelledby="contents-title">
     <h2 id="contents-title">The series, in {count} short posts</h2>
@@ -75,4 +84,7 @@ const base = import.meta.env.BASE_URL;
   .part-posts .is-story a { font-weight: 700; color: var(--ink); }
   .part-posts .note { display: block; color: var(--muted); font-size: 0.95rem; line-height: 1.4; margin-top: 0.1rem; }
   .how { max-width: 40rem; margin-top: 3rem; }
+  .season-next { max-width: 40rem; margin-top: 2.4rem; padding: 0.9rem 1.1rem 1rem; background: var(--panel); font-family: var(--font-sign); }
+  .season-next h2 { font-size: 1.3rem; margin: 0 0 0.35rem; }
+  .season-next p { margin: 0; }
 </style>

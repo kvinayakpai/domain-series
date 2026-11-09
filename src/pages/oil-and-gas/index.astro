@@ -1,0 +1,152 @@
+---
+// The Oil & Gas season's contents: the opener, then the eighteen KPIs by part (each linked once its
+// post is out), the four linking posts, and the records of Field 014, the pipeline and Refinery 014.
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+import { OG_KPIS, ogKpiNumber } from '../../lib/oil-gas';
+import { PARTS } from '../../lib/series';
+import field from '../../data/oil-gas/field-014.json';
+
+const posts = (await getCollection('posts', (p) => !p.data.draft && PARTS.find((x) => x.id === p.data.part)?.season === 'oil-gas'))
+  .sort((a, b) => a.data.order - b.data.order);
+const opener = posts.find((p) => p.data.part === 'og-start');
+const postFor = (kpi: string) => posts.find((p) => p.data.kpi === kpi);
+const linking = posts.filter((p) => p.data.part === 'og-together');
+const blurb: Record<string, string> = {
+  well: 'Upstream. Six KPIs from Field 014’s wells and pumps.',
+  pipe: 'Midstream. Five KPIs from the meters, tanks, pipeline and ships between the field and the refinery.',
+  refinery: 'Downstream. Seven KPIs from Refinery 014: throughput, margin, yield, energy, reliability and safety.',
+};
+const parts = PARTS.filter((p) => p.season === 'oil-gas' && p.domain).map((p) => ({ ...p, kpis: OG_KPIS.filter((k) => k.part === p.id) }));
+const base = import.meta.env.BASE_URL;
+const GROUPS = [
+  {
+    name: 'Field 014', dir: 'field-014', script: 'scripts/oil-gas/generate.py, well.py and linking.py',
+    files: [
+      ['fiscal-meter-march-2026.csv', 'Fiscal meter', 'The field’s oil each day, as the processing station’s fiscal meter measured it'],
+      ['well-tests-feb-mar-2026.csv', 'Well tests', 'Every well test in February and March: date, hours on test, oil rate, and any delay'],
+      ['production-allocation-march-2026.csv', 'Production allocation', 'Each well’s daily oil as the allocation report shares it out: run hours, the test in force, the allocation factor'],
+      ['esp-daily-march-2026.csv', 'Pump data', 'Each pump’s daily averages: run hours, motor temperature, motor current, intake pressure, and a flow estimate from the pump’s data'],
+      ['events-march-2026.csv', 'Event log', 'Trips, restarts and maintenance on the field in March'],
+      ['production-plan-march-2026.csv', 'Business plan', 'March in the 2026 business plan, set in November 2025, and how it was set'],
+      ['loss-log-march-2026.csv', 'Loss log', 'Every stop in March: hours, estimated barrels and the cause filed at the time'],
+      ['monthly-production-dec-2025-mar-2026.csv', 'Monthly production', 'The fiscal meter’s monthly totals and the hours the wells ran, December 2025 to March 2026'],
+      ['esp-run-history-2019-2026.csv', 'Pump history', 'Every pump since 2019: installed, pulled, days run and the teardown finding'],
+      ['operating-costs-jan-mar-2026.csv', 'Operating costs', 'The field’s costs by month and category, in US dollars'],
+      ['maintenance-backlog-2026.csv', 'Maintenance backlog', 'Overdue work orders at each month end, and their estimated cost'],
+      ['answer-key-produced-march-2026.csv', 'Answer key', 'What each well really produced each day. Only a simulation has this file'],
+      ['agent-forty-marches.csv', 'Forty simulated Marches', 'The production agent’s runs from the first linking post: when the pump wore and stopped, when each agent booked a rig, and the barrels each lost'],
+    ],
+  },
+  {
+    name: 'The pipeline, T-104 and the ships', dir: 'pipe-014', script: 'scripts/oil-gas/pipe.py',
+    files: [
+      ['field-dispatch-march-2026.csv', 'Field dispatch', 'Crude leaving Field 014 each day: gross barrels, water content and net oil at the fiscal meter'],
+      ['pipeline-throughput-march-2026.csv', 'Pipeline throughput', 'Barrels the pipeline moved each day'],
+      ['receipt-meter-march-2026.csv', 'Receipt meter', 'Crude arriving at Refinery 014: gross barrels, the sampler’s water reading and the net oil booked'],
+      ['loss-gain-march-2026.csv', 'Loss and gain', 'Dispatched against received each day, the gain and the alarm band'],
+      ['meter-provings-2026.csv', 'Meter provings', 'The receipt meter’s provings and meter factors, and the one that was postponed'],
+      ['tank-t104-march-2026.csv', 'Tank T-104', 'Book stock, gauge, the water probe and the gap between book and gauge each day'],
+      ['tank-t104-dips-2026.csv', 'Manual dips', 'Free water in T-104 by manual dip with water-finding paste'],
+      ['gas-balance-march-2026.csv', 'Gas balance', 'Field 014’s gas each day: produced, used as fuel, flared, sold and unaccounted for'],
+      ['methane-march-2026.csv', 'Methane', 'The methane inventory, the satellite detection and the measured leak'],
+      ['vessel-log-march-2026.csv', 'Vessel log', 'Each tanker’s arrival, notice of readiness, berthing window, berthing and departure'],
+      ['answer-key-pipe-march-2026.csv', 'Answer key', 'The water in the crude, the oil and free water really in T-104, and K-2’s methane. Only a simulation has this file'],
+    ],
+  },
+  {
+    name: 'Refinery 014', dir: 'refinery-014', script: 'scripts/oil-gas/refinery.py',
+    files: [
+      ['crude-runs-march-2026.csv', 'Crude runs', 'Barrels through the crude unit each day, and the share of each kind of crude'],
+      ['lp-plan-march-2026.csv', 'The plan', 'March in the refinery’s plan: crude run, crude slate and each product, in barrels a day'],
+      ['prices-march-2026.csv', 'Prices', 'Product cracks and crude premiums against Dubai, in US dollars a barrel'],
+      ['products-march-2026.csv', 'Products', 'Each product made each day, in barrels'],
+      ['hydrocracker-and-vgo-tank-march-2026.csv', 'Hydrocracker and VGO tank', 'VGO made from the crude, the hydrocracker’s feed and the tank at each day’s end'],
+      ['energy-feb-mar-2026.csv', 'Energy', 'Crude runs and energy used each day, February and March'],
+      ['pump-trips-march-2026.csv', 'Pump trips', 'Every trip of the crude charge pumps, its cause, and how fast the spare started'],
+      ['unplanned-downtime-march-2026.csv', 'Unplanned downtime', 'Each unit that stopped without a plan, and why'],
+      ['turnaround-reformer-2026.csv', 'Reformer turnaround', 'Dates, work orders, safety-critical inspections and cost'],
+      ['tier3-march-2026.csv', 'Tier 3 challenges', 'Events that tested a safeguard without a release'],
+      ['process-safety-2026.csv', 'Process safety', 'Tier 1, 2 and 3 events and overdue safety-critical inspections by month'],
+    ],
+  },
+];
+const recordCount = GROUPS.reduce((n, g) => n + g.files.length, 0);
+---
+<Layout title="Oil & Gas" description="The Oil & Gas season of Why Domain Matters: eighteen KPIs from a simulated oil field and refinery in March 2026, one per post, each measured twice, as the records report it and as it really was." image="og/oil-and-gas.png" wide>
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="season">Why domain matters · season two</p>
+    <h1 id="hero-title">Oil &amp; Gas</h1>
+    <p class="lede">The same question as the Store 014 series, asked of an oil field and a refinery: what can each record not see? Field 014 and Refinery 014 are simulated through March 2026, so every KPI can be checked against what really happened.</p>
+    {opener && (
+      <p class="opener"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{opener.data.reality}</span></p>
+    )}
+  </section>
+
+  <section class="contents" aria-labelledby="contents-title">
+    <h2 id="contents-title">Eighteen KPIs, one per post</h2>
+    <p class="contents-note">Field 014 has {field.meta.wells.length} wells on electric submersible pumps, piped to Refinery 014 on India’s west coast.</p>
+    {parts.map((p) => (
+      <section class="og-part" aria-labelledby={`og-part-${p.id}`}>
+        <h3 id={`og-part-${p.id}`}>{p.name}</h3>
+        <p class="part-blurb">{blurb[p.id]}</p>
+        <ol class="og-posts">
+          {p.kpis.map((k) => {
+            const post = postFor(k.id);
+            return (
+              <li class={post ? 'is-out' : 'is-coming'}>
+                {post ? <a href={`${base}${post.data.slug}/`}>KPI {ogKpiNumber(k.id)}: {k.name}</a> : <span class="coming">KPI {ogKpiNumber(k.id)}: {k.name}</span>}
+                <span class="note">{post ? post.data.reality : 'Coming soon'}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    ))}
+    <section class="og-part" aria-labelledby="og-part-together">
+      <h3 id="og-part-together">Linking the KPIs</h3>
+      <p class="part-blurb">The eighteen KPIs are not eighteen separate problems. Four posts link them: the well, the pipe and ship, the refinery, and one map of who saw what.</p>
+      {linking.length > 0 && (
+        <ol class="og-links">{linking.map((x) => <li><a href={`${base}${x.data.slug}/`}>{x.data.title}</a><span class="note">{x.data.reality}</span></li>)}</ol>
+      )}
+    </section>
+  </section>
+
+  <section class="records" aria-labelledby="records-title">
+    <h2 id="records-title">The records</h2>
+    <p>The files a real field, pipeline and refinery keep, plus the answer keys only a simulation can have: {recordCount} files in all. Written by the scripts in <code>scripts/oil-gas/</code> with fixed seeds, so every reader gets the same numbers.</p>
+    {GROUPS.map((g) => (
+      <>
+        <h3>{g.name}</h3>
+        <ul class="files">
+          {g.files.map(([f, name, what]) => <li><a href={`${base}data/${g.dir}/${f}`}>{name}</a> <span>{what}</span></li>)}
+        </ul>
+      </>
+    ))}
+  </section>
+</Layout>
+
+<style>
+  .hero { max-width: 56rem; }
+  .season { font-family: var(--font-sign); font-weight: 600; color: var(--muted); margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.9rem; }
+  .hero h1 { font-size: clamp(2.6rem, 8vw, 4.6rem); margin-top: 0.3rem; }
+  .hero .lede { max-width: 40rem; }
+  .opener { max-width: 40rem; margin-top: 1.4rem; padding: 0.8rem 1rem; background: var(--panel); border-left: 3px solid var(--ink); font-family: var(--font-sign); }
+  .opener a { font-weight: 650; font-size: 1.15rem; }
+  .opener span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 0.2rem; }
+  .contents { max-width: 44rem; margin-top: 3rem; }
+  .contents-note { color: var(--muted); font-family: var(--font-sign); font-size: 1rem; }
+  .og-part { margin-top: 2rem; }
+  .og-part h3 { font-size: 1.45rem; font-stretch: 85%; margin: 0; }
+  .part-blurb { margin: 0.25rem 0 0.6rem; color: var(--muted); font-family: var(--font-sign); }
+  .og-posts, .og-links { list-style: none; margin: 0; padding: 0; font-family: var(--font-sign); }
+  .og-posts li, .og-links li { padding: 0.55rem 0; border-top: 1px solid var(--rule); }
+  .og-posts li:last-child, .og-links li:last-child { border-bottom: 1px solid var(--rule); }
+  .og-posts a, .og-links a { display: inline-block; font-weight: 600; font-size: 1.08rem; }
+  .og-posts .coming { font-weight: 600; font-size: 1.08rem; color: var(--muted); }
+  .og-posts .note, .og-links .note { display: block; color: var(--muted); font-size: 0.95rem; line-height: 1.4; margin-top: 0.1rem; }
+  .records { max-width: 44rem; margin-top: 3rem; }
+  .files { padding-left: 1.2rem; font-family: var(--font-sign); }
+  .files li { margin: 0.35rem 0; }
+  .files span { display: block; color: var(--muted); font-size: 0.95rem; }
+</style>
