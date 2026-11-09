@@ -10,7 +10,30 @@ const days = field.meta.days as string[];
 const n = (v: number) => Math.round(v).toLocaleString('en-IN');
 const dayOf = (iso: string) => Number(iso.slice(8, 10));
 const words: Record<number, string> = { 2: 'two', 3: 'three', 9: 'nine', 15: 'fifteen', 16: 'sixteen' };
-const SEASON_POSTS = ['every-barrel/', 'production/'];
+// The season's KPI posts in reading order: [slug, KPI id, part as the header names it, the place
+// its second heading names].
+const KPI_POSTS: [string, string, string, string][] = [
+  ['production', 'og-production', 'the well', 'at Field 014'],
+  ['production-efficiency', 'og-production-efficiency', 'the well', 'at Field 014'],
+  ['deferred-production', 'og-deferment', 'the well', 'at Field 014'],
+  ['decline-rate', 'og-decline', 'the well', 'at Field 014'],
+  ['pump-run-life', 'og-esp-run-life', 'the well', 'at Field 014'],
+  ['lifting-cost', 'og-lifting-cost', 'the well', 'at Field 014'],
+  ['throughput', 'og-throughput', 'the pipe & ship', 'on the pipeline'],
+  ['loss-and-gain', 'og-loss-gain', 'the pipe & ship', 'on the pipeline'],
+  ['tank-stock-accuracy', 'og-tank-stock', 'the pipe & ship', 'at Refinery 014'],
+  ['methane-intensity', 'og-methane', 'the pipe & ship', 'at Field 014'],
+  ['ship-waiting-time', 'og-ship-waiting', 'the pipe & ship', 'at Refinery 014'],
+  ['refinery-utilization', 'og-utilization', 'the refinery', 'at Refinery 014'],
+  ['refining-margin', 'og-margin', 'the refinery', 'at Refinery 014'],
+  ['diesel-yield', 'og-diesel-yield', 'the refinery', 'at Refinery 014'],
+  ['energy-intensity', 'og-energy-intensity', 'the refinery', 'at Refinery 014'],
+  ['mechanical-availability', 'og-availability', 'the refinery', 'at Refinery 014'],
+  ['turnaround', 'og-turnaround', 'the refinery', 'at Refinery 014'],
+  ['process-safety', 'og-process-safety', 'the refinery', 'at Refinery 014'],
+];
+const LINKING_POSTS = ['upstream', 'midstream', 'downstream', 'well-to-refinery'];
+const SEASON_POSTS = ['every-barrel/', ...KPI_POSTS.map(([slug]) => `${slug}/`), ...LINKING_POSTS.map((x) => `${x}/`)];
 
 async function articleText(page: import('@playwright/test').Page, path: string) {
   await page.goto(path);
@@ -18,7 +41,7 @@ async function articleText(page: import('@playwright/test').Page, path: string) 
   return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
 }
 
-for (const p of [{ path: 'oil-and-gas/', og: 'oil-and-gas' }, { path: 'every-barrel/', og: 'every-barrel' }, { path: 'production/', og: 'production' }]) {
+for (const p of [{ path: 'oil-and-gas/', og: 'oil-and-gas' }, { path: 'every-barrel/', og: 'every-barrel' }, { path: 'production/', og: 'production' }, ...LINKING_POSTS.map((x) => ({ path: `${x}/`, og: x }))]) {
   test(`${p.path} renders cleanly`, async ({ page, request }) => {
     const errors: string[] = [];
     page.on('pageerror', (e) => errors.push(e.message));
@@ -42,9 +65,12 @@ test('home points to the season, and the season page lists its KPIs and records'
   await page.goto('oil-and-gas/');
   await expect(page.locator('.opener a[href$="/every-barrel/"]')).toHaveCount(1);
   await expect(page.locator('.og-posts li')).toHaveCount(18);
+  await expect(page.locator('.og-posts li.is-coming')).toHaveCount(0);
   await expect(page.locator('.og-posts a[href$="/production/"]')).toHaveText('KPI 1: Production');
+  await expect(page.locator('.og-links li')).toHaveCount(LINKING_POSTS.length);
+  for (const slug of LINKING_POSTS) await expect(page.locator(`.og-links a[href$="/${slug}/"]`)).toHaveCount(1);
   const files = await page.locator('.files a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));
-  expect(files).toHaveLength(6);
+  expect(files.length).toBe(35);
   for (const f of files) {
     const res = await request.head(f.replace('/domain-series/', ''));
     expect(res.status(), f).toBe(200);
@@ -71,15 +97,22 @@ test('season posts link only to outside sources, carry the AI line and three des
   }
 });
 
-test('the KPI post has the series shape and gives its agent the KPI list’s rule', async ({ page, request }) => {
+test('every KPI post has the series shape, its number and part, and its agent the KPI list’s rule', async ({ page, request }) => {
   const yaml = await (await request.get('oil-and-gas/kpis.yaml')).text();
-  const rule = JSON.parse(yaml.match(/id: og-production[\s\S]*?agent_rule: (".*")/)![1]);
-  await page.goto('production/');
-  const h2 = await page.locator('article h2').allInnerTexts();
-  expect(h2.slice(0, 4)).toEqual(['What is it?', 'What did it say at Field 014?', 'What could it not see?', 'How do you catch it?']);
-  await expect(page.locator('.post-domain')).toHaveText('Oil & Gas · KPI 1 of 18 · the well');
-  const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ');
-  expect(text).toContain(`The rule I would give any AI agent that reads it – ${rule}`);
+  for (const [i, [slug, id, part, place]] of KPI_POSTS.entries()) {
+    const rule = JSON.parse(yaml.match(new RegExp(`id: ${id}\\n[\\s\\S]*?agent_rule: (".*")`))![1]);
+    await page.goto(`${slug}/`);
+    const h2 = await page.locator('article h2').allInnerTexts();
+    expect(h2.slice(0, 4), slug).toEqual(['What is it?', `What did it say ${place}?`, 'What could it not see?', 'How do you catch it?']);
+    await expect(page.locator('.post-domain'), slug).toHaveText(`Oil & Gas · KPI ${i + 1} of 18 · ${part}`);
+    const text = (await page.locator('article').innerText()).replace(/\s+/g, ' ');
+    expect(text, slug).toContain(`The rule I would give any AI agent that reads it – ${rule}`);
+    // The narrator is flagged the first time it says I.
+    const plain = text.replace(/[’‘]/g, "'");
+    const flagged = plain.indexOf("I (Vinayak's AI Assistant)");
+    expect(flagged, slug).toBeGreaterThan(-1);
+    expect(plain.match(/\bI\b(?! \(Vinayak)/)?.index ?? Infinity, slug).toBeGreaterThan(flagged);
+  }
 });
 
 test('the production post quotes Field 014 correctly', async ({ page }) => {

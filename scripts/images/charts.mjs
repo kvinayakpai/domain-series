@@ -61,7 +61,8 @@ export function lines(s, w, h) {
     body += t((x(b.from) + x(b.to)) / 2, 66, b.label, { size: 50, anchor: 'middle', weight: 700, fill: C.ink });
     if (b.sub) body += t((x(b.from) + x(b.to)) / 2, 120, b.sub, { size: 42, anchor: 'middle', fill: C.ink });
   }
-  for (let v = 0; v <= max; v += step) {
+  for (let k = 0; k * step <= max + 1e-9; k++) {
+    const v = +(k * step).toFixed(6);
     body += `<line x1="${left}" x2="${w - right}" y1="${y(v)}" y2="${y(v)}" stroke="${C.rule}" stroke-width="2"/>`;
     body += t(left - 24, y(v) + 14, v, { size: 44, anchor: 'end' });
   }
@@ -93,9 +94,14 @@ export function bars(s, w, h) {
   const bw = slot * 0.7;
   const y = (v) => bottom - (v / max) * (bottom - top);
   let body = '';
-  for (let v = 0; v <= max; v += step) {
+  for (let k = 0; k * step <= max + 1e-9; k++) {
+    const v = +(k * step).toFixed(6);
     body += `<line x1="${left}" x2="${w - right}" y1="${y(v)}" y2="${y(v)}" stroke="${C.rule}" stroke-width="2"/>`;
     body += t(left - 24, y(v) + 14, v, { size: 44, anchor: 'end' });
+  }
+  for (const r of s.refs ?? []) {
+    body += `<line x1="${left}" x2="${w - right}" y1="${y(r.value)}" y2="${y(r.value)}" stroke="${C.ink}" stroke-width="3" stroke-dasharray="14 10"/>`;
+    body += t(w - right - 8, y(r.value) - 16, r.label, { size: 42, anchor: 'end', fill: C.ink });
   }
   s.values.forEach((d, i) => {
     const x0 = left + i * slot + (slot - bw) / 2;

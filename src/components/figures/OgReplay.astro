@@ -1,0 +1,132 @@
+---
+// The rules from the Oil & Gas KPI posts, replayed on March 2026 (linking.json, from
+// scripts/oil-gas/linking.py): when each would have fired, how the problem was found without it,
+// and what firing would have changed. One list for the pipe and ship, one for the refinery.
+import link from '../../data/oil-gas/linking.json';
+import pipe from '../../data/oil-gas/pipe-014.json';
+import refinery from '../../data/oil-gas/refinery-014.json';
+import { ogKpi, ogKpiNumber } from '../../lib/oil-gas';
+
+interface Props { part: 'pipe' | 'refinery' }
+const { part } = Astro.props;
+const L = link;
+const num = (v: number) => Math.round(v).toLocaleString('en-US');
+const day = (iso: string) => `${Number(iso.slice(8, 10))} ${iso.slice(5, 7) === '04' ? 'April' : 'March'}`;
+const at = (ts: string) => `${day(ts)}, ${ts.slice(11, 16)}`;
+const k = (id: string) => `KPI ${ogKpiNumber(id)}, ${ogKpi(id)!.name}`;
+
+const ROWS = {
+  pipe: [
+    {
+      kpi: k('og-throughput'), rule: 'Count net oil, with the water beside it.',
+      fires: day(L.pipe.water.from), why: 'the field’s water reading at 1.7%, the refinery’s sampler at 0.3%',
+      without: `${day(L.pipe.water.dip)}, the month-end dip`,
+      changes: `The refinery knows T-104 is taking wet crude: ${num(L.pipe.water.fault_water_bbl)} barrels of water while the heater-treater was down.`,
+    },
+    {
+      kpi: k('og-loss-gain'), rule: 'Alert on the sign and the trend, not only the size.',
+      fires: day(L.pipe.loss_gain.alert), why: 'the seventh gain in a row',
+      without: `${day(L.pipe.loss_gain.proving)} at the earliest, the next proving`,
+      changes: `Receipts booked on the field’s fiscal meter until the proving: ${num(L.pipe.loss_gain.phantom_kept_out_bbl)} of the ${num(L.pipe.loss_gain.phantom_bbl)} phantom barrels kept out of the crude stock.`,
+    },
+    {
+      kpi: k('og-tank-stock'), rule: 'A failed water probe is not a zero.',
+      fires: day(L.pipe.tank.probe_flag), why: `the probe drops from ${num(pipe.daily.t104[0].free_water_probe)} barrels to zero overnight`,
+      without: `${day(L.pipe.tank.dip)}, the month-end dip`,
+      changes: 'Weekly dips while the probe is out, so the water is seen as it builds up, not after.',
+    },
+    {
+      kpi: k('og-methane'), rule: 'Unaccounted gas that jumps is a leak until a survey says otherwise.',
+      fires: day(L.pipe.methane.ua_day), why: `unaccounted gas at ${L.pipe.methane.ua_pct}% of production, against ${L.pipe.methane.ua_before_pct}%`,
+      without: `${day(L.pipe.methane.satellite)}, a satellite`,
+      changes: `The same crew and the same response, a week sooner: the valve replaced on ${day(L.pipe.methane.fixed_with_rule)}, and about ${Math.round(L.pipe.methane.leak_t_with_rule)} tonnes of methane instead of ${Math.round(L.pipe.methane.leak_t)}.`,
+    },
+    {
+      kpi: k('og-ship-waiting'), rule: 'Measure waiting from the notice of readiness.',
+      fires: at(L.pipe.ship.nor), why: 'the replacement cargo’s notice',
+      without: `Never. The KPI said ${L.pipe.ship.reported_days} days`,
+      changes: `${L.pipe.ship.real_days} days of waiting and $${num(L.pipe.ship.demurrage_usd)} of demurrage on the report as they ran up.`,
+    },
+  ],
+  refinery: [
+    {
+      kpi: k('og-utilization'), rule: 'Report utilization with the crude slate beside it.',
+      fires: day(L.refinery.slate.flag), why: `${L.refinery.slate.light_pct}% light crude, against ${L.refinery.slate.plan_light_pct}% in the plan`,
+      without: 'Never. The report called it the best month of the year',
+      changes: 'A full crude unit on the wrong crude, flagged on its first day.',
+    },
+    {
+      kpi: k('og-margin'), rule: 'Show the realised margin, not the screen.',
+      fires: day(L.refinery.slate.flag), why: `the first day on light crude bought at $${refinery.meta.premium_vs_dubai.light.toFixed(2)} over Dubai`,
+      without: `Never. The management pack showed $${L.refinery.slate.screen.toFixed(2)}`,
+      changes: `$${L.refinery.slate.realised.toFixed(2)} a barrel on the report, against $${L.refinery.slate.plan.toFixed(2)} in the plan.`,
+    },
+    {
+      kpi: k('og-diesel-yield'), rule: 'Compute yields with the intermediate tanks.',
+      fires: day(L.refinery.tank.flag), why: `the hydrocracker draws ${num(L.refinery.tank.draw_bbl)} barrels from the VGO tank: ${L.refinery.tank.cover_days} days of cover`,
+      without: `${day(L.refinery.tank.empty)}, the feed drum’s low-level alarm`,
+      changes: 'Two weeks to buy feed or plan lower runs before the hydrocracker ran short.',
+    },
+    {
+      kpi: k('og-energy-intensity'), rule: 'Compare energy at like throughput and crude.',
+      fires: day(L.refinery.energy.flag), why: `${L.refinery.energy.over_pct_at_flag}% above the model, two days running`,
+      without: 'Never. Reported as the best month of the year',
+      changes: `The fouled preheat train flagged on its second day. Over the month it cost ${num(L.refinery.energy.extra_gj)} gigajoules.`,
+    },
+    {
+      kpi: k('og-availability'), rule: 'Count trips per equipment tag.',
+      fires: at(L.refinery.pump.flag), why: 'P-101A’s second trip in ten days',
+      without: `${day(L.refinery.pump.b_alarm)}, the spare’s own alarm`,
+      changes: 'P-101A treated as a repeat failure while its spare was still healthy.',
+    },
+    {
+      kpi: k('og-turnaround'), rule: 'Report deferred scope beside the schedule.',
+      fires: at(L.refinery.turnaround.flag), why: `the restart, with ${L.refinery.turnaround.deferred_sce} safety-critical inspections deferred`,
+      without: 'Never. On time and under budget',
+      changes: 'Each deferred inspection risk-reviewed, with a named owner.',
+    },
+    {
+      kpi: k('og-process-safety'), rule: 'Report overdue safety-critical work and Tier 3 beside the count.',
+      fires: at(L.refinery.turnaround.flag), why: `${L.refinery.turnaround.deferred_sce} deferred inspections join a backlog of ${L.refinery.safety.overdue_feb}`,
+      without: 'Never. The safety report showed zero',
+      changes: `The board sees ${L.refinery.safety.overdue_mar} overdue inspections and ${L.refinery.safety.tier3_mar} Tier 3 challenges beside the zero.`,
+    },
+  ],
+};
+const rows = ROWS[part];
+const caption = part === 'pipe'
+  ? 'The five rules from the pipe and ship KPIs, replayed on March 2026'
+  : 'The seven rules from the refinery KPIs, replayed on March 2026';
+---
+<figure class="figure replay" data-part={part}>
+  <p class="replay-cap">{caption}</p>
+  <ol class="replay-rows">
+    {rows.map((r) => (
+      <li class="replay-row">
+        <p class="replay-kpi">{r.kpi}</p>
+        <p class="replay-rule">{r.rule}</p>
+        <dl>
+          <div><dt>Fires</dt><dd><b>{r.fires}</b>: {r.why}</dd></div>
+          <div><dt>Without it</dt><dd>{r.without}</dd></div>
+          <div><dt>What changes</dt><dd>{r.changes}</dd></div>
+        </dl>
+      </li>
+    ))}
+  </ol>
+  <figcaption>Each rule is a short form of the one its KPI blog gives an AI agent. The dates are when the rule fires on Field 014’s and Refinery 014’s own records for March, against when the problem was found as the month ran.</figcaption>
+</figure>
+
+<style>
+  .replay-cap { margin: 0 0 0.4rem; font-family: var(--font-sign); font-weight: 600; font-size: 1.02rem; }
+  .replay-rows { list-style: none; margin: 0; padding: 0; font-family: var(--font-sign); }
+  .replay-row { padding: 0.7rem 0; border-top: 1px solid var(--rule); }
+  .replay-row:last-child { border-bottom: 1px solid var(--rule); }
+  .replay-kpi { margin: 0; font-size: 0.82rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .replay-rule { margin: 0.15rem 0 0.35rem; font-weight: 650; font-size: 1.04rem; line-height: 1.35; }
+  .replay dl { margin: 0; display: grid; gap: 0.2rem; }
+  .replay dl div { display: grid; grid-template-columns: 7.5rem 1fr; gap: 0.6rem; }
+  .replay dt { color: var(--muted); font-size: 0.9rem; }
+  .replay dd { margin: 0; font-size: 0.95rem; line-height: 1.4; }
+  .replay dd b { font-weight: 650; color: var(--ink); }
+  @media (max-width: 540px) { .replay dl div { grid-template-columns: 1fr; gap: 0; } .replay dt { font-size: 0.8rem; } }
+</style>
