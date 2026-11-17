@@ -8,20 +8,19 @@ const posts = defineCollection({
     /** Overrides the line above the title, which otherwise comes from the post's part. */
     domain: z.string().optional(),
     /** The part of the series the post belongs to (src/lib/series.ts): Store 014's parts, then Season 2's (ontology), then the Oil & Gas season's. */
-    part: z.enum(['start', 'shelf', 'truck', 'money', 'together', 'on-start', 'on-shelf', 'on-truck', 'on-money', 'on-field', 'on-together', 'og-start', 'well', 'pipe', 'refinery', 'og-together']).optional(),
+    part: z.enum(['start', 'shelf', 'truck', 'money', 'together', 'on-start', 'on-retail', 'on-logistics', 'on-payments', 'on-together', 'og-start', 'well', 'pipe', 'refinery', 'og-together']).optional(),
     /** For a KPI post: the KPI's id in src/lib/kpis.ts. */
     kpi: z.string().optional(),
-    /** For a Season 2 word post: the word's id in src/lib/ontology.ts. */
-    word: z.string().optional(),
     description: z.string(),
     order: z.number(),
     slug: z.string(),
     /** The post's section of the demo page, if it has one. */
     demoAnchor: z.string().optional(),
-    /** What the system records. Shown in the record voice. */
-    record: z.string(),
+    /** What the system records. Shown in the record voice. Optional for posts that explain rather
+     *  than measure (Season 2's opening posts); a post has both lines or neither. */
+    record: z.string().optional(),
     /** What actually happened. */
-    reality: z.string(),
+    reality: z.string().optional(),
     author: z.string().default('Vinayak'),
     pubDate: z.coerce.date(),
     updatedDate: z.coerce.date().optional(),

@@ -1,5 +1,6 @@
 // Renders the 1200x630 link-preview images into public/og/ with the site's fonts.
-// Run after changing a post's title, record or reality line: npm run og (or npm run og -- <name> ... for some)
+// Run after changing a post's title, record or reality line, or the description of a post without
+// them: npm run og (or npm run og -- <name> ... for some)
 import { chromium } from '@playwright/test';
 import { readFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -36,10 +37,11 @@ function readPosts() {
     // A post names its part beside the series; the opener speaks for the whole series.
     const part = {
       shelf: 'the shelf', truck: 'the truck', money: 'the money', together: 'linking the KPIs', practice: 'for practitioners',
-      'on-start': 'season two · ontology', 'on-shelf': 'ontology · the shelf', 'on-truck': 'ontology · the truck', 'on-money': 'ontology · the money', 'on-field': 'ontology · the oil field', 'on-together': 'ontology · putting it together',
+      'on-start': 'season two · ontology', 'on-retail': 'ontology · retail', 'on-logistics': 'ontology · logistics', 'on-payments': 'ontology · payments', 'on-together': 'ontology · putting it together',
       'og-start': 'oil & gas', well: 'oil & gas · the well', pipe: 'oil & gas · the pipe & ship', refinery: 'oil & gas · the refinery', 'og-together': 'oil & gas · linking the KPIs',
     }[get('part')];
-    return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality'), domain: get('domain') ?? part };
+    // A post without a record and reality line (Season 2's opening posts) shows its description.
+    return { name: get('slug'), title: get('title'), record: get('record'), reality: get('reality'), lede: get('description'), domain: get('domain') ?? part };
   });
 }
 
@@ -48,7 +50,7 @@ const cards = [
   { name: 'kpis', title: 'Domain KPIs, x-rayed', lede: 'Eighteen retail, logistics and payments KPIs, one per post, each measured twice: as the systems report it, and as it really was.' },
   { name: 'demo', title: 'One grocery basket, three domains', lede: 'A supermarket in Bengaluru, its warehouse and its milk route. Synthetic, seeded, and the same for every reader.' },
   { name: 'kit', title: 'Take it to work', lede: 'A benchmark with an answer key, domain tests in dbt, and a domain layer for your agents. All on one synthetic store.' },
-  { name: 'ontology', title: 'Ontology is all about domain knowledge', domain: 'season two', lede: 'Every KPI blind spot hid a word. Eighteen short posts on how domain knowledge turns words into an ontology an AI agent can use.' },
+  { name: 'ontology', title: 'Ontology is all about domain knowledge', domain: 'season two', lede: 'What an ontology is, why AI agents need one, and how one ontology solves every Season 1 problem at Store 014.' },
   { name: 'oil-and-gas', title: 'Oil & Gas', domain: 'season three', lede: 'Eighteen KPIs from a simulated oil field and refinery in March 2026, one per post, each measured twice: as the records report it, and as it really was.' },
   ...readPosts(),
 ];

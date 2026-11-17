@@ -32,13 +32,16 @@ The Playwright suite checks the numbers quoted in each post against the exported
 
 ## Season 2: Ontology is all about domain knowledge
 
-Every KPI blind spot in Season 1 hid a word that meant two things to two teams. Season 2 takes one everyday word at a time and shows how domain knowledge turns it into an ontology an AI agent can use. It has eighteen short posts: three to start, twelve words (three each from the shelf, the truck, the money and the oil field) and three to put it together. Each word post asks the same four questions: what the word means to each team, what it did at Store 014, how the industry pins it down, and what to tell an agent. It is published ahead of the Oil & Gas season, which became Season 3.
+Season 1 found eighteen KPIs that were computed correctly and still missed what happened, and every fix was a piece of domain knowledge. Season 2 writes that knowledge down as one ontology of Store 014 and shows how it solves each Season 1 problem. It has fourteen short posts: three to start (what an ontology is, why it matters for AI now, and the full ontology on one page), ten that take the Season 1 problems in retail, logistics and payments, and one on how to start. There is no fixed template: a post has pictures only where they help. It is published ahead of the Oil & Gas season, which became Season 3.
 
-- Posts are numbered from 201 (`src/content/posts/201-*.mdx`). Their parts are `on-start`, `on-shelf`, `on-truck`, `on-money`, `on-field` and `on-together`; a word post also names its `word` in the front matter. The plan for all eighteen posts, in reading order, is in `src/lib/ontology.ts`, so the header line ("Word 1 of 12") and the season page are right before every post is out.
-- `/ontology/` lists the eighteen posts by part, linking the ones that are out and marking the rest "Coming soon". Home points to it ahead of Season 3.
-- Store 014 numbers come from the same data as Season 1 (`dist/kpis/domain-kpis.yaml`, `src/data/logistics*.json`). Outside numbers are quoted from 2026 sources named in each post.
-- Pictures: `scripts/images/ontology-cards.mjs`, rendered by the same `render.mjs`. Link previews: `npm run og -- <slugs>`.
-- Tests: `tests/e2e/ontology.spec.ts` checks the season page, the header lines, the post shape, the narrator line and pins the Store 014 numbers the posts quote.
+- The ontology is `src/data/ontology.json`: 22 things, the links between them, 12 rules (each with the Season 1 KPIs it solves) and the records that look at the world or copy another record. The full-ontology post lists the rules from it (`src/components/figures/OntologyRules.astro`), so the post and the map cannot drift.
+- The map: `node scripts/images/ontology-map.mjs [out.png] [--highlight=id,...]` draws the whole ontology at 2400x1950 (`public/images/store-014-ontology/map.png` by default). `--highlight` lights up the part a problem post is about, for example `--highlight=stock,place,stock-change,receiving,demand,sale,lost-sale,records` for "Stock has a place". It fails if boxes or labels overlap. A dense picture opens at full size with `<Picture zoom ... />`.
+- Posts are numbered from 201 (`src/content/posts/201-*.mdx`). Their parts are `on-start`, `on-retail`, `on-logistics`, `on-payments` and `on-together`. The plan for all fourteen posts, with the KPIs and rules each one covers, is in `src/lib/ontology.ts`, so the header line ("Ontology · Retail: 1 of 4") and the season page are right before every post is out.
+- A post about a Season 1 problem has record and reality lines; the opening posts have neither (both fields are optional), and their link previews show the description instead.
+- `/ontology/` lists the fourteen posts by part, with the Season 1 KPIs each problem post solves, linking the ones that are out and marking the rest "Coming soon". Home points to it ahead of Season 3. The four addresses of the season's first plan redirect to the new posts (`astro.config.mjs`).
+- Chart pictures: `scripts/images/ontology-cards.mjs`, rendered by `render.mjs`. A card can name the pictures it needs (`only: ['summary']`). Link previews: `npm run og -- <slugs>`.
+- Store 014 numbers come from the same data as Season 1. Outside numbers are quoted from 2026 sources named in each post.
+- Tests: `tests/e2e/ontology.spec.ts` checks the season page, the header lines, the pictures, the narrator line, that the rules on the page match the ontology and cover all eighteen Season 1 KPIs, and pins the Store 014 numbers the posts quote.
 
 ## Season 3: Oil & Gas
 
