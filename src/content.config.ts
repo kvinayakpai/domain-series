@@ -7,10 +7,12 @@ const posts = defineCollection({
     title: z.string(),
     /** Overrides the line above the title, which otherwise comes from the post's part. */
     domain: z.string().optional(),
-    /** The part of the series the post belongs to (src/lib/series.ts). Store 014 parts first, then the Oil & Gas season's. */
-    part: z.enum(['start', 'shelf', 'truck', 'money', 'together', 'og-start', 'well', 'pipe', 'refinery', 'og-together']).optional(),
+    /** The part of the series the post belongs to (src/lib/series.ts): Store 014's parts, then Season 2's (ontology), then the Oil & Gas season's. */
+    part: z.enum(['start', 'shelf', 'truck', 'money', 'together', 'on-start', 'on-shelf', 'on-truck', 'on-money', 'on-field', 'on-together', 'og-start', 'well', 'pipe', 'refinery', 'og-together']).optional(),
     /** For a KPI post: the KPI's id in src/lib/kpis.ts. */
     kpi: z.string().optional(),
+    /** For a Season 2 word post: the word's id in src/lib/ontology.ts. */
+    word: z.string().optional(),
     description: z.string(),
     order: z.number(),
     slug: z.string(),

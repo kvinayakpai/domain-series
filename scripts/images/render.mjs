@@ -7,9 +7,10 @@ import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { CARDS as STORE_CARDS } from './cards.mjs';
+import { ONTOLOGY_CARDS } from './ontology-cards.mjs';
 import { OIL_GAS_CARDS } from './oil-gas-cards.mjs';
 
-const CARDS = [...STORE_CARDS, ...OIL_GAS_CARDS];
+const CARDS = [...STORE_CARDS, ...ONTOLOGY_CARDS, ...OIL_GAS_CARDS];
 import { CHARTS, C } from './charts.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');

@@ -30,9 +30,19 @@ Demo data comes from the India grocery world in the Domain Explorer project (`sy
 
 The Playwright suite checks the numbers quoted in each post against the exported data, so a re-export that changes the story fails the build until the prose is updated. The videos and the decks are not checked this way: their captions and slides are generated from the same data, but if the story numbers change, re-render the videos with `npm run video` and regenerate the decks and their PDFs.
 
-## The Oil & Gas season
+## Season 2: Ontology is all about domain knowledge
 
-A second season asks the same question of an oil field and a refinery: Field 014 (sixteen wells on electric submersible pumps in western India), the 140 km pipeline and tank T-104, and Refinery 014 on India's west coast, simulated through March 2026. It follows the Store 014 rules: one KPI per post, three pictures per post, prose links only to outside 2026 sources, numbers pinned by tests. It has 23 posts: a start post, eighteen KPI posts (six from the well, five from the pipe and ship, seven from the refinery) and four linking posts.
+Every KPI blind spot in Season 1 hid a word that meant two things to two teams. Season 2 takes one everyday word at a time and shows how domain knowledge turns it into an ontology an AI agent can use. It has eighteen short posts: three to start, twelve words (three each from the shelf, the truck, the money and the oil field) and three to put it together. Each word post asks the same four questions: what the word means to each team, what it did at Store 014, how the industry pins it down, and what to tell an agent. It is published ahead of the Oil & Gas season, which became Season 3.
+
+- Posts are numbered from 201 (`src/content/posts/201-*.mdx`). Their parts are `on-start`, `on-shelf`, `on-truck`, `on-money`, `on-field` and `on-together`; a word post also names its `word` in the front matter. The plan for all eighteen posts, in reading order, is in `src/lib/ontology.ts`, so the header line ("Word 1 of 12") and the season page are right before every post is out.
+- `/ontology/` lists the eighteen posts by part, linking the ones that are out and marking the rest "Coming soon". Home points to it ahead of Season 3.
+- Store 014 numbers come from the same data as Season 1 (`dist/kpis/domain-kpis.yaml`, `src/data/logistics*.json`). Outside numbers are quoted from 2026 sources named in each post.
+- Pictures: `scripts/images/ontology-cards.mjs`, rendered by the same `render.mjs`. Link previews: `npm run og -- <slugs>`.
+- Tests: `tests/e2e/ontology.spec.ts` checks the season page, the header lines, the post shape, the narrator line and pins the Store 014 numbers the posts quote.
+
+## Season 3: Oil & Gas
+
+Season 3 asks the same question of an oil field and a refinery: Field 014 (sixteen wells on electric submersible pumps in western India), the 140 km pipeline and tank T-104, and Refinery 014 on India's west coast, simulated through March 2026. It follows the Store 014 rules: one KPI per post, three pictures per post, prose links only to outside 2026 sources, numbers pinned by tests. It has 23 posts: a start post, eighteen KPI posts (six from the well, five from the pipe and ship, seven from the refinery) and four linking posts.
 
 - Posts are numbered from 101 (`src/content/posts/101-*.mdx` to `123-*.mdx`). Their parts are `og-start`, `well`, `pipe`, `refinery` and `og-together`; `src/lib/series.ts` maps each part to its season, and paging stays within a season. The eighteen KPIs, in reading order, and the rule for each are in `src/lib/oil-gas.ts`; `/oil-and-gas/kpis.yaml` publishes them.
 - `/oil-and-gas/` lists the season's posts and all 35 record files. Home points to it.

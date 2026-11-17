@@ -170,7 +170,7 @@ test('the home page lists the twenty-three posts by part, each with what actuall
     await expect(row.locator('.note')).toContainText(h.observed);
   }
   for (const slug of ['retail', 'logistics', 'payments', 'who-saw-what']) await expect(page.locator(`#part-together ~ .part-posts .is-story a[href$="/${slug}/"]`)).toHaveCount(1);
-  await expect(page.locator('#contents-title')).toHaveText('The series, in 23 short posts');
+  await expect(page.locator('#contents-title')).toHaveText('Season 1: Store 014, in 23 short posts');
   // Every page leads readers to the opener and the KPI page.
   await expect(page.locator('header nav a[href$="/why-domain/"]')).toHaveText('Start here');
   await expect(page.locator('header nav a[href$="/kpis/"]')).toHaveText('KPIs');
