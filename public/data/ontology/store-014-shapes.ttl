@@ -1,0 +1,118 @@
+# The Store 014 ontology's rules as SHACL shapes: checks a knowledge graph must pass.
+# Rules 2 and 6 are decisions over time, not checks on one thing: they are SPARQL questions instead
+# (see the season's technical detour). Every shape here is SHACL Core, so any SHACL validator runs it.
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix s14: <https://kvinayakpai.github.io/domain-series/ontology/store-014#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+# Rule 1: available means on the shelf. Book stock is a belief.
+s14:StockShape a sh:NodeShape ;
+    rdfs:label "Rule 1: stock has a place" ;
+    sh:targetClass s14:Stock ;
+    sh:property [
+        sh:path s14:atPlace ; sh:minCount 1 ;
+        sh:message "Rule 1: stock has a place. A stock figure with no place cannot say whether shoppers can reach it." ] ;
+    sh:property [
+        sh:path s14:basis ; sh:minCount 1 ; sh:maxCount 1 ; sh:in ( s14:Seen s14:Believed ) ;
+        sh:message "Rule 1: say whether someone saw this stock or the books believe it." ] ;
+    sh:property [ sh:path s14:ofItem ; sh:minCount 1 ; sh:maxCount 1 ; sh:class s14:Item ] .
+
+# Rule 3: demand that finds an empty shelf becomes a lost sale, which no record holds. Say how it was estimated.
+s14:LostSaleShape a sh:NodeShape ;
+    rdfs:label "Rule 3: a lost sale says how it was estimated" ;
+    sh:targetClass s14:LostSale ;
+    sh:property [
+        sh:path s14:method ; sh:minCount 1 ;
+        sh:message "Rule 3: a lost sale is estimated, never recorded. Say how it was estimated." ] .
+
+# Rule 4: a forecast predicts demand, so score it against demand, not sales.
+s14:ForecastShape a sh:NodeShape ;
+    rdfs:label "Rule 4: score a forecast against demand" ;
+    sh:targetClass s14:Forecast ;
+    sh:property [
+        sh:path s14:scoredAgainst ; sh:class s14:Demand ;
+        sh:message "Rule 4: a forecast predicts demand, so score it against demand, not sales." ] .
+
+# Rule 5: every stock correction has a reason.
+s14:StockChangeShape a sh:NodeShape ;
+    rdfs:label "Rule 5: every correction has a reason" ;
+    sh:targetClass s14:StockChange ;
+    sh:property [
+        sh:path s14:reason ; sh:minCount 1 ;
+        sh:message "Rule 5: every stock correction has a reason. Find it before you act, and look for its mirror image." ] .
+
+# Rule 7: an item is the pack, known by the code on the pack.
+s14:ItemShape a sh:NodeShape ;
+    rdfs:label "Rule 7: an item is known by its GTIN" ;
+    sh:targetClass s14:Item ;
+    sh:property [
+        sh:path s14:gtin ; sh:minCount 1 ; sh:maxCount 1 ; sh:pattern "^([0-9]{8}|[0-9]{12,14})$" ;
+        sh:message "Rule 7: an item is known by the GTIN printed on the pack." ] .
+
+s14:CaseShape a sh:NodeShape ;
+    rdfs:label "Rule 7: a case holds one item" ;
+    sh:targetClass s14:Case ;
+    sh:property [
+        sh:path s14:holdsItem ; sh:minCount 1 ; sh:maxCount 1 ; sh:class s14:Item ;
+        sh:message "Rule 7: a case holds packs of exactly one item." ] .
+
+s14:PickShape a sh:NodeShape ;
+    rdfs:label "Rule 7: confirm a pick by the code on the pack" ;
+    sh:targetClass s14:Pick ;
+    sh:property [
+        sh:path s14:confirmedBy ; sh:minCount 1 ; sh:hasValue s14:PackCodeScan ;
+        sh:message "Rule 7: a slot scan proves where the picker stood, not what was picked. Confirm a pick by the code on the pack." ] .
+
+# Rule 8: a delivery is checked case by case at the door.
+s14:ReceivingShape a sh:NodeShape ;
+    rdfs:label "Rule 8: check a delivery case by case" ;
+    sh:targetClass s14:Receiving ;
+    sh:property [
+        sh:path s14:checkedBy ; sh:minCount 1 ; sh:hasValue s14:PackCodeScan ;
+        sh:message "Rule 8: check a delivery case by case at the door, by the code on each case, not by the pallet label." ] .
+
+# Rule 9: a timeout at the till means "not known yet". UPI's final status decides.
+s14:TimeoutShape a sh:NodeShape ;
+    rdfs:label "Rule 9: a timeout waits for UPI's final status" ;
+    sh:targetClass s14:PaymentAttempt ;
+    sh:or (
+        [ sh:not [ sh:path s14:tillStatus ; sh:hasValue s14:Timeout ] ]
+        [ sh:path s14:finalStatus ; sh:minCount 1 ]
+    ) ;
+    sh:message "Rule 9: a timeout at the till means not known yet. Get UPI's final status before calling it failed or asking the customer to pay again." .
+
+# Rule 10: one bill, one payment.
+s14:UpiBillShape a sh:NodeShape ;
+    rdfs:label "Rule 10: every UPI request carries the bill number" ;
+    sh:targetClass s14:PaymentAttempt ;
+    sh:or (
+        [ sh:not [ sh:path s14:tender ; sh:hasValue "UPI" ] ]
+        [ sh:path s14:carriesBillId ; sh:minCount 1 ]
+    ) ;
+    sh:message "Rule 10: every UPI request carries the bill number, so its credit can be matched to the bill." .
+
+s14:DebitShape a sh:NodeShape ;
+    rdfs:label "Rule 10: a debit has an approved payment" ;
+    sh:targetClass s14:Debit ;
+    sh:property [
+        sh:path ( s14:fromAttempt s14:tillStatus ) ; sh:hasValue s14:Approved ;
+        sh:message "Rule 10: one bill, one payment. A debit with no approved payment is a customer charged twice until proven otherwise." ] .
+
+# Rule 11: a refund answers a debit.
+s14:RefundShape a sh:NodeShape ;
+    rdfs:label "Rule 11: a refund answers a debit" ;
+    sh:targetClass s14:Refund ;
+    sh:property [
+        sh:path s14:answers ; sh:minCount 1 ; sh:maxCount 1 ; sh:class s14:Debit ;
+        sh:message "Rule 11: a refund answers a debit. Start its clock at that debit, not at the complaint." ] .
+
+# Rule 12: every record either looks at the world or copies another record.
+s14:RecordShape a sh:NodeShape ;
+    rdfs:label "Rule 12: a record looks at the world or copies another record" ;
+    sh:targetClass s14:Record ;
+    sh:xone (
+        [ sh:path s14:looksAt ; sh:minCount 1 ]
+        [ sh:path prov:wasDerivedFrom ; sh:minCount 1 ]
+    ) ;
+    sh:message "Rule 12: a record either looks at the world or copies another record. Say which." .

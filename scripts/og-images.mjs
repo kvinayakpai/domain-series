@@ -37,7 +37,7 @@ function readPosts() {
     // A post names its part beside the series; the opener speaks for the whole series.
     const part = {
       shelf: 'the shelf', truck: 'the truck', money: 'the money', together: 'linking the KPIs', practice: 'for practitioners',
-      'on-start': 'season two · ontology', 'on-retail': 'ontology · retail', 'on-logistics': 'ontology · logistics', 'on-payments': 'ontology · payments', 'on-together': 'ontology · putting it together',
+      'on-start': 'season two · ontology', 'on-detour': 'ontology · a technical detour', 'on-retail': 'ontology · retail', 'on-logistics': 'ontology · logistics', 'on-payments': 'ontology · payments', 'on-together': 'ontology · putting it together',
       'og-start': 'oil & gas', well: 'oil & gas · the well', pipe: 'oil & gas · the pipe & ship', refinery: 'oil & gas · the refinery', 'og-together': 'oil & gas · linking the KPIs',
     }[get('part')];
     // A post without a record and reality line (Season 2's opening posts) shows its description.
