@@ -8,6 +8,7 @@ import yaml from 'js-yaml';
 // the site builds, so a change to the world fails the build until the prose is updated.
 const json = (f: string) => JSON.parse(readFileSync(new URL(`../../src/data/${f}`, import.meta.url), 'utf8'));
 const ontology = json('ontology.json');
+const check = json('ontology-check.json');
 const retail = json('retail.json');
 const ai = json('retail-ai.json');
 const finale = json('finale.json');
@@ -19,12 +20,13 @@ const POSTS: [string, string][] = [
   ['what-is-an-ontology', 'Ontology · Start here: 1 of 3'],
   ['why-ontology-matters', 'Ontology · Start here: 2 of 3'],
   ['store-014-ontology', 'Ontology · Start here: 3 of 3'],
+  ['ontology-in-open-standards', 'Ontology · A technical detour'],
   ['stock-has-a-place', 'Ontology · Retail: 1 of 4'],
 ];
 // Post 1 is in Vinayak's voice; the others are narrated by his AI assistant.
-const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'stock-has-a-place'];
+const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'ontology-in-open-standards', 'stock-has-a-place'];
 // Posts that end with one rule for an agent. The full ontology post lists all twelve instead.
-const ONE_RULE = ['why-ontology-matters', 'stock-has-a-place'];
+const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-has-a-place'];
 // Posts about a Season 1 problem carry its record and reality lines; the opening posts explain instead.
 const WITH_PAIR = ['stock-has-a-place'];
 
@@ -69,14 +71,14 @@ test('home points to Season 2 ahead of Season 3, and the season pages say which 
   await expect(page.locator('.season')).toHaveText(/season three/i);
 });
 
-test('the season page lists all fourteen posts, links the ones that are out, and covers every Season 1 KPI', async ({ page, request }) => {
+test('the season page lists all fifteen posts, links the ones that are out, and covers every Season 1 KPI', async ({ page, request }) => {
   await page.goto('ontology/');
   await expect(page.locator('.opener a[href$="/what-is-an-ontology/"]')).toHaveCount(1);
-  await expect(page.locator('.on-posts li')).toHaveCount(14);
+  await expect(page.locator('.on-posts li')).toHaveCount(15);
   await expect(page.locator('.on-posts li.is-out')).toHaveCount(POSTS.length);
-  await expect(page.locator('.on-posts li.is-coming')).toHaveCount(14 - POSTS.length);
+  await expect(page.locator('.on-posts li.is-coming')).toHaveCount(15 - POSTS.length);
   for (const [slug] of POSTS) await expect(page.locator(`.on-posts a[href$="/${slug}/"]`)).toHaveCount(1);
-  await expect(page.locator('.on-part h3')).toHaveText(['Start here', 'Retail', 'Logistics', 'Payments', 'Putting it together']);
+  await expect(page.locator('.on-part h3')).toHaveText(['Start here', 'A technical detour', 'Retail', 'Logistics', 'Payments', 'Putting it together']);
   // Every one of Season 1's eighteen KPIs is solved by some post of the plan.
   const solves = (await page.locator('.on-posts .note').allInnerTexts()).join(' ').toLowerCase();
   const kpis = await kpiList(request);
@@ -213,10 +215,82 @@ test('previous and next stay within Season 2', async ({ page }) => {
   await page.goto('what-is-an-ontology/');
   await expect(page.locator('.pager a')).toHaveCount(1);
   await expect(page.locator('.pager a[href$="/why-ontology-matters/"]')).toHaveCount(1);
+  await page.goto('store-014-ontology/');
+  await expect(page.locator('.pager a[href$="/ontology-in-open-standards/"]')).toHaveCount(1);
   await page.goto('stock-has-a-place/');
-  await expect(page.locator('.pager a[href$="/store-014-ontology/"]')).toHaveCount(1);
+  await expect(page.locator('.pager a[href$="/ontology-in-open-standards/"]')).toHaveCount(1);
   await page.goto('who-saw-what/');
   await expect(page.locator('.pager a[href$="/what-is-an-ontology/"]')).toHaveCount(0);
   await page.goto('every-barrel/');
   await expect(page.locator('.pager a[href$="/stock-has-a-place/"]')).toHaveCount(0);
+});
+
+// The technical detour: the ontology in open standards. Its numbers come from the tools' own output
+// (src/data/ontology-check.json, written by scripts/ontology/check.py and check.mjs), its code excerpts
+// from the published files, and every file it offers is served.
+test('the technical detour quotes the files and the tools correctly', async ({ page, request }) => {
+  const text = await articleText(page, 'ontology-in-open-standards/');
+  const c = check.counts;
+  const py = check.shacl.python;
+  const js = check.shacl.javascript;
+  expect(c.things).toBe(ontology.things.length);
+  expect(ontology.links.length).toBe(18);
+  const props = c.object_properties + c.datatype_properties;
+  for (const e of [
+    `The ${c.things} things become OWL classes and the ${ontology.links.length} links become properties.`,
+    `In all, ${c.classes} classes, ${props} properties and ${check.triples.ontology} triples.`,
+    `That is ${check.triples.june} triples.`,
+    `pySHACL found ${py.count} violations`,
+    `Each one reads back to the same ${check.triples.ontology} triples.`,
+    `found the same ${js.count} violations`,
+  ]) expect(text, e).toContain(e);
+  // Both validators agree, the formats round-trip, the reasoners did what the post says.
+  expect(js.same_as_python).toBe(true);
+  expect(js.count).toBe(py.count);
+  for (const f of Object.values(check.formats) as { same_graph: boolean; triples: number }[]) {
+    expect(f.same_graph).toBe(true);
+    expect(f.triples).toBe(check.triples.ontology);
+  }
+  expect(check.hermit.consistent).toBe(true);
+  expect(check.hermit.catches_sale_and_lost_sale).toBe(true);
+  expect(check.owlrl.debit_returned_by_refund).toBe(true);
+  // The list of violations is the tools' list, rule by rule.
+  const byRule = new Map<number, number>();
+  for (const v of py.violations) byRule.set(v.rule, (byRule.get(v.rule) ?? 0) + 1);
+  expect([...byRule.keys()]).toEqual([1, 4, 5, 7, 8, 9, 10]);
+  const items = await page.locator('article > ul').nth(1).locator('li').allInnerTexts();
+  expect(items.map((t) => Number(t.match(/^Rule (\d+)/)![1]))).toEqual([...byRule.keys()]);
+  expect(byRule.get(5)).toBe(2); // "the store's two count corrections"
+  expect(byRule.get(8)).toBe(2); // "both deliveries"
+  expect(byRule.get(10)).toBe(2); // "no bill number, and its debit has no approved payment"
+  // The SPARQL answers.
+  const [debit] = check.sparql.debit_without_approval.rows;
+  const [clock] = check.sparql.refund_clock.rows;
+  const [empty] = check.sparql.book_but_empty.rows;
+  const inr = (v: string) => `₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  expect(text).toContain(`It finds one debit – RRN ${debit.rrn}, ${inr(debit.amount)}, on bill ${debit.bill}.`);
+  expect(check.sparql.debit_without_approval.rows).toHaveLength(1);
+  expect(clock.fromDebit).toMatch(/^P7DT19H/);
+  expect(clock.fromComplaint).toBe('P5D');
+  expect(text).toContain('The refund came 7 days and 19 hours after the debit, and 5 days after the complaint.');
+  expect(text).toContain(`the books showed ${empty.book} bags of 5 kg atta while a shelf check at ${empty.checked.slice(11, 16)} on 12 June saw none`);
+  expect(empty.checked.startsWith('2026-06-12')).toBe(true);
+  expect(empty.seen).toBe('0');
+  // The code excerpts are the published files, give or take line breaks.
+  const flat = (s: string) => s.replace(/\s+/g, ' ').trim();
+  const files: Record<string, string> = {};
+  const file = async (f: string) => (files[f] ??= flat(await (await request.get(`data/ontology/${f}`)).text()));
+  const blocks = await page.locator('article pre').allInnerTexts();
+  expect(blocks).toHaveLength(3);
+  for (const stmt of flat(blocks[0]).split(/(?<=\.) (?=s14:)/)) expect(await file('store-014.ttl'), stmt).toContain(stmt);
+  for (const stmt of flat(blocks[1]).split(/(?<=\.) (?=s14:)/)) expect(await file('store-014-shapes.ttl'), stmt).toContain(stmt);
+  expect(await file('store-014-queries.rq')).toContain(flat(blocks[2]));
+  // Every file it offers is served, and the tool versions it names are the ones used.
+  const hrefs = await page.locator('.ontology-files li a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));
+  expect(hrefs).toHaveLength(9);
+  for (const h of hrefs) expect((await request.head(h.replace('/domain-series/', ''))).status(), h).toBe(200);
+  for (const [tool, v] of Object.entries(check.tools) as [string, string][]) {
+    const name = { rdflib: 'rdflib', pyshacl: 'pySHACL', owlrl: 'owlrl', owlready2: 'Owlready2', pyoxigraph: 'pyoxigraph', pylode: 'pyLODE', n3: 'N3.js', 'rdf-validate-shacl': 'rdf-validate-shacl' }[tool];
+    expect(text, tool).toContain(`${name} ${v}`);
+  }
 });

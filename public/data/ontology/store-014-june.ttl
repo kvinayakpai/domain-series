@@ -1,0 +1,79 @@
+# June 2026 at Store 014: Season 1's three incidents, written as the store's records held them.
+# Written from src/data by scripts/ontology/build.mjs. Do not edit by hand.
+@prefix s14: <https://kvinayakpai.github.io/domain-series/ontology/store-014#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix june: <https://kvinayakpai.github.io/domain-series/ontology/store-014/june#> .
+
+# ---------- items, places ----------
+june:atta a s14:Product ; rdfs:label "Whole-wheat atta"@en ; s14:comesInPack june:atta-5kg , june:atta-1kg .
+june:atta-5kg a s14:Item ; rdfs:label "Whole wheat atta 5 kg"@en ; s14:gtin "2900001001014" ; s14:code "ATTA-WW-5KG" ; s14:packsPerCase "4"^^xsd:integer .
+june:atta-1kg a s14:Item ; rdfs:label "Whole wheat atta 1 kg"@en ; s14:gtin "2900001001021" ; s14:code "ATTA-WW-1KG" ; s14:packsPerCase "10"^^xsd:integer .
+june:warehouse a s14:Site ; rdfs:label "The warehouse"@en ; s14:gln "2900001000017" .
+june:store-014 a s14:Site ; rdfs:label "Store 014, Jayanagar, Bengaluru"@en ; s14:gln "2900001000147" .
+june:slot-A-07-03 a s14:WarehouseSlot ; s14:code "A-07-03" ; s14:within june:warehouse ; s14:assignedItem june:atta-5kg .
+june:slot-A-07-04 a s14:WarehouseSlot ; s14:code "A-07-04" ; s14:within june:warehouse ; s14:assignedItem june:atta-1kg .
+june:shelf-atta-5kg a s14:Shelf ; rdfs:label "The 5 kg atta bay"@en ; s14:within june:store-014 .
+
+# ---------- the shelf, 9-12 June: 5 kg atta in the wrong bay ----------
+june:GRN-260609 a s14:Receiving ; s14:code "GRN-260609" ; s14:at "2026-06-09T06:17:00"^^xsd:dateTime ;
+    s14:checkedBy s14:PalletLabelScan ; s14:fromRecord s14:goods-receipts ;
+    rdfs:comment "56 bags of 5 kg atta, booked by pallet label (SSCC) scan against the shipping notice. They went behind the rice, in the wrong bay."@en .
+june:book-0610 a s14:Stock ; s14:ofItem june:atta-5kg ; s14:quantity "56"^^xsd:integer ; s14:at "2026-06-10T15:48:00"^^xsd:dateTime ;
+    s14:basis s14:Believed ; s14:fromRecord s14:book-stock ;
+    rdfs:comment "What the books showed when the shelf ran out. The book stock has no place."@en .
+june:audit-0612 a s14:Stock ; s14:ofItem june:atta-5kg ; s14:atPlace june:shelf-atta-5kg ; s14:quantity "0"^^xsd:integer ; s14:at "2026-06-12T11:00:00"^^xsd:dateTime ;
+    s14:basis s14:Seen ; s14:fromRecord s14:shelf-audits ;
+    rdfs:comment "A routine shelf check found the bay empty, with 55 bags on the books."@en .
+june:recorded-sales-5kg a s14:Sale ; s14:ofItem june:atta-5kg ; s14:fromRecord s14:till-lines ;
+    rdfs:comment "Recorded sales of 5 kg atta: demand met while the shelf had stock."@en .
+june:forecast-0610 a s14:Forecast ; s14:ofItem june:atta-5kg ; s14:at "2026-06-10T00:00:00"^^xsd:dateTime ; s14:perDay "24.6"^^xsd:decimal ;
+    s14:method "28-day mean of recorded sales" ; s14:scoredAgainst june:recorded-sales-5kg ; s14:fromRecord s14:forecasts .
+
+# ---------- the truck, 22-26 June: 1 kg packs on a 5 kg pallet line ----------
+june:SO-260621 a s14:StoreOrder ; s14:code "SO-260621" ; s14:ofItem june:atta-5kg ; s14:cases "16"^^xsd:integer ;
+    s14:pickedAs june:pick-SHP-260622-1 .
+june:pick-SHP-260622-1 a s14:Pick ; s14:at "2026-06-22T03:00:00"^^xsd:dateTime ; s14:fromSlot june:slot-A-07-03 ; s14:cases "16"^^xsd:integer ;
+    s14:confirmedBy s14:SlotLabelScan ; s14:takesCase june:cases-SHP-260622-1 ; s14:fromRecord s14:pick-confirmations .
+june:cases-SHP-260622-1 a s14:Case ; s14:holdsItem june:atta-5kg ; s14:cases "16"^^xsd:integer ; s14:quantity "64"^^xsd:integer ;
+    s14:loadedOn june:pallet-029000010000010542 ; s14:fromRecord s14:shipping-notice ;
+    rdfs:comment "As the shipping notice says. No record read the code on these cases."@en .
+june:pallet-029000010000010542 a s14:Pallet ; s14:sscc "029000010000010542" ; s14:cases "39"^^xsd:integer ; s14:carriedBy june:SHP-260622 ;
+    s14:fromRecord s14:pallet-labels ; rdfs:comment "not weighed."@en .
+june:SHP-260622 a s14:Shipment ; s14:code "SHP-260622" ; s14:windowStart "2026-06-22T06:00:00"^^xsd:dateTime ; s14:windowEnd "2026-06-22T06:30:00"^^xsd:dateTime ;
+    s14:at "2026-06-22T06:12:00"^^xsd:dateTime ; s14:endsIn june:GRN-260622 .
+june:GRN-260622 a s14:Receiving ; s14:code "GRN-260622" ; s14:at "2026-06-22T06:12:00"^^xsd:dateTime ;
+    s14:checkedBy s14:PalletLabelScan ; s14:fromRecord s14:goods-receipts .
+june:dc-correction-1 a s14:StockChange ; s14:ofItem june:atta-1kg ; s14:atPlace june:slot-A-07-04 ;
+    s14:quantity "-160"^^xsd:integer ; s14:at "2026-06-23T14:20:00"^^xsd:dateTime ; s14:reason "short pick: slot count variance" ; s14:fromRecord s14:warehouse-slot-counts .
+june:dc-correction-2 a s14:StockChange ; s14:ofItem june:atta-5kg ; s14:atPlace june:slot-A-07-03 ;
+    s14:quantity "64"^^xsd:integer ; s14:at "2026-06-25T10:00:00"^^xsd:dateTime ; s14:reason "cycle count variance" ; s14:fromRecord s14:warehouse-slot-counts .
+june:store-correction-1 a s14:StockChange ; s14:ofItem june:atta-5kg ; s14:atPlace june:store-014 ;
+    s14:quantity "-63"^^xsd:integer ; s14:at "2026-06-26T09:00:00"^^xsd:dateTime ; s14:fromRecord s14:stock-counts ;
+    rdfs:comment "Count after manager request after complaints: the books said 63, the count found 0. No reason recorded."@en .
+june:store-correction-2 a s14:StockChange ; s14:ofItem june:atta-1kg ; s14:atPlace june:store-014 ;
+    s14:quantity "157"^^xsd:integer ; s14:at "2026-06-26T09:00:00"^^xsd:dateTime ; s14:fromRecord s14:stock-counts ;
+    rdfs:comment "Count after manager request after complaints: the books said 106, the count found 263. No reason recorded."@en .
+
+# ---------- the money, 20-28 June: a timeout the bank had already paid ----------
+june:bill-B260620-110056 a s14:Bill ; s14:billId "B260620-110056" ; s14:amountInr "1064.47"^^xsd:decimal ;
+    s14:paidBy june:attempt-B260620-110056-1 , june:attempt-B260620-110056-2 .
+june:attempt-B260620-110056-1 a s14:PaymentAttempt ; s14:forBill june:bill-B260620-110056 ; s14:tender "UPI" ; s14:at "2026-06-20T18:48:25"^^xsd:dateTime ;
+    s14:amountInr "1064.47"^^xsd:decimal ; s14:tillStatus s14:Timeout ; s14:mayEndIn june:debit-617118013344 ; s14:fromRecord s14:till-payments ;
+    rdfs:comment "The till said \"failed: no response\". The UPI request carried no bill number."@en .
+june:attempt-B260620-110056-2 a s14:PaymentAttempt ; s14:forBill june:bill-B260620-110056 ; s14:tender "card" ; s14:at "2026-06-20T18:48:55"^^xsd:dateTime ;
+    s14:amountInr "1064.47"^^xsd:decimal ; s14:tillStatus s14:Approved ; s14:mayEndIn june:debit-B260620-110056-card ; s14:fromRecord s14:till-payments .
+june:debit-617118013344 a s14:Debit ; s14:rrn "617118013344" ; s14:fromAttempt june:attempt-B260620-110056-1 ; s14:at "2026-06-20T18:48:25"^^xsd:dateTime ;
+    s14:amountInr "1064.47"^^xsd:decimal ; s14:creditedIn june:settlement-2026-06-21 ; s14:fromRecord s14:upi-report .
+june:debit-B260620-110056-card a s14:Debit ; s14:fromAttempt june:attempt-B260620-110056-2 ; s14:at "2026-06-20T18:48:55"^^xsd:dateTime ; s14:amountInr "1064.47"^^xsd:decimal .
+june:settlement-2026-06-21 a s14:Settlement ; s14:at "2026-06-21T00:00:00"^^xsd:dateTime ; s14:amountInr "367003.47"^^xsd:decimal ;
+    s14:fromRecord s14:settlements ; rdfs:comment "607 UPI credits from the day before."@en .
+june:complaint-B260620-110056 a s14:Complaint ; s14:at "2026-06-23T14:00:00"^^xsd:dateTime ; s14:aboutDebit june:debit-617118013344 ;
+    s14:asksFor june:refund-B260620-110056 ; rdfs:comment "charged twice"@en .
+june:refund-B260620-110056 a s14:Refund ; s14:answers june:debit-617118013344 ; s14:at "2026-06-28T14:00:00"^^xsd:dateTime ; s14:amountInr "1064.47"^^xsd:decimal ;
+    rdfs:comment "refunded after the store matched the credit by hand"@en .

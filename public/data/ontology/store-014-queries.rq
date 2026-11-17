@@ -1,0 +1,28 @@
+PREFIX s14: <https://kvinayakpai.github.io/domain-series/ontology/store-014#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+# Rule 2: the books say in stock, a shelf check saw none.
+SELECT ?item ?book ?seen ?checked WHERE {
+  ?b a s14:Stock ; s14:basis s14:Believed ; s14:ofItem ?i ; s14:quantity ?book .
+  ?s a s14:Stock ; s14:basis s14:Seen ; s14:ofItem ?i ; s14:quantity ?seen ; s14:at ?checked .
+  ?i rdfs:label ?item .
+  FILTER (?book > 0 && ?seen = 0)
+}
+
+PREFIX s14: <https://kvinayakpai.github.io/domain-series/ontology/store-014#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+# Rule 10: debits with no approved payment.
+SELECT ?rrn ?amount ?bill WHERE {
+  ?d a s14:Debit ; s14:fromAttempt ?a ; s14:amountInr ?amount .
+  OPTIONAL { ?d s14:rrn ?rrn }
+  ?a s14:forBill/s14:billId ?bill .
+  FILTER NOT EXISTS { ?a s14:tillStatus s14:Approved }
+}
+
+PREFIX s14: <https://kvinayakpai.github.io/domain-series/ontology/store-014#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+# Rule 11: start the refund clock at the debit.
+SELECT ?bill (?refunded - ?debited AS ?fromDebit) (?refunded - ?complained AS ?fromComplaint) WHERE {
+  ?refund a s14:Refund ; s14:answers ?debit ; s14:at ?refunded .
+  ?debit s14:at ?debited ; s14:fromAttempt/s14:forBill/s14:billId ?bill .
+  ?complaint s14:asksFor ?refund ; s14:at ?complained .
+}

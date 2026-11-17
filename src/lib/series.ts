@@ -22,6 +22,7 @@ export const PARTS = [
   { id: 'money', name: 'The 18 KPIs: the money', short: 'the money', domain: 'payments', season: 'store-014', start: false },
   { id: 'together', name: 'Linking the KPIs', short: 'linking the KPIs', domain: undefined, season: 'store-014', start: false },
   { id: 'on-start', name: 'Start here', short: 'start here', domain: undefined, season: 'ontology', start: true },
+  { id: 'on-detour', name: 'A technical detour', short: 'a technical detour', domain: undefined, season: 'ontology', start: false },
   { id: 'on-retail', name: 'Retail', short: 'retail', domain: undefined, season: 'ontology', start: false },
   { id: 'on-logistics', name: 'Logistics', short: 'logistics', domain: undefined, season: 'ontology', start: false },
   { id: 'on-payments', name: 'Payments', short: 'payments', domain: undefined, season: 'ontology', start: false },
