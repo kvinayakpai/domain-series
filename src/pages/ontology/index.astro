@@ -1,0 +1,78 @@
+---
+// Season 2's contents: "Ontology is all about domain knowledge". The opener, then the eighteen posts
+// of the plan by part (src/lib/ontology.ts), each linked once it is out.
+import Layout from '../../layouts/Layout.astro';
+import { getCollection } from 'astro:content';
+import { ON_POSTS, ON_SEASON, ON_POST_COUNT, ON_WORD_COUNT, onWordNumber } from '../../lib/ontology';
+import { PARTS } from '../../lib/series';
+
+const posts = (await getCollection('posts', (p) => !p.data.draft && PARTS.find((x) => x.id === p.data.part)?.season === 'ontology'))
+  .sort((a, b) => a.data.order - b.data.order);
+const postFor = (slug: string) => posts.find((p) => p.data.slug === slug);
+const opener = postFor(ON_POSTS[0].slug);
+const blurb: Record<string, string> = {
+  'on-start': 'Why every KPI blind spot hid a word, what an ontology is, and why meaning matters more than the model.',
+  'on-shelf': 'Retail. Three words from Store 014’s shelf.',
+  'on-truck': 'Logistics. Three words from the warehouse and the truck.',
+  'on-money': 'Payments. Three words from the till, the bank and the refund desk.',
+  'on-field': 'Oil and gas. Three words from Field 014 and Refinery 014, ahead of Season 3.',
+  'on-together': 'Who decides what a word means, one map across the domains, and how to start.',
+};
+const parts = PARTS.filter((p) => p.season === 'ontology').map((p) => ({ ...p, plan: ON_POSTS.filter((x) => x.part === p.id) }));
+const out = ON_POSTS.filter((x) => postFor(x.slug)).length;
+const base = import.meta.env.BASE_URL;
+---
+<Layout title={ON_SEASON.name} description="Season 2 of Why Domain Matters: eighteen short posts, one everyday word each, from the shelf, the truck, the money and an oil field. Every KPI blind spot hid a word, and only domain knowledge can turn those words into an ontology an AI agent can use." image="og/ontology.png" wide>
+  <section class="hero" aria-labelledby="hero-title">
+    <p class="season">Why domain matters · season two</p>
+    <h1 id="hero-title">{ON_SEASON.name}</h1>
+    <p class="lede">Every KPI in Season 1 had a blind spot, and under every blind spot sat a word that meant two things to two teams. This season takes one everyday word at a time, from the shelf, the truck, the money and an oil field, and shows how domain knowledge turns it into an ontology an AI agent can use.</p>
+    {opener && (
+      <p class="opener"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{opener.data.reality}</span></p>
+    )}
+  </section>
+
+  <section class="contents" aria-labelledby="contents-title">
+    <h2 id="contents-title">Eighteen short posts</h2>
+    <p class="contents-note">{out} of {ON_POST_COUNT} out so far. Three posts to start, {ON_WORD_COUNT} words, and three to put it together. The numbers come from Store 014, the simulated supermarket of Season 1, and from Field 014 and Refinery 014 of Season 3.</p>
+    {parts.map((p) => (
+      <section class="on-part" aria-labelledby={`on-part-${p.id}`}>
+        <h3 id={`on-part-${p.id}`}>{p.name}</h3>
+        <p class="part-blurb">{blurb[p.id]}</p>
+        <ol class="on-posts">
+          {p.plan.map((x) => {
+            const post = postFor(x.slug);
+            const label = x.word ? `Word ${onWordNumber(x.word)}: ${x.title}` : x.title;
+            return (
+              <li class={post ? 'is-out' : 'is-coming'}>
+                {post ? <a href={`${base}${post.data.slug}/`}>{label}</a> : <span class="coming">{label}</span>}
+                <span class="note">{post ? post.data.reality : 'Coming soon'}</span>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+    ))}
+  </section>
+</Layout>
+
+<style>
+  .hero { max-width: 56rem; }
+  .season { font-family: var(--font-sign); font-weight: 600; color: var(--muted); margin: 0; text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.9rem; }
+  .hero h1 { font-size: clamp(2.4rem, 7vw, 4.2rem); margin-top: 0.3rem; }
+  .hero .lede { max-width: 40rem; }
+  .opener { max-width: 40rem; margin-top: 1.4rem; padding: 0.8rem 1rem; background: var(--panel); border-left: 3px solid var(--ink); font-family: var(--font-sign); }
+  .opener a { font-weight: 650; font-size: 1.15rem; }
+  .opener span { display: block; color: var(--muted); font-size: 0.95rem; margin-top: 0.2rem; }
+  .contents { max-width: 44rem; margin-top: 3rem; }
+  .contents-note { color: var(--muted); font-family: var(--font-sign); font-size: 1rem; }
+  .on-part { margin-top: 2rem; }
+  .on-part h3 { font-size: 1.45rem; font-stretch: 85%; margin: 0; }
+  .part-blurb { margin: 0.25rem 0 0.6rem; color: var(--muted); font-family: var(--font-sign); }
+  .on-posts { list-style: none; margin: 0; padding: 0; font-family: var(--font-sign); }
+  .on-posts li { padding: 0.55rem 0; border-top: 1px solid var(--rule); }
+  .on-posts li:last-child { border-bottom: 1px solid var(--rule); }
+  .on-posts a { display: inline-block; font-weight: 600; font-size: 1.08rem; }
+  .on-posts .coming { font-weight: 600; font-size: 1.08rem; color: var(--muted); }
+  .on-posts .note { display: block; color: var(--muted); font-size: 0.95rem; line-height: 1.4; margin-top: 0.1rem; }
+</style>
