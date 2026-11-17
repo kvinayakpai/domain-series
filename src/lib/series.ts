@@ -6,7 +6,7 @@
 // eighteen KPIs comes from SERIES_ORDER in src/lib/kpis.ts or OG_KPIS in src/lib/oil-gas.ts.
 import { kpiNumber, KPI_COUNT } from './kpis';
 import { ogKpiNumber, OG_KPI_COUNT } from './oil-gas';
-import { onWordNumber, ON_WORD_COUNT, onPlaceInPart } from './ontology';
+import { onPlaceInPart } from './ontology';
 
 export const SEASONS = [
   { id: 'store-014', number: 1, name: 'Store 014', home: '' },
@@ -22,10 +22,9 @@ export const PARTS = [
   { id: 'money', name: 'The 18 KPIs: the money', short: 'the money', domain: 'payments', season: 'store-014', start: false },
   { id: 'together', name: 'Linking the KPIs', short: 'linking the KPIs', domain: undefined, season: 'store-014', start: false },
   { id: 'on-start', name: 'Start here', short: 'start here', domain: undefined, season: 'ontology', start: true },
-  { id: 'on-shelf', name: 'Words from the shelf', short: 'the shelf', domain: undefined, season: 'ontology', start: false },
-  { id: 'on-truck', name: 'Words from the truck', short: 'the truck', domain: undefined, season: 'ontology', start: false },
-  { id: 'on-money', name: 'Words from the money', short: 'the money', domain: undefined, season: 'ontology', start: false },
-  { id: 'on-field', name: 'A first look at the oil field', short: 'the oil field', domain: undefined, season: 'ontology', start: false },
+  { id: 'on-retail', name: 'Retail', short: 'retail', domain: undefined, season: 'ontology', start: false },
+  { id: 'on-logistics', name: 'Logistics', short: 'logistics', domain: undefined, season: 'ontology', start: false },
+  { id: 'on-payments', name: 'Payments', short: 'payments', domain: undefined, season: 'ontology', start: false },
   { id: 'on-together', name: 'Putting it together', short: 'putting it together', domain: undefined, season: 'ontology', start: false },
   { id: 'og-start', name: 'Oil & Gas: start here', short: 'start here', domain: undefined, season: 'oil-gas', start: true },
   { id: 'well', name: 'The 18 KPIs: the well', short: 'the well', domain: 'upstream', season: 'oil-gas', start: false },
@@ -40,20 +39,19 @@ export const partOf = (id: string | undefined) => PARTS.find((p) => p.id === id)
 export const seasonOf = (part: string | undefined): SeasonId => partOf(part)?.season ?? 'store-014';
 
 /**
- * The line above a post's title: "KPI 3 of 18 · the shelf", "Ontology · Word 1 of 12 · the shelf",
+ * The line above a post's title: "KPI 3 of 18 · the shelf", "Ontology · Retail: 1 of 4",
  * "Ontology · Start here: 2 of 3", "Oil & Gas · KPI 1 of 18 · the well", "Linking the KPIs: 2 of 4".
  */
 export function partLine(
-  d: { part?: string; kpi?: string; order: number; slug?: string; word?: string },
+  d: { part?: string; kpi?: string; order: number; slug?: string },
   inPart: { data: { order: number; kpi?: string } }[],
 ): string | undefined {
   const part = partOf(d.part);
   if (!part) return undefined;
   if (part.season === 'ontology') {
     // Season 2 numbers its posts from the plan, so a header reads the same before every post is out.
-    if (d.word) return `Ontology · Word ${onWordNumber(d.word)} of ${ON_WORD_COUNT} · ${part.short}`;
     const place = onPlaceInPart(d.slug);
-    return place ? `Ontology · ${part.name}: ${place.i} of ${place.of}` : `Ontology · ${part.name}`;
+    return place && place.of > 1 ? `Ontology · ${part.name}: ${place.i} of ${place.of}` : `Ontology · ${part.name}`;
   }
   if (part.start) return part.name;
   if (part.domain && d.kpi) {

@@ -119,7 +119,8 @@ const tab = await browser.newPage({ viewport: { width: W, height: H }, deviceSca
 for (const c of cards) {
   const dir = path.join(root, 'public', 'images', c.slug);
   mkdirSync(dir, { recursive: true });
-  for (const [name, make] of [['open', openCard], ['summary', chartCard], ['close', ruleCard]]) {
+  // A card renders all three pictures unless it names the ones it needs (Season 2's `only`).
+  for (const [name, make] of [['open', openCard], ['summary', chartCard], ['close', ruleCard]].filter(([n]) => !c.only || c.only.includes(n))) {
     await tab.setContent(make(c), { waitUntil: 'load' });
     await tab.evaluate(() => document.fonts.ready);
     const problems = await tab.evaluate(() => {

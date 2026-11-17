@@ -1,40 +1,47 @@
 ---
-// Season 2's contents: "Ontology is all about domain knowledge". The opener, then the eighteen posts
-// of the plan by part (src/lib/ontology.ts), each linked once it is out.
+// Season 2's contents: "Ontology is all about domain knowledge". The opener, then the fourteen posts
+// of the plan by part (src/lib/ontology.ts), each linked once it is out. A problem post lists the
+// Season 1 KPIs it solves, named as in src/lib/kpis.ts.
 import Layout from '../../layouts/Layout.astro';
 import { getCollection } from 'astro:content';
-import { ON_POSTS, ON_SEASON, ON_POST_COUNT, ON_WORD_COUNT, onWordNumber } from '../../lib/ontology';
+import { ON_POSTS, ON_SEASON, ON_POST_COUNT } from '../../lib/ontology';
 import { PARTS } from '../../lib/series';
+import { DOMAINS } from '../../lib/kpis';
 
 const posts = (await getCollection('posts', (p) => !p.data.draft && PARTS.find((x) => x.id === p.data.part)?.season === 'ontology'))
   .sort((a, b) => a.data.order - b.data.order);
 const postFor = (slug: string) => posts.find((p) => p.data.slug === slug);
 const opener = postFor(ON_POSTS[0].slug);
+const kpiName = new Map(DOMAINS.flatMap((d) => d.kpis).map((k) => [k.id, k.name]));
+const solves = (ids: string[]) => ids.map((id, i) => {
+  const name = kpiName.get(id);
+  if (!name) throw new Error(`the Season 2 plan names an unknown KPI: ${id}`);
+  return i === 0 ? name : name.charAt(0).toLowerCase() + name.slice(1);
+}).join(', ');
 const blurb: Record<string, string> = {
-  'on-start': 'Why every KPI blind spot hid a word, what an ontology is, and why meaning matters more than the model.',
-  'on-shelf': 'Retail. Three words from Store 014’s shelf.',
-  'on-truck': 'Logistics. Three words from the warehouse and the truck.',
-  'on-money': 'Payments. Three words from the till, the bank and the refund desk.',
-  'on-field': 'Oil and gas. Three words from Field 014 and Refinery 014, ahead of Season 3.',
-  'on-together': 'Who decides what a word means, one map across the domains, and how to start.',
+  'on-start': 'What an ontology is, why AI agents need one now, and the full Store 014 ontology on one page.',
+  'on-retail': 'Season 1’s shelf problems, and the part of the ontology that solves each.',
+  'on-logistics': 'Season 1’s truck problems, from the warehouse slot to the store’s door.',
+  'on-payments': 'Season 1’s money problems, from the till to the bank and back.',
+  'on-together': 'How to start a domain ontology of your own.',
 };
 const parts = PARTS.filter((p) => p.season === 'ontology').map((p) => ({ ...p, plan: ON_POSTS.filter((x) => x.part === p.id) }));
 const out = ON_POSTS.filter((x) => postFor(x.slug)).length;
 const base = import.meta.env.BASE_URL;
 ---
-<Layout title={ON_SEASON.name} description="Season 2 of Why Domain Matters: eighteen short posts, one everyday word each, from the shelf, the truck, the money and an oil field. Every KPI blind spot hid a word, and only domain knowledge can turn those words into an ontology an AI agent can use." image="og/ontology.png" wide>
+<Layout title={ON_SEASON.name} description="Season 2 of Why Domain Matters: what an ontology is, why AI agents need one, the full ontology of Store 014 on one page, and how it solves each Season 1 problem in retail, logistics and payments." image="og/ontology.png" wide>
   <section class="hero" aria-labelledby="hero-title">
     <p class="season">Why domain matters · season two</p>
     <h1 id="hero-title">{ON_SEASON.name}</h1>
-    <p class="lede">Every KPI in Season 1 had a blind spot, and under every blind spot sat a word that meant two things to two teams. This season takes one everyday word at a time, from the shelf, the truck, the money and an oil field, and shows how domain knowledge turns it into an ontology an AI agent can use.</p>
+    <p class="lede">Season 1 found eighteen KPIs at Store 014 that were computed correctly and still missed what happened. Every fix was a piece of domain knowledge. This season writes that knowledge down as one ontology – the things, the links and the rules – and then shows how it solves each Season 1 problem in retail, logistics and payments.</p>
     {opener && (
-      <p class="opener"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{opener.data.reality}</span></p>
+      <p class="opener"><a href={`${base}${opener.data.slug}/`}>Start here: {opener.data.title}</a> <span>{ON_POSTS[0].note}</span></p>
     )}
   </section>
 
   <section class="contents" aria-labelledby="contents-title">
-    <h2 id="contents-title">Eighteen short posts</h2>
-    <p class="contents-note">{out} of {ON_POST_COUNT} out so far. Three posts to start, {ON_WORD_COUNT} words, and three to put it together. The numbers come from Store 014, the simulated supermarket of Season 1, and from Field 014 and Refinery 014 of Season 3.</p>
+    <h2 id="contents-title">Fourteen short posts</h2>
+    <p class="contents-note">{out} of {ON_POST_COUNT} out so far. Three posts to start, ten that take the Season 1 problems one part at a time, and one on how to begin. The numbers come from Store 014, the simulated supermarket of Season 1.</p>
     {parts.map((p) => (
       <section class="on-part" aria-labelledby={`on-part-${p.id}`}>
         <h3 id={`on-part-${p.id}`}>{p.name}</h3>
@@ -42,11 +49,11 @@ const base = import.meta.env.BASE_URL;
         <ol class="on-posts">
           {p.plan.map((x) => {
             const post = postFor(x.slug);
-            const label = x.word ? `Word ${onWordNumber(x.word)}: ${x.title}` : x.title;
+            const note = x.solves ? `Solves: ${solves(x.solves)}` : x.note;
             return (
               <li class={post ? 'is-out' : 'is-coming'}>
-                {post ? <a href={`${base}${post.data.slug}/`}>{label}</a> : <span class="coming">{label}</span>}
-                <span class="note">{post ? post.data.reality : 'Coming soon'}</span>
+                {post ? <a href={`${base}${post.data.slug}/`}>{x.title}</a> : <span class="coming">{x.title}</span>}
+                <span class="note">{note}{post ? '' : ' · Coming soon'}</span>
               </li>
             );
           })}
