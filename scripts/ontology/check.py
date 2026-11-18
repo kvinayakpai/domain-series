@@ -12,6 +12,7 @@ It reads public/data/ontology/store-014.ttl (OWL), store-014-shapes.ttl (SHACL) 
   - runs the OWL 2 RL rules (owlrl) and the HermiT reasoner (Java, bundled with Owlready2);
   - asks three SPARQL questions of Oxigraph (Rust);
   - writes the ontology's documentation page with pyLODE;
+  - writes an interactive graph of the ontology (store-014-graph.html), drawn by vis-network from node_modules;
 and records what each tool said in src/data/ontology-check.json, which the post and its tests read.
 """
 import importlib.metadata as md
@@ -190,6 +191,80 @@ from pylode import OntPub  # noqa: E402
 
 OntPub(ontology=str(D / 'store-014.ttl')).make_html(destination=str(D / 'store-014.html'))
 result['pylode'] = {'page': 'store-014.html', 'bytes': (D / 'store-014.html').stat().st_size}
+
+# ---------- the graph page (vis-network) ----------
+# A circle for each class, coloured by the part of the map it belongs to, an arrow for each object property
+# (domain to range) and a dashed arrow for each named superclass. A property with no domain or range starts
+# or ends at a "Thing" circle, as VOWL draws it. vis-network lays the graph out in the reader's browser.
+from rdflib.namespace import RDFS  # noqa: E402
+
+SKOS = Namespace('http://www.w3.org/2004/02/skos/core#')
+PROV = Namespace('http://www.w3.org/ns/prov#')
+label = lambda x: str(ont.value(x, RDFS.label) or ont.qname(x))
+comment = lambda x: str(ont.value(x, RDFS.comment) or '')
+classes = sorted(set(ont.subjects(RDF.type, OWL.Class)), key=str)
+supers = {c: [o for o in ont.objects(c, RDFS.subClassOf) if isinstance(o, rdflib.URIRef)] for c in classes}
+
+
+def part_of(c):
+    if ont.value(c, S14.part):
+        return str(ont.value(c, S14.part))
+    for p in supers[c]:
+        if p in classes and ont.value(p, S14.part):
+            return str(ont.value(p, S14.part))
+        if p == SKOS.Concept:
+            return 'codes'
+    return 'records'
+
+
+keys = {}
+for c, lst in ont.subject_objects(OWL.hasKey):
+    keys.setdefault(c, set()).update(rdflib.collection.Collection(ont, lst))
+fields, general = {}, []
+for p in sorted(set(ont.subjects(RDF.type, OWL.DatatypeProperty)), key=label):
+    d, r = ont.value(p, RDFS.domain), ont.value(p, RDFS.range)
+    f = {'name': label(p), 'type': ont.qname(r).split(':')[-1] if r else 'any', 'key': d is not None and p in keys.get(d, set())}
+    (fields.setdefault(d, []) if d is not None else general).append(f)
+mult = {}
+for c in classes:
+    for r in ont.objects(c, RDFS.subClassOf):
+        if isinstance(r, rdflib.BNode) and ont.value(r, OWL.qualifiedCardinality) is not None:
+            mult[(c, ont.value(r, OWL.onProperty))] = f'exactly {ont.value(r, OWL.qualifiedCardinality)}'
+ids = {c: ont.qname(c) for c in classes}
+nodes = [{'id': ids[c], 'label': label(c), 'group': part_of(c), 'comment': comment(c), 'fields': fields.get(c, []), 'iri': str(c)}
+         for c in classes]
+for ext, voc in ((SKOS.Concept, 'SKOS'), (PROV.Entity, 'PROV-O')):
+    ids[ext] = ont.qname(ext)
+    nodes.append({'id': ids[ext], 'label': ids[ext], 'group': 'external', 'fields': [], 'iri': str(ext),
+                  'comment': f'A class from {voc}, another standard vocabulary. The file reuses it rather than defining it.'})
+edges = [{'from': ids[c], 'to': ids[p], 'label': 'subclass of', 'kind': 'subclass'} for c in classes for p in supers[c] if p in ids]
+things = 0
+for p in sorted(set(ont.subjects(RDF.type, OWL.ObjectProperty)), key=label):
+    d, r = ont.value(p, RDFS.domain), ont.value(p, RDFS.range)
+    a, b = ids.get(d), ids.get(r)
+    if a is None or b is None:
+        things += 1
+        nodes.append({'id': f'thing{things}', 'label': 'Thing', 'group': 'thing', 'fields': [], 'iri': str(OWL.Thing),
+                      'comment': f'Any class. The property “{label(p)}” has no fixed {"domain" if a is None else "range"} '
+                                 'in the file, so it can start or end at any class.'})
+        a, b = a or f'thing{things}', b or f'thing{things}'
+    inv = ont.value(p, OWL.inverseOf)
+    edges.append({'from': a, 'to': b, 'label': label(p), 'kind': 'object', 'iri': str(p), 'mult': mult.get((d, p), ''),
+                  'inverse': label(inv) if inv else '', 'comment': comment(p)})
+vis = ROOT / 'node_modules' / 'vis-network'
+vis_version = json.loads((vis / 'package.json').read_text())['version']
+data = {'nodes': nodes, 'edges': edges, 'general': general, 'visNetwork': vis_version,
+        'counts': {'classes': len(classes), 'object': len(set(ont.subjects(RDF.type, OWL.ObjectProperty))),
+                   'datatype': len(set(ont.subjects(RDF.type, OWL.DatatypeProperty))), 'triples': len(ont)}}
+lib = (vis / 'standalone' / 'umd' / 'vis-network.min.js').read_text()
+assert '</script' not in lib
+page = (ROOT / 'scripts' / 'ontology' / 'graph.html').read_text()
+page = page.replace('/*DATA*/', json.dumps(data, ensure_ascii=False).replace('</', '<\\/')).replace('/*VIS*/', lib)
+(D / 'store-014-graph.html').write_text(page)
+result['graph'] = {'page': 'store-014-graph.html', 'circles': len(nodes), 'classes': len(classes), 'borrowed': 2, 'things': things,
+                   'arrows': len(edges), 'links': sum(e['kind'] == 'object' for e in edges),
+                   'subclass': sum(e['kind'] == 'subclass' for e in edges)}
+result['tools']['vis-network'] = vis_version
 
 # Keep the JavaScript side's results, if check.mjs has run before.
 if OUT.exists():

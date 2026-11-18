@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<!-- The Store 014 ontology as an interactive graph. Written by scripts/ontology/check.py from store-014.ttl and the
+     template scripts/ontology/graph.html; vis-network (https://visjs.github.io/vis-network/, Apache-2.0 OR MIT) is inlined. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Store 014 ontology as a graph</title>
+<style>
+  :root { --bg: #f5f6f4; --ink: #1b2430; --muted: #59626d; --line: #d5d9d4; --panel: #ffffff; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Inter", sans-serif; }
+  header { padding: 18px 18px 6px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 1.35rem; line-height: 1.2; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header p { margin: 0; color: var(--muted); font-size: 0.95rem; line-height: 1.4; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 10px 0 0; padding: 0; list-style: none;
+    font-size: 0.85rem; color: var(--muted); }
+  .legend li { display: flex; align-items: center; gap: 6px; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid; flex: none; }
+  .dashed { border-style: dashed; }
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 12px 18px; }
+  .stage { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  #graph { width: 100%; height: min(72vh, 760px); min-height: 420px; }
+  .tools { position: absolute; top: 10px; right: 10px; display: flex; gap: 6px; }
+  .tools button { font: inherit; font-size: 0.85rem; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line);
+    background: rgba(255,255,255,0.92); color: var(--ink); cursor: pointer; }
+  .tools button:focus-visible { outline: 2px solid #2f55a4; outline-offset: 2px; }
+  #details { margin-top: 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px;
+    font-size: 0.95rem; line-height: 1.45; }
+  #details h2 { font-size: 1.1rem; margin: 0 0 4px; }
+  #details .kind { color: var(--muted); font-size: 0.85rem; margin: 0 0 8px; }
+  #details ul { margin: 6px 0 0; padding-left: 18px; }
+  #details .iri { color: var(--muted); font-size: 0.78rem; word-break: break-all; margin-top: 10px; }
+  #details h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 12px 0 2px; }
+  footer { color: var(--muted); font-size: 0.82rem; line-height: 1.45; margin-top: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>The Store 014 ontology as a graph</h1>
+  <p>Drawn in your browser from the ontology file, store-014.ttl. Circles are classes and arrows are the links between them. Drag a circle to move it. Tap one to see what the file says about it.</p>
+  <ul class="legend" aria-label="Colours">
+    <li><span class="dot" style="background:#f6b48f;border-color:#d4621c"></span>The truck</li>
+    <li><span class="dot" style="background:#ffe14d;border-color:#c9a91c"></span>The shelf</li>
+    <li><span class="dot" style="background:#9ad6bb;border-color:#17795a"></span>The money</li>
+    <li><span class="dot" style="background:#a9c0ec;border-color:#2f55a4"></span>Core</li>
+    <li><span class="dot" style="background:#e4e6e2;border-color:#9aa19a"></span>Code lists, records and rules</li>
+    <li><span class="dot" style="background:#2f55a4;border-color:#1d3a78"></span>From another standard</li>
+    <li><span class="dot dashed" style="background:#fff;border-color:#9aa19a"></span>Thing (any class)</li>
+  </ul>
+</header>
+<main>
+  <div class="stage">
+    <div id="graph" role="img" aria-label="Network graph of the Store 014 ontology: 33 classes linked by 37 properties."></div>
+    <div class="tools">
+      <button type="button" id="fit">Fit</button>
+      <button type="button" id="freeze" aria-pressed="false">Freeze</button>
+    </div>
+  </div>
+  <section id="details" aria-live="polite">
+    <h2>Tap a circle or an arrow</h2>
+    <p class="kind">Its description, data fields and links will show here.</p>
+  </section>
+  <footer id="footer"></footer>
+</main>
+<script>/*VIS*/</script>
+<script>
+const DATA = /*DATA*/;
+const GROUPS = {
+  truck:    { color: { background: '#f6b48f', border: '#d4621c' }, name: 'The truck' },
+  shelf:    { color: { background: '#ffe14d', border: '#c9a91c' }, name: 'The shelf' },
+  money:    { color: { background: '#9ad6bb', border: '#17795a' }, name: 'The money' },
+  core:     { color: { background: '#a9c0ec', border: '#2f55a4' }, name: 'Core' },
+  codes:    { color: { background: '#e4e6e2', border: '#9aa19a' }, name: 'Code list (SKOS)' },
+  records:  { color: { background: '#e4e6e2', border: '#9aa19a' }, name: 'Records and rules' },
+  external: { color: { background: '#2f55a4', border: '#1d3a78' }, font: { color: '#ffffff' }, name: 'From another standard' },
+  thing:    { color: { background: '#ffffff', border: '#9aa19a' }, shapeProperties: { borderDashes: [4, 3] },
+              font: { color: '#59626d', size: 16 }, name: 'Thing' },
+};
+const byId = Object.fromEntries(DATA.nodes.map((n) => [n.id, n]));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+const nodes = new vis.DataSet(DATA.nodes.map((n) => {
+  const grp = GROUPS[n.group];
+  return {
+    id: n.id, label: n.label, shape: 'circle', borderWidth: 2,
+    color: { ...grp.color, highlight: { background: grp.color.background, border: '#1b2430' },
+             hover: { background: grp.color.background, border: '#1b2430' } },
+    font: { size: 19, color: '#1b2430', face: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif', ...(grp.font || {}) },
+    shapeProperties: grp.shapeProperties || {}, widthConstraint: { minimum: 78, maximum: n.group === 'external' ? 150 : 104 }, margin: 6,
+  };
+}));
+const pairKey = (a, b) => a + '\u0000' + b;
+const seen = new Set(DATA.edges.map((e) => pairKey(e.from, e.to)));
+const edges = new vis.DataSet(DATA.edges.map((e, i) => ({
+  id: i, from: e.from, to: e.to,
+  // a link with a link back between the same two classes bows to one side, so the two labels don't overlap
+  ...(seen.has(pairKey(e.to, e.from)) ? { smooth: { enabled: true, type: 'curvedCW', roundness: 0.45 } } : {}),
+  label: e.kind === 'subclass' ? 'subclass of' : e.label + (e.mult ? `\n(${e.mult})` : ''),
+  dashes: e.kind === 'subclass', width: 1.4,
+  color: { color: e.kind === 'subclass' ? '#a9afa8' : '#59626d', highlight: '#1b2430', hover: '#1b2430' },
+  arrows: { to: { enabled: true, scaleFactor: 0.6 } },
+  font: { size: 15, color: e.kind === 'subclass' ? '#59626d' : '#1b2430', strokeWidth: 5, strokeColor: '#ffffff',
+          face: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif' },
+})));
+
+const network = new vis.Network(document.getElementById('graph'), { nodes, edges }, {
+  layout: { randomSeed: 14 },
+  physics: {
+    solver: 'forceAtlas2Based',
+    forceAtlas2Based: { gravitationalConstant: -80, centralGravity: 0.015, springLength: 105, springConstant: 0.06, avoidOverlap: 0.9 },
+    stabilization: { iterations: 1600, fit: true }, minVelocity: 0.6,
+  },
+  interaction: { hover: true, tooltipDelay: 250, navigationButtons: false, zoomView: true, dragView: true },
+  nodes: { scaling: { label: { drawThreshold: 4 } } },
+  edges: { smooth: { type: 'dynamic' }, scaling: { label: { drawThreshold: 4 } } },
+});
+network.once('stabilizationIterationsDone', () => { network.fit({ animation: false }); document.body.dataset.ready = '1'; });
+
+const linkLine = (e, out) => {
+  const other = byId[out ? e.to : e.from];
+  const name = e.kind === 'subclass' ? 'subclass of' : e.label;
+  return out ? `${esc(name)} → <b>${esc(other.label)}</b>${e.mult ? ` (${esc(e.mult)})` : ''}`
+             : `<b>${esc(other.label)}</b> → ${esc(name)}`;
+};
+const details = document.getElementById('details');
+function showNode(id) {
+  const n = byId[id];
+  const outs = DATA.edges.filter((e) => e.from === id), ins = DATA.edges.filter((e) => e.to === id);
+  const fieldList = n.fields.map((f) => `<li>${esc(f.name)}: ${esc(f.type)}${f.key ? ' – <b>the key</b>: two with the same value are the same thing' : ''}</li>`).join('');
+  details.innerHTML = `<h2>${esc(n.label)}</h2><p class="kind">${esc(GROUPS[n.group].name)}</p>`
+    + (n.comment ? `<p>${esc(n.comment)}</p>` : '')
+    + (fieldList ? `<h3>Data fields</h3><ul>${fieldList}</ul>` : '')
+    + (outs.length ? `<h3>Links out</h3><ul>${outs.map((e) => `<li>${linkLine(e, true)}</li>`).join('')}</ul>` : '')
+    + (ins.length ? `<h3>Links in</h3><ul>${ins.map((e) => `<li>${linkLine(e, false)}</li>`).join('')}</ul>` : '')
+    + `<p class="iri">${esc(n.iri)}</p>`;
+}
+function showEdge(i) {
+  const e = DATA.edges[i];
+  const a = byId[e.from], b = byId[e.to];
+  details.innerHTML = e.kind === 'subclass'
+    ? `<h2>${esc(a.label)} is a kind of ${esc(b.label)}</h2><p class="kind">rdfs:subClassOf</p><p>Everything true of ${esc(b.label)} is also true of ${esc(a.label)}.</p>`
+    : `<h2>${esc(a.label)} → ${esc(e.label)} → ${esc(b.label)}</h2><p class="kind">Object property</p>`
+      + (e.comment ? `<p>${esc(e.comment)}</p>` : '')
+      + (e.mult ? `<p>Restriction: a ${esc(a.label.toLowerCase())} has ${esc(e.mult)} ${esc(b.label.toLowerCase())}.</p>` : '')
+      + (e.inverse ? `<p>Read backwards, the same link is “${esc(e.inverse)}”.</p>` : '')
+      + `<p class="iri">${esc(e.iri)}</p>`;
+}
+network.on('click', (p) => {
+  if (p.nodes.length) showNode(p.nodes[0]);
+  else if (p.edges.length) showEdge(p.edges[0]);
+});
+document.getElementById('fit').addEventListener('click', () => network.fit({ animation: { duration: 400 } }));
+const freeze = document.getElementById('freeze');
+freeze.addEventListener('click', () => {
+  const on = freeze.getAttribute('aria-pressed') !== 'true';
+  network.setOptions({ physics: { enabled: !on } });
+  freeze.setAttribute('aria-pressed', String(on));
+  freeze.textContent = on ? 'Unfreeze' : 'Freeze';
+});
+const c = DATA.counts;
+document.getElementById('footer').innerHTML =
+  `Drawn by vis-network ${esc(DATA.visNetwork)} from store-014.ttl: ${c.classes} classes, ${c.object} object properties, ${c.datatype} data fields and ${c.triples} triples. `
+  + `Thing means any class: the property has no fixed start or end in the file. `
+  + `Data fields any class can have: ${DATA.general.map((f) => esc(f.name)).join(', ')}.`;
+</script>
+</body>
+</html>
