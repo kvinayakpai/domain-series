@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import yaml from 'js-yaml';
+import { ON_POSTS } from '../../src/lib/ontology';
 
 // Season 2, "Ontology is all about domain knowledge": its contents page, its posts, the ontology they
 // show (src/data/ontology.json) and the Store 014 numbers they quote. The numbers must still match the
@@ -22,13 +23,26 @@ const POSTS: [string, string][] = [
   ['store-014-ontology', 'Ontology · Start here: 3 of 3'],
   ['ontology-in-open-standards', 'Ontology · A technical detour'],
   ['stock-has-a-place', 'Ontology · Retail: 1 of 4'],
+  ['demand-is-not-sales', 'Ontology · Retail: 2 of 4'],
+  ['a-correction-needs-a-reason', 'Ontology · Retail: 3 of 4'],
+  ['waste-and-the-empty-shelf', 'Ontology · Retail: 4 of 4'],
+  ['an-item-is-the-pack', 'Ontology · Logistics: 1 of 3'],
+  ['a-delivery-ends-on-the-shelf', 'Ontology · Logistics: 2 of 3'],
+  ['four-corrections-one-mistake', 'Ontology · Logistics: 3 of 3'],
+  ['a-payment-has-three-witnesses', 'Ontology · Payments: 1 of 3'],
+  ['one-bill-one-payment', 'Ontology · Payments: 2 of 3'],
+  ['the-refund-clock', 'Ontology · Payments: 3 of 3'],
+  ['start-a-domain-ontology', 'Ontology · Putting it together'],
 ];
+// Posts 6 to 14 take Season 1's problems; post 15 says how to start.
+const PROBLEMS = ['demand-is-not-sales', 'a-correction-needs-a-reason', 'waste-and-the-empty-shelf', 'an-item-is-the-pack',
+  'a-delivery-ends-on-the-shelf', 'four-corrections-one-mistake', 'a-payment-has-three-witnesses', 'one-bill-one-payment', 'the-refund-clock'];
 // Post 1 is in Vinayak's voice; the others are narrated by his AI assistant.
-const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'ontology-in-open-standards', 'stock-has-a-place'];
+const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'start-a-domain-ontology'];
 // Posts that end with one rule for an agent. The full ontology post lists all twelve instead.
-const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-has-a-place'];
+const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'start-a-domain-ontology'];
 // Posts about a Season 1 problem carry its record and reality lines; the opening posts explain instead.
-const WITH_PAIR = ['stock-has-a-place'];
+const WITH_PAIR = ['stock-has-a-place', ...PROBLEMS];
 
 async function articleText(page: import('@playwright/test').Page, path: string) {
   await page.goto(path);
@@ -219,6 +233,9 @@ test('previous and next stay within Season 2', async ({ page }) => {
   await expect(page.locator('.pager a[href$="/ontology-in-open-standards/"]')).toHaveCount(1);
   await page.goto('stock-has-a-place/');
   await expect(page.locator('.pager a[href$="/ontology-in-open-standards/"]')).toHaveCount(1);
+  await page.goto('start-a-domain-ontology/');
+  await expect(page.locator('.pager a')).toHaveCount(1);
+  await expect(page.locator('.pager a[href$="/the-refund-clock/"]')).toHaveCount(1);
   await page.goto('who-saw-what/');
   await expect(page.locator('.pager a[href$="/what-is-an-ontology/"]')).toHaveCount(0);
   await page.goto('every-barrel/');
@@ -325,4 +342,52 @@ test('the interactive graph draws every class and link in the file, and says wha
   await expect(details).toContainText('GTIN: string – the key: two with the same value are the same thing');
   await expect(details).toContainText('Case → holds item');
   expect(errors).toEqual([]);
+});
+
+// Posts 6 to 15 quote their rules word for word from the ontology, and every number they give can be found
+// in the Season 1 posts they draw on (which their own tests pin to the world's data), in the KPI list, or in
+// the tools' output for the technical detour. A number typed wrong, or one with no source, fails here.
+const DRAWS_ON: Record<string, string[]> = {
+  'demand-is-not-sales': ['sales', 'lost-sales', 'forecast-accuracy', 'retail'],
+  'a-correction-needs-a-reason': ['shrink'],
+  'waste-and-the-empty-shelf': ['fresh-waste'],
+  'an-item-is-the-pack': ['pick-accuracy', 'fill-rate', 'otif', 'logistics'],
+  'a-delivery-ends-on-the-shelf': ['on-time-arrival', 'otif', 'logistics'],
+  'four-corrections-one-mistake': ['net-adjustments', 'pick-accuracy', 'logistics'],
+  'a-payment-has-three-witnesses': ['payment-success', 'technical-declines', 'payments'],
+  'one-bill-one-payment': ['charged-twice', 'match-rate', 'payments'],
+  'the-refund-clock': ['refund-turnaround', 'payments'],
+  'start-a-domain-ontology': ['who-saw-what'],
+};
+// Not data: rule numbers and pack sizes, the year, the store's name and the date under the title. Post 15
+// also gives the similarity range, issue and acceptance date of the study it cites.
+const NOT_DATA = new Set([...Array.from({ length: 13 }, (_, i) => String(i)), '2026', '014', '18']);
+const OUTSIDE: Record<string, string[]> = { 'start-a-domain-ontology': ['0.5', '0.8', '17', '30'] };
+
+test('posts 6 to 15 quote their rules from the ontology and their numbers from Season 1', async ({ page, request }) => {
+  const numbers = (s: string) => new Set((s.replace(/[₹+−]/g, '').match(/\d[\d,]*(?:\.\d+)?%?/g) ?? []).map((n) => n.replace(/,+$/, '')));
+  const known = await (await request.get('kpis/domain-kpis.yaml')).text() + JSON.stringify(check);
+  const later = ON_POSTS.filter((x) => x.n >= 6);
+  expect(later.map((x) => x.slug)).toEqual(Object.keys(DRAWS_ON));
+  for (const p of later) {
+    const text = await articleText(page, `${p.slug}/`);
+    for (const n of p.rules ?? []) {
+      const rule = ontology.rules.find((r: { n: number }) => r.n === n);
+      expect(text, `${p.slug} rule ${n}`).toContain(`Rule ${n} – ${rule.text.replace(/[“”]/g, '"')}`);
+    }
+    let sources = known;
+    for (const s of DRAWS_ON[p.slug]) sources += ` ${await articleText(page, `${s}/`)}`;
+    const found = numbers(sources);
+    for (const n of numbers(text)) {
+      if (NOT_DATA.has(n) || OUTSIDE[p.slug]?.includes(n)) continue;
+      expect(found.has(n) || found.has(n.replace('%', '')), `${p.slug}: ${n}`).toBe(true);
+    }
+  }
+  // The two answers the payments posts take from the detour's SPARQL questions.
+  const [debit] = check.sparql.debit_without_approval.rows;
+  const inr = (v: string) => `₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+  expect(await articleText(page, 'one-bill-one-payment/')).toContain(`It found her: RRN ${debit.rrn}, ${inr(debit.amount)}, on bill ${debit.bill}.`);
+  expect(await articleText(page, 'the-refund-clock/')).toContain('The refund came 7 days and 19 hours after the debit, and 5 days after the complaint.');
+  expect(check.sparql.refund_clock.rows[0].fromDebit).toMatch(/^P7DT19H/);
+  expect(check.sparql.refund_clock.rows[0].fromComplaint).toBe('P5D');
 });

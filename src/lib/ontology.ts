@@ -40,7 +40,7 @@ export const ON_POSTS: OnPost[] = [
   { n: 12, slug: 'a-payment-has-three-witnesses', title: 'A payment has three witnesses', part: 'on-payments', solves: ['success-rate', 'technical-declines'], rules: [9] },
   { n: 13, slug: 'one-bill-one-payment', title: 'One bill, one payment', part: 'on-payments', solves: ['charged-twice', 'match-rate'], rules: [10] },
   { n: 14, slug: 'the-refund-clock', title: 'The refund clock starts at the debit', part: 'on-payments', solves: ['refund-tat'], rules: [11] },
-  { n: 15, slug: 'start-a-domain-ontology', title: 'How to start your own domain ontology', part: 'on-together', note: 'Where to begin, who owns the words, and how to test an agent with and without them.', rules: [12] },
+  { n: 15, slug: 'start-a-domain-ontology', title: 'How to start your own domain ontology', part: 'on-together', note: 'The twelfth rule, eight steps from your own KPIs to a first ontology, and where to begin on Monday.', rules: [12] },
 ];
 
 export const ON_POST_COUNT = ON_POSTS.length;
