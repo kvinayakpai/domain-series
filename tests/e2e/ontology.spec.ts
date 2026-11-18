@@ -285,12 +285,44 @@ test('the technical detour quotes the files and the tools correctly', async ({ p
   for (const stmt of flat(blocks[0]).split(/(?<=\.) (?=s14:)/)) expect(await file('store-014.ttl'), stmt).toContain(stmt);
   for (const stmt of flat(blocks[1]).split(/(?<=\.) (?=s14:)/)) expect(await file('store-014-shapes.ttl'), stmt).toContain(stmt);
   expect(await file('store-014-queries.rq')).toContain(flat(blocks[2]));
+  // The network picture's description gives the graph page's own numbers.
+  const g = check.graph;
+  expect(g.classes).toBe(c.classes);
+  expect(g.links).toBe(c.object_properties);
+  expect([g.borrowed, g.things]).toEqual([2, 5]); // "Two dark blue circles", "five dashed circles"
+  expect(g.circles).toBe(g.classes + g.borrowed + g.things);
+  expect(g.arrows).toBe(g.links + g.subclass);
+  const alt = await page.locator('article figure.picture img[src$="network-graph.png"]').getAttribute('alt');
+  for (const e of [`${g.classes} classes are circles`, 'Two dark blue circles', 'five dashed circles mark Thing',
+    `${g.arrows} arrows join them: ${g.links} links and ${g.subclass} subclass arrows.`]) expect(alt, e).toContain(e);
   // Every file it offers is served, and the tool versions it names are the ones used.
   const hrefs = await page.locator('.ontology-files li a').evaluateAll((as) => as.map((a) => (a as HTMLAnchorElement).getAttribute('href')!));
-  expect(hrefs).toHaveLength(9);
+  expect(hrefs).toHaveLength(10);
   for (const h of hrefs) expect((await request.head(h.replace('/domain-series/', ''))).status(), h).toBe(200);
   for (const [tool, v] of Object.entries(check.tools) as [string, string][]) {
-    const name = { rdflib: 'rdflib', pyshacl: 'pySHACL', owlrl: 'owlrl', owlready2: 'Owlready2', pyoxigraph: 'pyoxigraph', pylode: 'pyLODE', n3: 'N3.js', 'rdf-validate-shacl': 'rdf-validate-shacl' }[tool];
+    const name = { rdflib: 'rdflib', pyshacl: 'pySHACL', owlrl: 'owlrl', owlready2: 'Owlready2', pyoxigraph: 'pyoxigraph', pylode: 'pyLODE', n3: 'N3.js', 'rdf-validate-shacl': 'rdf-validate-shacl', 'vis-network': 'vis-network' }[tool];
     expect(text, tool).toContain(`${name} ${v}`);
   }
+});
+
+test('the interactive graph draws every class and link in the file, and says what each one is', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', (e) => errors.push(String(e)));
+  await page.goto('data/ontology/store-014-graph.html');
+  await expect(page.locator('body')).toHaveAttribute('data-ready', '1', { timeout: 60_000 });
+  const g = check.graph;
+  const c = check.counts;
+  expect(await page.evaluate('[network.body.data.nodes.length, network.body.data.edges.length]')).toEqual([g.circles, g.arrows]);
+  await expect(page.locator('#footer')).toContainText(
+    `Drawn by vis-network ${check.tools['vis-network']} from store-014.ttl: ${c.classes} classes, ${c.object_properties} object properties, `
+    + `${c.datatype_properties} data fields and ${check.triples.ontology} triples.`);
+  // Click the Item circle: its description, key and links come from the file.
+  const at = (await page.evaluate("network.canvasToDOM(network.getPositions(['s14:Item'])['s14:Item'])")) as { x: number; y: number };
+  const box = (await page.locator('#graph').boundingBox())!;
+  await page.mouse.click(box.x + at.x, box.y + at.y);
+  const details = page.locator('#details');
+  await expect(details.locator('h2')).toHaveText('Item');
+  await expect(details).toContainText('GTIN: string – the key: two with the same value are the same thing');
+  await expect(details).toContainText('Case → holds item');
+  expect(errors).toEqual([]);
 });
