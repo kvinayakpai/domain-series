@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import time
 import traceback
@@ -42,6 +43,39 @@ def log(message: str) -> None:
 
 def left() -> float:
     return BUDGET_S - (time.time() - START)
+
+
+_last_checkpoint = 0.0
+
+
+def checkpoint(note: str, force: bool = False) -> None:
+    """Push the results so far to the branch (every 10 minutes at most), with log tails."""
+    global _last_checkpoint
+    if os.environ.get("CHECKPOINT_PUSH") != "1" or (not force and time.time() - _last_checkpoint < 600):
+        return
+    _last_checkpoint = time.time()
+    scrub = [s for s in os.environ.get("SCRUB", "").split("|") if s]
+    logs = OUT / "logs"
+    logs.mkdir(parents=True, exist_ok=True)
+    for name in ("auto-ontology-ingestion-service", "auto-ontology", "model-adapter", "ollama"):
+        try:
+            tail = subprocess.run(["docker", "logs", "--tail", "120", name], capture_output=True, text=True, timeout=60)
+            text = tail.stdout + tail.stderr
+            for secret in scrub:
+                text = text.replace(secret, "[redacted]")
+            (logs / f"progress-{name}.log").write_text(text)
+        except Exception:
+            pass
+    branch = os.environ.get("GITHUB_REF_NAME", "")
+    for command in (
+        ["git", "add", str(OUT)],
+        ["git", "commit", "-q", "-m", f"Auto-Ontology demo progress: {note}"],
+        ["git", "push", "-q", "origin", f"HEAD:{branch}"],
+    ):
+        try:
+            subprocess.run(command, capture_output=True, timeout=120)
+        except Exception:
+            return
 
 
 def save(name: str, payload: object) -> None:
@@ -99,6 +133,7 @@ def phase(name: str):
             finally:
                 record["minutes"] = round((time.time() - began) / 60, 1)
                 save("run.json", run)
+                checkpoint(f"{name} {record.get('status')}", force=True)
         return inner
     return wrap
 
@@ -140,6 +175,7 @@ def compile_ontology(record: dict) -> None:
             record["final_status"] = status
             return
         save("run.json", run)
+        checkpoint(f"compiling, minute {polls[-1]['minute']}")
         time.sleep(60)
 
 
@@ -240,6 +276,7 @@ def ask(record: dict) -> None:
         answers.append({**item, **outcome})
         save("answers.json", answers)
         log(f"ask: {item['id']} done")
+        checkpoint(f"asked {item['id']}")
     record["asked"] = len([a for a in answers if "skipped" not in a])
 
 
