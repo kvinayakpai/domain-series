@@ -128,5 +128,54 @@
         }
       }
     ]
+  },
+  {
+    "id": "lost-sales",
+    "question": "What were the lost sales of 5 kg atta in June 2026?",
+    "ask": true,
+    "why": "The same gap as left-without, in KPI words.",
+    "seconds": 1338,
+    "steps": [
+      {
+        "node": "react_sql_agent",
+        "phase": "start",
+        "thought": null
+      },
+      {
+        "node": "react_sql_agent",
+        "phase": "end",
+        "thought": "Submitting the final query."
+      },
+      {
+        "node": "format_and_respond",
+        "phase": "start",
+        "thought": null
+      },
+      {
+        "node": "format_and_respond",
+        "phase": "end",
+        "thought": null
+      }
+    ],
+    "events": [
+      {
+        "type": "sql",
+        "node": "react_sql_agent",
+        "sql": "WITH no_sales_days AS (\n    SELECT \n        date_trunc('day', bill_ts) AS sale_date\n    FROM \n        store.pos_lines\n    WHERE \n        sku_scanned = 'ATTA-WW-5KG'\n        AND bill_ts >= '2026-06-01' \n        AND bill_ts < '2026-07-01'\n    GROUP BY \n        date_trunc('day', bill_ts)\n),\nempty_shelf_days AS (\n    SELECT \n        audit_ts::date AS audit_date\n    FROM \n        store.shelf_audits\n    WHERE \n        sku = 'ATTA-WW-5KG'\n        AND status = 'empty'\n        AND audit_ts >= '2026-06-01' \n        AND audit_ts < '2026-07-01'\n)\nSELECT \n    COUNT(*) AS estimated_lost_sales\nFROM \n    no_sales_days\nWHERE \n    sale_date NOT IN (SELECT audit_date FROM empty_shelf_days)"
+      },
+      {
+        "type": "result",
+        "answer": {
+          "response": "The query estimates lost sales of 5 kg atta in June 2026 by identifying days when there were no sales but shelf audits showed that the item was missing on those same days.",
+          "sql_code": "WITH no_sales_days AS (\n    SELECT \n        date_trunc('day', bill_ts) AS sale_date\n    FROM \n        store.pos_lines\n    WHERE \n        sku_scanned = 'ATTA-WW-5KG'\n        AND bill_ts >= '2026-06-01' \n        AND bill_ts < '2026-07-01'\n    GROUP BY \n        date_trunc('day', bill_ts)\n),\nempty_shelf_days AS (\n    SELECT \n        audit_ts::date AS audit_date\n    FROM \n        store.shelf_audits\n    WHERE \n        sku = 'ATTA-WW-5KG'\n        AND status = 'empty'\n        AND audit_ts >= '2026-06-01' \n        AND audit_ts < '2026-07-01'\n)\nSELECT \n    COUNT(*) AS estimated_lost_sales\nFROM \n    no_sales_days\nWHERE \n    sale_date NOT IN (SELECT audit_date FROM empty_shelf_days)",
+          "sql_columns": [],
+          "custom_analyses_used": [],
+          "sql_response_from_db": [
+            "[{\"estimated_lost_sales\":24}]"
+          ],
+          "thoughts": "- Searching the data and writing SQL: Searching for: lost sales\n- Searching the data and writing SQL: Searching for: lost sales\n- Searching the data and writing SQL: Running a query to check the data.\n- Searching the data and writing SQL: Submitting the final query.\n- Searching the data and writing SQL: Searching for: store.pos_lines store.shelf_audits\n- Searching the data and writing SQL: Submitting the final query.\n- Searching the data and writing SQL: Submitting the final query."
+        }
+      }
+    ]
   }
 ]
