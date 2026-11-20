@@ -171,7 +171,7 @@ def compile_ontology(record: dict) -> None:
             if not status.get("last_success_at"):
                 record["status"] = "failed"
             return
-        if left() < 45 * 60:  # keep time for saving the draft and asking questions
+        if left() < float(os.environ.get("RESERVE_MIN", "45")) * 60:  # keep time for the rest
             record["status"] = "timed_out"
             record["final_status"] = status
             return
@@ -227,8 +227,7 @@ def export(record: dict) -> None:
         record["status"] = "failed"
 
 
-@phase("coverage")
-def coverage(record: dict) -> None:
+def _coverage(record: dict, out_name: str) -> None:
     results = []
     for item in QUESTIONS:
         began = time.time()
@@ -239,7 +238,7 @@ def coverage(record: dict) -> None:
         except Exception as error:
             result = {"error": f"{type(error).__name__}: {error}"}
         results.append({**item, "seconds": round(time.time() - began), "result": result})
-        save("coverage.json", results)
+        save(out_name, results)
         log(f"coverage: {item['id']} done")
     record["questions"] = len(results)
 
@@ -272,11 +271,15 @@ def ask_one(question: str, timeout: float) -> dict:
     return {"seconds": round(time.time() - began), "steps": steps, "events": events}
 
 
-@phase("ask")
-def ask(record: dict) -> None:
+@phase("coverage")
+def coverage(record: dict) -> None:
+    _coverage(record, "coverage.json")
+
+
+def _ask(record: dict, out_name: str, reserve_s: float = 0) -> None:
     answers = []
     for item in [q for q in QUESTIONS if q.get("ask")]:
-        if left() < 5 * 60:
+        if left() < 5 * 60 + reserve_s:
             answers.append({**item, "skipped": "out of time"})
             continue
         try:
@@ -284,10 +287,39 @@ def ask(record: dict) -> None:
         except Exception as error:
             outcome = {"error": f"{type(error).__name__}: {error}"}
         answers.append({**item, **outcome})
-        save("answers.json", answers)
+        save(out_name, answers)
         log(f"ask: {item['id']} done")
         checkpoint(f"asked {item['id']}")
     record["asked"] = len([a for a in answers if "skipped" not in a])
+
+
+@phase("ask")
+def ask(record: dict) -> None:
+    # With the expert phase to come, keep time for it and a second round.
+    _ask(record, "answers.json", reserve_s=40 * 60 if os.environ.get("EXPERT_LAYER") == "1" else 0)
+
+
+@phase("expert")
+def expert(record: dict) -> None:
+    """Enter Season 2's hand-built knowledge through Auto-Ontology's tools for experts."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import expert_layer
+
+    save("expert-instructions.txt", expert_layer.instructions())
+    terms = json.loads((OUT / "terms.json").read_text()) if (OUT / "terms.json").exists() else []
+    details = json.loads((OUT / "term-details.json").read_text()) if (OUT / "term-details.json").exists() else {}
+    record.update(expert_layer.apply(call, terms, details))
+    save("expert.json", record)
+
+
+@phase("coverage_after")
+def coverage_after(record: dict) -> None:
+    _coverage(record, "coverage-after.json")
+
+
+@phase("ask_after")
+def ask_after(record: dict) -> None:
+    _ask(record, "answers-after.json")
 
 
 @phase("switch_model")
@@ -321,6 +353,10 @@ def main() -> int:
     switch_model()
     coverage()
     ask()
+    if os.environ.get("EXPERT_LAYER") == "1":
+        expert()
+        coverage_after()
+        ask_after()
     run["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
     save("run.json", run)
     return 0

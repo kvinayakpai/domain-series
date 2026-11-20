@@ -154,6 +154,9 @@ jobs:
           APP_URL: http://localhost:3000
           BUDGET_MIN: "280"
           CHECKPOINT_PUSH: "1"
+          # After the first round of questions, enter Season 2's knowledge and ask again.
+          EXPERT_LAYER: "1"
+          RESERVE_MIN: "110"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -167,6 +170,8 @@ jobs:
             docker logs --tail 2000 "$s" > "$RESULTS/logs/$s.log" 2>&1 || true
           done
           docker ps -a --format '{{.Names}}\t{{.Status}}' > "$RESULTS/logs/containers.txt" 2>&1 || true
+          # Every question the agent was asked, the SQL it ran and how each episode ended.
+          docker logs auto-ontology 2>&1 | grep -E -A3 "agent started for question|Executing ReAct agent SQL|ReAct episode|Agent completed: react_sql_agent" > "$RESULTS/logs/agent-trace.log" || true
           docker exec ollama ollama show "$LOCAL_MODEL_NAME" > "$RESULTS/logs/model.txt" 2>&1 || true
           docker exec ollama ollama list >> "$RESULTS/logs/model.txt" 2>&1 || true
           OLLAMA_VERSION=$(docker exec ollama ollama --version 2>&1 | tail -1)
