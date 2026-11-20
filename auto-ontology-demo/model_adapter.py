@@ -6,6 +6,8 @@ Auto-Ontology calls three kinds of model, all through this adapter:
   It caps each answer's length (a small model under a JSON schema can repeat itself
   until the cap; NVIDIA's code asks for up to 8192 tokens, hours on a CPU), adds a
   presence penalty and a fixed seed when the request sets none, and logs each call.
+  POST /admin/chat-model {"model": ...} sends every later chat request to another
+  model, so the draft and the answers can use different models.
 - /v1/embeddings embeds with a local model through Ollama. It adds the query or
   document prefix the model was trained with (Auto-Ontology sends NVIDIA's
   input_type field for this), and pads each vector with zeros to the 2048
@@ -32,6 +34,7 @@ OLLAMA = os.environ.get("OLLAMA_URL", "http://ollama:11434").rstrip("/")
 CHAT_MAX_TOKENS = int(os.environ.get("CHAT_MAX_TOKENS", "1536"))
 CHAT_PRESENCE_PENALTY = float(os.environ.get("CHAT_PRESENCE_PENALTY", "0.5"))
 CHAT_SEED = int(os.environ.get("CHAT_SEED", "42"))
+CHAT_MODEL_OVERRIDE: dict[str, str | None] = {"model": None}
 MODEL = os.environ.get("EMBED_LOCAL_MODEL", "nomic-embed-text")
 DIM = int(os.environ.get("PAD_TO", "2048"))
 QUERY_PREFIX = os.environ.get("QUERY_PREFIX", "search_query: ")
@@ -99,6 +102,8 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(404, {"error": f"no route {self.path}"})
 
     def chat(self, payload: dict, started: float) -> None:
+        if CHAT_MODEL_OVERRIDE["model"]:  # set after the draft, to answer with another model
+            payload["model"] = CHAT_MODEL_OVERRIDE["model"]
         asked = payload.get("max_tokens") or payload.get("max_completion_tokens")
         payload.pop("max_completion_tokens", None)
         payload["max_tokens"] = min(int(asked or CHAT_MAX_TOKENS), CHAT_MAX_TOKENS)
@@ -159,7 +164,11 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(length) or b"{}")
-            if path.endswith("/chat/completions"):
+            if path == "/admin/chat-model":
+                CHAT_MODEL_OVERRIDE["model"] = payload.get("model") or None
+                log(f"chat model now {CHAT_MODEL_OVERRIDE['model'] or 'as requested'}")
+                self.reply(200, {"model": CHAT_MODEL_OVERRIDE["model"]})
+            elif path.endswith("/chat/completions"):
                 self.chat(payload, started)
             elif path.endswith("/embeddings"):
                 inputs = payload.get("input")

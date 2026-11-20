@@ -212,7 +212,7 @@ def export(record: dict) -> None:
     """Export the draft as Apache Ossie YAML and, either way, in Auto-Ontology's own format."""
     record["files"] = {}
     for fmt in ("ossie", "auto_ontology"):
-        body = {"format": fmt, "include_ontology": True}
+        body = {"format": fmt, "include_ontology": True} if fmt == "ossie" else {"format": fmt}
         try:
             with request("POST", BASE + "/api/model/export", body, timeout=600, accept="application/x-yaml, application/zip") as response:
                 kind = response.headers.get("Content-Type", "")
@@ -290,6 +290,18 @@ def ask(record: dict) -> None:
     record["asked"] = len([a for a in answers if "skipped" not in a])
 
 
+@phase("switch_model")
+def switch_model(record: dict) -> None:
+    """Answer with a second model, if one is set, through the model adapter."""
+    model = os.environ.get("ANSWER_MODEL", "")
+    record["answer_model"] = model or "same as the draft"
+    if model:
+        body = json.dumps({"model": model}).encode()
+        adapter = os.environ.get("ADAPTER_URL", "http://localhost:8000").rstrip("/")
+        with urlopen(Request(adapter + "/admin/chat-model", data=body, headers={"Content-Type": "application/json"}), timeout=60) as response:
+            record["adapter_says"] = json.load(response)
+
+
 def ingestion_status() -> None:
     try:
         with urlopen(INGESTION + "/semantic/status", timeout=30) as response:
@@ -306,6 +318,7 @@ def main() -> int:
     ingestion_status()
     collect()
     export()
+    switch_model()
     coverage()
     ask()
     run["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())

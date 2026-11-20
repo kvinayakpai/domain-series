@@ -28,6 +28,8 @@ jobs:
     env:
       NVIDIA_COMMIT: 43fa2d3ac3cb00f79cce23b76d57a002b0cb0168
       CHAT_MODELS: "qwen3:4b-instruct-2507-q4_K_M qwen3:4b-instruct qwen3:4b"
+      # A stronger model answers the questions once the draft is done (empty: the same model).
+      ANSWER_MODELS: "qwen2.5:7b-instruct-q4_K_M qwen2.5:7b-instruct qwen2.5:7b"
       EMBED_LOCAL_MODEL: nomic-embed-text
       LOCAL_MODEL_NAME: openai/small-open-model
       RESULTS: auto-ontology-demo/results/run-${{ github.run_number }}
@@ -109,6 +111,15 @@ jobs:
           echo "CHAT_BASE=$CHAT_BASE" >> "$GITHUB_ENV"
           docker exec ollama ollama pull "$EMBED_LOCAL_MODEL" >/dev/null
           docker exec ollama sh -c "printf 'FROM %s\nPARAMETER num_ctx 16384\nPARAMETER temperature 0.7\nPARAMETER top_p 0.8\nPARAMETER top_k 20\nPARAMETER repeat_penalty 1.05\n' '$CHAT_BASE' > /tmp/Modelfile && ollama create '$LOCAL_MODEL_NAME' -f /tmp/Modelfile"
+          if [ -n "$ANSWER_MODELS" ]; then
+            for tag in $ANSWER_MODELS; do
+              if docker exec ollama ollama pull "$tag" >/dev/null; then ANSWER_BASE="$tag"; break; fi
+            done
+            test -n "$ANSWER_BASE"
+            echo "ANSWER_BASE=$ANSWER_BASE" >> "$GITHUB_ENV"
+            echo "ANSWER_MODEL=openai/answer-model" >> "$GITHUB_ENV"
+            docker exec ollama sh -c "printf 'FROM %s\nPARAMETER num_ctx 16384\nPARAMETER temperature 0.7\nPARAMETER top_p 0.8\nPARAMETER top_k 20\nPARAMETER repeat_penalty 1.05\n' '$ANSWER_BASE' > /tmp/Modelfile2 && ollama create openai/answer-model -f /tmp/Modelfile2"
+          fi
           docker exec ollama ollama list
 
       - name: Check the models answer
@@ -166,6 +177,7 @@ jobs:
               "run_id": "${{ github.run_id }}",
               "nvidia_auto_ontology_commit": os.environ["NVIDIA_COMMIT"],
               "chat_model": os.environ.get("CHAT_BASE"),
+              "answer_model": os.environ.get("ANSWER_BASE") or os.environ.get("CHAT_BASE"),
               "embedding_model": os.environ["EMBED_LOCAL_MODEL"],
               "ollama": "$OLLAMA_VERSION",
               "runner": {"cpus": os.cpu_count()},
