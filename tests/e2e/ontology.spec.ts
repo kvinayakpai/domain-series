@@ -32,15 +32,16 @@ const POSTS: [string, string][] = [
   ['a-payment-has-three-witnesses', 'Ontology · Payments: 1 of 3'],
   ['one-bill-one-payment', 'Ontology · Payments: 2 of 3'],
   ['the-refund-clock', 'Ontology · Payments: 3 of 3'],
-  ['start-a-domain-ontology', 'Ontology · Putting it together'],
+  ['what-would-a-machine-draft', 'Ontology · Putting it together: 1 of 2'],
+  ['start-a-domain-ontology', 'Ontology · Putting it together: 2 of 2'],
 ];
 // Posts 6 to 14 take Season 1's problems; post 15 says how to start.
 const PROBLEMS = ['demand-is-not-sales', 'a-correction-needs-a-reason', 'waste-and-the-empty-shelf', 'an-item-is-the-pack',
   'a-delivery-ends-on-the-shelf', 'four-corrections-one-mistake', 'a-payment-has-three-witnesses', 'one-bill-one-payment', 'the-refund-clock'];
 // Post 1 is in Vinayak's voice; the others are narrated by his AI assistant.
-const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'start-a-domain-ontology'];
+const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'what-would-a-machine-draft', 'start-a-domain-ontology'];
 // Posts that end with one rule for an agent. The full ontology post lists all twelve instead.
-const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'start-a-domain-ontology'];
+const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'what-would-a-machine-draft', 'start-a-domain-ontology'];
 // Posts about a Season 1 problem carry its record and reality lines; the opening posts explain instead.
 const WITH_PAIR = ['stock-has-a-place', ...PROBLEMS];
 
@@ -85,12 +86,12 @@ test('home points to Season 2 ahead of Season 3, and the season pages say which 
   await expect(page.locator('.season')).toHaveText(/season three/i);
 });
 
-test('the season page lists all fifteen posts, links the ones that are out, and covers every Season 1 KPI', async ({ page, request }) => {
+test('the season page lists all sixteen posts, links the ones that are out, and covers every Season 1 KPI', async ({ page, request }) => {
   await page.goto('ontology/');
   await expect(page.locator('.opener a[href$="/what-is-an-ontology/"]')).toHaveCount(1);
-  await expect(page.locator('.on-posts li')).toHaveCount(15);
+  await expect(page.locator('.on-posts li')).toHaveCount(16);
   await expect(page.locator('.on-posts li.is-out')).toHaveCount(POSTS.length);
-  await expect(page.locator('.on-posts li.is-coming')).toHaveCount(15 - POSTS.length);
+  await expect(page.locator('.on-posts li.is-coming')).toHaveCount(16 - POSTS.length);
   for (const [slug] of POSTS) await expect(page.locator(`.on-posts a[href$="/${slug}/"]`)).toHaveCount(1);
   await expect(page.locator('.on-part h3')).toHaveText(['Start here', 'A technical detour', 'Retail', 'Logistics', 'Payments', 'Putting it together']);
   // Every one of Season 1's eighteen KPIs is solved by some post of the plan.
@@ -235,7 +236,7 @@ test('previous and next stay within Season 2', async ({ page }) => {
   await expect(page.locator('.pager a[href$="/ontology-in-open-standards/"]')).toHaveCount(1);
   await page.goto('start-a-domain-ontology/');
   await expect(page.locator('.pager a')).toHaveCount(1);
-  await expect(page.locator('.pager a[href$="/the-refund-clock/"]')).toHaveCount(1);
+  await expect(page.locator('.pager a[href$="/what-would-a-machine-draft/"]')).toHaveCount(1);
   await page.goto('who-saw-what/');
   await expect(page.locator('.pager a[href$="/what-is-an-ontology/"]')).toHaveCount(0);
   await page.goto('every-barrel/');
@@ -357,14 +358,18 @@ const DRAWS_ON: Record<string, string[]> = {
   'a-payment-has-three-witnesses': ['payment-success', 'technical-declines', 'payments'],
   'one-bill-one-payment': ['charged-twice', 'match-rate', 'payments'],
   'the-refund-clock': ['refund-turnaround', 'payments'],
+  'what-would-a-machine-draft': ['store-014-ontology', 'who-saw-what'],
   'start-a-domain-ontology': ['who-saw-what'],
 };
 // Not data: rule numbers and pack sizes, the year, the store's name and the date under the title. Post 15
 // also gives the similarity range, issue and acceptance date of the study it cites.
 const NOT_DATA = new Set([...Array.from({ length: 13 }, (_, i) => String(i)), '2026', '014', '18']);
-const OUTSIDE: Record<string, string[]> = { 'start-a-domain-ontology': ['0.5', '0.8', '17', '30'] };
+const OUTSIDE: Record<string, string[]> = {
+  'what-would-a-machine-draft': ['21', '19', '2.0'], // NVIDIA's announcement date, the repository's read date, its licence
+  'start-a-domain-ontology': ['0.5', '0.8', '17', '30', '2.0'],
+};
 
-test('posts 6 to 15 quote their rules from the ontology and their numbers from Season 1', async ({ page, request }) => {
+test('posts 6 to 16 quote their rules from the ontology and their numbers from Season 1', async ({ page, request }) => {
   const numbers = (s: string) => new Set((s.replace(/[₹+−]/g, '').match(/\d[\d,]*(?:\.\d+)?%?/g) ?? []).map((n) => n.replace(/,+$/, '')));
   const known = await (await request.get('kpis/domain-kpis.yaml')).text() + JSON.stringify(check);
   const later = ON_POSTS.filter((x) => x.n >= 6);
