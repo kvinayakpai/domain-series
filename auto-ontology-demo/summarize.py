@@ -6,7 +6,11 @@ term names demand or a lost sale, the coverage check for each question, and each
 its SQL. Each answer's SQL is run again on a Postgres copy of Store 014 (given as a psql
 connection string) so the post can say whether the number is right.
 
-    python3 auto-ontology-demo/summarize.py <results/run-N> [psql-connection]
+    python3 auto-ontology-demo/summarize.py <results/run-N> [psql-connection] [--bigger <run> --expert <run>]
+
+With --bigger and --expert it also records the runs answered by a 7B model: --bigger is a run on the
+draft alone, and --expert a run that asked, entered Season 2's knowledge (expert_layer.py) and asked
+again. Every answer's SQL is re-run on the records too.
 """
 
 from __future__ import annotations
@@ -71,9 +75,78 @@ def rerun(sql: str, conn: str | None) -> object:
     return [line.split("\t") for line in result.stdout.strip().splitlines()]
 
 
+def read_answers(answers: list, conn: str | None) -> list:
+    asked = []
+    for a in answers or []:
+        result = next((e.get("answer") for e in a.get("events", []) if e.get("type") == "result"), None) or {}
+        errors = [e.get("message") for e in a.get("events", []) if e.get("type") == "error"]
+        sql = result.get("sql_code")
+        asked.append({
+            "id": a["id"], "question": a["question"], "seconds": a.get("seconds"),
+            "answer": result.get("response"), "sql": sql,
+            "rows": (result.get("sql_response_from_db") or [])[:20] if isinstance(result.get("sql_response_from_db"), list) else result.get("sql_response_from_db"),
+            "errors": errors or None, "skipped": a.get("skipped"),
+            "rerun_on_store014": rerun(sql, conn),
+            "truth": rerun(TRUTH[a["id"]], conn) if TRUTH.get(a["id"]) else None,
+        })
+    return asked
+
+
+def coverage_of(items: list) -> list:
+    return [
+        {"id": c["id"], "question": c["question"],
+         "coverage": ((c.get("result") or {}).get("data") or {}).get("coverage"),
+         "uncovered": ((c.get("result") or {}).get("data") or {}).get("uncovered_entities"),
+         "matched": [f"{m.get('term')}: {m.get('attribute')}" for m in (((c.get("result") or {}).get("data") or {}).get("candidates") or [])]}
+        for c in items or []
+    ]
+
+
+def with_a_7b_model(bigger: Path, expert: Path, conn: str | None) -> dict:
+    """The runs answered by a 7B model: on the draft alone, and before and after Season 2's knowledge."""
+    setup = load(expert, "setup.json", {})
+    entered = load(expert, "expert.json", {})
+    instructions = (expert / "expert-instructions.txt").read_text() if (expert / "expert-instructions.txt").exists() else ""
+    before = read_answers(load(expert, "answers.json", []), conn)
+    pick_osa = next((a for a in before if a["id"] == "on-shelf"), {})
+    try:
+        pick_osa_percent = f"{round(float(json.loads(pick_osa['rows'][0])[0]['on_shelf_availability']) * 100, 2)}%"
+    except Exception:
+        pick_osa_percent = None
+    return {
+        "answer_model": setup.get("answer_model"),
+        "draft_model": setup.get("chat_model"),
+        "runs": {"draft_alone": load(bigger, "setup.json", {}).get("run_number"), "before_and_after": setup.get("run_number")},
+        "draft_alone": read_answers(load(bigger, "answers.json", []), conn),
+        "before": before,
+        "before_on_shelf_percent": pick_osa_percent,
+        "entered": {
+            "instructions_chars": entered.get("instructions_chars"),
+            "rules_quoted": [r["n"] for r in json.loads((ROOT / "src" / "data" / "ontology.json").read_text())["rules"] if r["text"] in instructions],
+            "glossary": entered.get("glossary"),
+            "tables_certified": sorted(k for k, v in (entered.get("tables") or {}).items() if v == "certified"),
+            "tables_error": entered.get("tables_error"),
+            "calculations": entered.get("calculations"),
+            "analyses": entered.get("analyses"),
+        },
+        "after": read_answers(load(expert, "answers-after.json", []), conn),
+        "coverage_before": coverage_of(load(expert, "coverage.json", [])),
+        "coverage_after": coverage_of(load(expert, "coverage-after.json", [])),
+        "days_with_sales": rerun("select count(distinct bill_ts::date) from store.pos_lines where sku_scanned = 'ATTA-WW-5KG' and bill_ts >= '2026-06-01' and bill_ts < '2026-07-01'", conn),
+        "instructions": instructions,
+    }
+
+
 def main() -> None:
-    folder = Path(sys.argv[1])
-    conn = sys.argv[2] if len(sys.argv) > 2 else None
+    args = sys.argv[1:]
+    flags = {}
+    for flag in ("--bigger", "--expert"):
+        if flag in args:
+            i = args.index(flag)
+            flags[flag] = Path(args[i + 1])
+            del args[i:i + 2]
+    folder = Path(args[0])
+    conn = args[1] if len(args) > 1 else None
     run, setup = load(folder, "run.json", {}), load(folder, "setup.json", {})
     terms = load(folder, "terms.json", []) or []
     details = load(folder, "term-details.json", {}) or {}
@@ -94,19 +167,7 @@ def main() -> None:
     gap_mentions = [t["name"] for t in drafted if gap_words.search(t["description"] or "")]
     product_terms = [t["name"] for t in drafted if re.match(r"Product( SKU)?( \(|$)", t["name"] or "")]
 
-    asked = []
-    for a in answers:
-        result = next((e.get("answer") for e in a.get("events", []) if e.get("type") == "result"), None) or {}
-        errors = [e.get("message") for e in a.get("events", []) if e.get("type") == "error"]
-        sql = result.get("sql_code")
-        asked.append({
-            "id": a["id"], "question": a["question"], "seconds": a.get("seconds"),
-            "answer": result.get("response"), "sql": sql,
-            "rows": (result.get("sql_response_from_db") or [])[:20] if isinstance(result.get("sql_response_from_db"), list) else result.get("sql_response_from_db"),
-            "errors": errors or None, "skipped": a.get("skipped"),
-            "rerun_on_store014": rerun(sql, conn),
-            "truth": rerun(TRUTH[a["id"]], conn) if TRUTH.get(a["id"]) else None,
-        })
+    asked = read_answers(answers, conn)
 
     phases = {k: {"status": v.get("status"), "minutes": v.get("minutes")} for k, v in run.get("phases", {}).items()}
     export = run.get("phases", {}).get("export", {})
@@ -131,21 +192,19 @@ def main() -> None:
         "terms_naming_the_gap": gap_terms,
         "descriptions_mentioning_the_gap": gap_mentions,
         "product_terms": product_terms,
-        "coverage": [
-            {"id": c["id"], "question": c["question"],
-             "coverage": ((c.get("result") or {}).get("data") or {}).get("coverage"),
-             "uncovered": ((c.get("result") or {}).get("data") or {}).get("uncovered_entities"),
-             "matched": [f"{m.get('term')}: {m.get('attribute')}" for m in (((c.get("result") or {}).get("data") or {}).get("candidates") or [])]}
-            for c in coverage
-        ],
+        "coverage": coverage_of(coverage),
         "answers": asked,
     }
+    if "--bigger" in flags and "--expert" in flags:
+        summary["with_a_7b_model"] = with_a_7b_model(flags["--bigger"], flags["--expert"], conn)
     out = ROOT / "src" / "data" / "auto-ontology-run.json"
     out.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     files = ROOT / "public" / "data" / "auto-ontology"
     files.mkdir(parents=True, exist_ok=True)
     (files / "store014-draft-terms.json").write_text(json.dumps(drafted, indent=2, ensure_ascii=False) + "\n")
     (files / "store014-run.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
+    if "with_a_7b_model" in summary:
+        (files / "store014-expert-instructions.txt").write_text(summary["with_a_7b_model"]["instructions"])
     print(f"{out}: {len(drafted)} terms, {len(coverage)} coverage checks, {len(asked)} answers")
 
 
