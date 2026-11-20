@@ -35,6 +35,10 @@ runs, not copied into this repository.
 - Run 4: the draft took 62 minutes. Asked about "June", the agent searched June 2023.
   Asked how many shoppers left without 5 kg atta, it counted the shelf audits that
   found the bay empty.
+- Run 5, a second sample of the same draft: 94 minutes and 67 terms, with the product
+  named six times. The same four joins from the goods receipts, no term for demand or a
+  lost sale, every question passed by the coverage check, and no answers. The counts vary
+  from run to run, and the findings do not.
 - Run 6 (the one the post reports): the draft took 44 minutes and named 90 terms. The
   agent wrote the right query for the bags sold (567) but ended every question without
   submitting an answer.
