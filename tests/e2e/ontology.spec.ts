@@ -441,6 +441,56 @@ test('the bonus post reports the Store 014 run as recorded', async ({ page, requ
   }
 });
 
+// The same section's 7B runs: on the draft alone (run 7), then before and after Season 2's knowledge went in
+// (run 8). Each claim is pinned to the record, and each number to the answer's own query re-run on the records.
+test('the bonus post reports the 7B runs and the knowledge layer as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'what-would-a-machine-draft/');
+  const w = machineRun.with_a_7b_model;
+  type A = { id: string; answer: string | null; sql: string | null; rerun_on_store014: string[][] | null };
+  const by = (list: A[], id: string) => list.find((a) => a.id === id)!;
+  expect(w.answer_model).toMatch(/^qwen2\.5:7b/);
+  expect(text).toContain('with a 7B model answering, Qwen2.5 7B');
+  // On the draft alone.
+  const alone = by(w.draft_alone, 'sold');
+  expect(alone.sql).toContain('store.goods_receipts');
+  expect(alone.rerun_on_store014).toEqual([['660']]);
+  expect(by(w.before, 'sold').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
+  expect(text).toContain('one run got the bags sold right and the other said 660 – the bags received from the warehouse.');
+  const left = by(w.before, 'left-without');
+  expect(left.sql).toContain('store.inventory_book');
+  expect(left.rerun_on_store014).toEqual([['28']]);
+  const osa = by(w.before, 'on-shelf');
+  expect(osa.sql).toContain('warehouse.pick_confirmations');
+  expect(w.before_on_shelf_percent).toBe('1.43%');
+  expect(text).toContain("The shoppers who left without became 28 – it had counted 28 days of book stock – and on-shelf availability 1.43%, worked out from the warehouse's picks.");
+  // What went in.
+  expect(w.entered.rules_quoted).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  expect(w.entered.glossary.length).toBeGreaterThan(0);
+  expect(w.entered.calculations.map((c: { status: string }) => c.status)).toEqual(['added', 'added', 'added', 'added']);
+  expect(w.entered.analyses.map((c: { status: string }) => c.status)).toEqual(['added', 'added', 'added']);
+  expect(w.entered.tables_certified).toEqual([]);
+  expect(text).toContain('what each table is, the joins, a glossary, the twelve rules word for word – each with what it means for these tables – four calculations and three certified queries.');
+  // After.
+  const sold = by(w.after, 'sold');
+  expect(sold.sql).toContain('store.pos_lines');
+  expect(sold.sql).toContain('gtin');
+  expect(sold.rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
+  expect(text).toContain('The bags sold came from the till lines, matched on the code on the pack: 567.');
+  const shelf = by(w.after, 'on-shelf');
+  expect(shelf.sql).toBeFalsy();
+  expect(shelf.answer).toContain("'on shelf'");
+  expect(text).toContain('On-shelf availability became the share of shelf audits that found the bag on the shelf, though it gave the method and no number.');
+  expect(by(w.after, 'left-without').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
+  expect(text).toContain('Asked how many shoppers left without, it gave the 567 bags sold.');
+  const lost = by(w.after, 'lost-sales');
+  expect(lost.rerun_on_store014).toEqual(w.days_with_sales);
+  expect(w.days_with_sales).toEqual([['24']]);
+  expect(text).toContain('Its estimate of lost sales, 24, counted the days that had sales.');
+  expect(w.coverage_after.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
+  expect(text).toContain('And its check still said every question was covered.');
+  expect((await request.get('data/auto-ontology/store014-expert-instructions.txt')).status()).toBe(200);
+});
+
 // Bags of 5 kg atta the till lines show sold, 1 to 28 June, from the published records.
 function retailSoldJune() {
   const lines = readFileSync(new URL('../../public/data/india-grocery/pos-lines-may-june.csv', import.meta.url), 'utf8').trim().split('\n');
