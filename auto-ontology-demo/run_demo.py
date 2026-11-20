@@ -57,9 +57,9 @@ def checkpoint(note: str, force: bool = False) -> None:
     scrub = [s for s in os.environ.get("SCRUB", "").split("|") if s]
     logs = OUT / "logs"
     logs.mkdir(parents=True, exist_ok=True)
-    for name in ("auto-ontology-ingestion-service", "auto-ontology", "model-adapter", "ollama"):
+    for name, lines in (("auto-ontology-ingestion-service", "200"), ("auto-ontology", "80"), ("model-adapter", "300"), ("ollama", "40")):
         try:
-            tail = subprocess.run(["docker", "logs", "--tail", "120", name], capture_output=True, text=True, timeout=60)
+            tail = subprocess.run(["docker", "logs", "--tail", lines, name], capture_output=True, text=True, timeout=60)
             text = tail.stdout + tail.stderr
             for secret in scrub:
                 text = text.replace(secret, "[redacted]")

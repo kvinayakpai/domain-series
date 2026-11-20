@@ -62,13 +62,13 @@ jobs:
           PGADMIN_EMAIL=admin@store014.example
           PGADMIN_PASSWORD=$ADMIN
           DEFAULT_MODELS_API_KEY=ollama
-          DEFAULT_MODELS_ENDPOINT=http://ollama:11434/v1
+          DEFAULT_MODELS_ENDPOINT=http://model-adapter:8000/v1
           DEFAULT_MODELS_MODEL=$LOCAL_MODEL_NAME
           REASONING_API_KEY=ollama
-          REASONING_ENDPOINT=http://ollama:11434/v1
+          REASONING_ENDPOINT=http://model-adapter:8000/v1
           REASONING_MODEL=$LOCAL_MODEL_NAME
           NON_REASONING_API_KEY=ollama
-          NON_REASONING_ENDPOINT=http://ollama:11434/v1
+          NON_REASONING_ENDPOINT=http://model-adapter:8000/v1
           NON_REASONING_MODEL=$LOCAL_MODEL_NAME
           EMBED_API_KEY=local
           EMBED_ENDPOINT=http://model-adapter:8000/v1
@@ -108,12 +108,13 @@ jobs:
           test -n "$CHAT_BASE"
           echo "CHAT_BASE=$CHAT_BASE" >> "$GITHUB_ENV"
           docker exec ollama ollama pull "$EMBED_LOCAL_MODEL" >/dev/null
-          docker exec ollama sh -c "printf 'FROM %s\nPARAMETER num_ctx 16384\nPARAMETER temperature 0\n' '$CHAT_BASE' > /tmp/Modelfile && ollama create '$LOCAL_MODEL_NAME' -f /tmp/Modelfile"
+          docker exec ollama sh -c "printf 'FROM %s\nPARAMETER num_ctx 16384\nPARAMETER temperature 0.7\nPARAMETER top_p 0.8\nPARAMETER top_k 20\nPARAMETER repeat_penalty 1.05\n' '$CHAT_BASE' > /tmp/Modelfile && ollama create '$LOCAL_MODEL_NAME' -f /tmp/Modelfile"
           docker exec ollama ollama list
 
       - name: Check the models answer
         run: |
-          time curl -sf http://localhost:11434/v1/chat/completions -H 'Content-Type: application/json' -d "{\"model\":\"$LOCAL_MODEL_NAME\",\"messages\":[{\"role\":\"user\",\"content\":\"Name one Indian grocery staple.\"}],\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"staple\",\"schema\":{\"type\":\"object\",\"properties\":{\"item\":{\"type\":\"string\"}},\"required\":[\"item\"]}}}}"
+          for i in $(seq 30); do curl -sf http://localhost:8000/health >/dev/null && break; sleep 2; done
+          time curl -sf http://localhost:8000/v1/chat/completions -H 'Content-Type: application/json' -d "{\"model\":\"$LOCAL_MODEL_NAME\",\"messages\":[{\"role\":\"user\",\"content\":\"Name one Indian grocery staple.\"}],\"response_format\":{\"type\":\"json_schema\",\"json_schema\":{\"name\":\"staple\",\"schema\":{\"type\":\"object\",\"properties\":{\"item\":{\"type\":\"string\"}},\"required\":[\"item\"]}}}}"
           echo
           for i in $(seq 30); do curl -sf http://localhost:8000/health >/dev/null && break; sleep 2; done
           time curl -sf http://localhost:8000/v1/embeddings -H 'Content-Type: application/json' -d '{"model":"nomic-embed-text","input":["5 kg atta"],"input_type":"query"}' | python3 -c "import json,sys; d=json.load(sys.stdin); v=d['data'][0]['embedding']; print('dimensions', len(v), 'nonzero', sum(1 for x in v if x))"

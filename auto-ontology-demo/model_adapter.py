@@ -1,9 +1,11 @@
 """A small adapter between Auto-Ontology and a local Ollama server.
 
-Auto-Ontology calls three kinds of model. Chat requests go straight to Ollama's
-OpenAI-compatible endpoint. This adapter serves the other two, which expect NVIDIA's
-hosted models:
+Auto-Ontology calls three kinds of model, all through this adapter:
 
+- /v1/chat/completions passes chat requests to Ollama's OpenAI-compatible endpoint.
+  It caps each answer's length (a small model under a JSON schema can repeat itself
+  until the cap; NVIDIA's code asks for up to 8192 tokens, hours on a CPU), adds a
+  presence penalty and a fixed seed when the request sets none, and logs each call.
 - /v1/embeddings embeds with a local model through Ollama. It adds the query or
   document prefix the model was trained with (Auto-Ontology sends NVIDIA's
   input_type field for this), and pads each vector with zeros to the 2048
@@ -23,9 +25,13 @@ import os
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 OLLAMA = os.environ.get("OLLAMA_URL", "http://ollama:11434").rstrip("/")
+CHAT_MAX_TOKENS = int(os.environ.get("CHAT_MAX_TOKENS", "1536"))
+CHAT_PRESENCE_PENALTY = float(os.environ.get("CHAT_PRESENCE_PENALTY", "0.5"))
+CHAT_SEED = int(os.environ.get("CHAT_SEED", "42"))
 MODEL = os.environ.get("EMBED_LOCAL_MODEL", "nomic-embed-text")
 DIM = int(os.environ.get("PAD_TO", "2048"))
 QUERY_PREFIX = os.environ.get("QUERY_PREFIX", "search_query: ")
@@ -92,13 +98,70 @@ class Handler(BaseHTTPRequestHandler):
         else:
             self.reply(404, {"error": f"no route {self.path}"})
 
+    def chat(self, payload: dict, started: float) -> None:
+        asked = payload.get("max_tokens") or payload.get("max_completion_tokens")
+        payload.pop("max_completion_tokens", None)
+        payload["max_tokens"] = min(int(asked or CHAT_MAX_TOKENS), CHAT_MAX_TOKENS)
+        payload.setdefault("presence_penalty", CHAT_PRESENCE_PENALTY)
+        payload.setdefault("seed", CHAT_SEED)
+        schema = ((payload.get("response_format") or {}).get("json_schema") or {}).get("name", "text")
+        request = Request(
+            f"{OLLAMA}/v1/chat/completions",
+            data=json.dumps(payload).encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            upstream = urlopen(request, timeout=3600)
+        except HTTPError as error:
+            body = error.read()
+            self.send_response(error.code)
+            self.send_header("Content-Type", error.headers.get("Content-Type", "application/json"))
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            log(f"chat {schema} error {error.code} {body[:200]!r}")
+            return
+        with upstream:
+            if payload.get("stream"):
+                self.send_response(upstream.status)
+                self.send_header("Content-Type", upstream.headers.get("Content-Type", "text/event-stream"))
+                self.send_header("Transfer-Encoding", "chunked")
+                self.end_headers()
+                while True:
+                    chunk = upstream.read1(65536) if hasattr(upstream, "read1") else upstream.read(65536)
+                    if not chunk:
+                        break
+                    self.wfile.write(f"{len(chunk):x}\r\n".encode() + chunk + b"\r\n")
+                    self.wfile.flush()
+                self.wfile.write(b"0\r\n\r\n")
+                log(f"chat {schema} streamed {time.time() - started:.0f}s")
+                return
+            body = upstream.read()
+            self.send_response(upstream.status)
+            self.send_header("Content-Type", upstream.headers.get("Content-Type", "application/json"))
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        try:
+            answer = json.loads(body)
+            usage = answer.get("usage") or {}
+            finish = answer["choices"][0].get("finish_reason")
+            note = f"chat {schema} {usage.get('prompt_tokens')}+{usage.get('completion_tokens')} tokens {finish} {time.time() - started:.0f}s"
+            if finish == "length":
+                note += f" | {answer['choices'][0]['message'].get('content', '')[:300]!r}"
+            log(note)
+        except Exception:
+            log(f"chat {schema} {time.time() - started:.0f}s (unreadable answer)")
+
     def do_POST(self) -> None:
         started = time.time()
         path = self.path.rstrip("/")
         try:
             length = int(self.headers.get("Content-Length") or 0)
             payload = json.loads(self.rfile.read(length) or b"{}")
-            if path.endswith("/embeddings"):
+            if path.endswith("/chat/completions"):
+                self.chat(payload, started)
+            elif path.endswith("/embeddings"):
                 inputs = payload.get("input")
                 texts = [inputs] if isinstance(inputs, str) else [str(t) for t in inputs or []]
                 prefix = QUERY_PREFIX if payload.get("input_type") == "query" else DOC_PREFIX
