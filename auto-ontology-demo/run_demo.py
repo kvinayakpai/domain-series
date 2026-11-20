@@ -184,7 +184,7 @@ def compile_ontology(record: dict) -> None:
 def collect(record: dict) -> None:
     terms, skip = [], 0
     while True:
-        page = call("GET", f"/api/terms?skip={skip}&limit=200")
+        page = call("GET", f"/api/terms?skip={skip}&limit=100")
         batch = (page or {}).get("terms") or []
         terms.extend(batch)
         skip += len(batch)
@@ -209,13 +209,22 @@ def collect(record: dict) -> None:
 
 @phase("export")
 def export(record: dict) -> None:
-    body = {"format": "ossie", "include_ontology": True}
-    with request("POST", BASE + "/api/model/export", body, timeout=600, accept="application/x-yaml, application/zip") as response:
-        kind = response.headers.get("Content-Type", "")
-        payload = response.read()
-    name = "store014-ossie.zip" if "zip" in kind else "store014-ossie.yaml"
-    save(name, payload)
-    record["file"], record["bytes"] = name, len(payload)
+    """Export the draft as Apache Ossie YAML and, either way, in Auto-Ontology's own format."""
+    record["files"] = {}
+    for fmt in ("ossie", "auto_ontology"):
+        body = {"format": fmt, "include_ontology": True}
+        try:
+            with request("POST", BASE + "/api/model/export", body, timeout=600, accept="application/x-yaml, application/zip") as response:
+                kind = response.headers.get("Content-Type", "")
+                payload = response.read()
+        except HTTPError as error:  # a refusal is a finding too: keep its reason
+            record[f"{fmt}_refused"] = {"code": error.code, "body": error.read().decode()[:4000]}
+            continue
+        name = f"store014-{fmt.replace('_', '-')}.{'zip' if 'zip' in kind else 'yaml'}"
+        save(name, payload)
+        record["files"][name] = len(payload)
+    if not record["files"]:
+        record["status"] = "failed"
 
 
 @phase("coverage")
