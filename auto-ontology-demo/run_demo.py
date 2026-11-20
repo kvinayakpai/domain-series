@@ -67,15 +67,16 @@ def checkpoint(note: str, force: bool = False) -> None:
         except Exception:
             pass
     branch = os.environ.get("GITHUB_REF_NAME", "")
-    for command in (
-        ["git", "add", str(OUT)],
-        ["git", "commit", "-q", "-m", f"Auto-Ontology demo progress: {note}"],
-        ["git", "push", "-q", "origin", f"HEAD:{branch}"],
-    ):
-        try:
-            subprocess.run(command, capture_output=True, timeout=120)
-        except Exception:
-            return
+    try:
+        subprocess.run(["git", "add", str(OUT)], capture_output=True, timeout=120)
+        subprocess.run(["git", "commit", "-q", "-m", f"Auto-Ontology demo progress: {note}"], capture_output=True, timeout=120)
+        for _ in range(3):  # each run writes its own folder, so a rebase never conflicts
+            subprocess.run(["git", "pull", "-q", "--rebase", "origin", branch], capture_output=True, timeout=120)
+            if subprocess.run(["git", "push", "-q", "origin", f"HEAD:{branch}"], capture_output=True, timeout=120).returncode == 0:
+                return
+            time.sleep(5)
+    except Exception:
+        return
 
 
 def save(name: str, payload: object) -> None:
