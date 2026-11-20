@@ -13,6 +13,8 @@ const check = json('ontology-check.json');
 const retail = json('retail.json');
 const ai = json('retail-ai.json');
 const finale = json('finale.json');
+// One run of NVIDIA's Auto-Ontology on Store 014, summarised by auto-ontology-demo/summarize.py.
+const machineRun = json('auto-ontology-run.json');
 const story = retail.story;
 const ep = story.episode;
 
@@ -380,7 +382,7 @@ test('posts 6 to 16 quote their rules from the ontology and their numbers from S
       const rule = ontology.rules.find((r: { n: number }) => r.n === n);
       expect(text, `${p.slug} rule ${n}`).toContain(`Rule ${n} – ${rule.text.replace(/[“”]/g, '"')}`);
     }
-    let sources = known;
+    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '');
     for (const s of DRAWS_ON[p.slug]) sources += ` ${await articleText(page, `${s}/`)}`;
     const found = numbers(sources);
     for (const n of numbers(text)) {
@@ -396,3 +398,53 @@ test('posts 6 to 16 quote their rules from the ontology and their numbers from S
   expect(check.sparql.refund_clock.rows[0].fromDebit).toMatch(/^P7DT19H/);
   expect(check.sparql.refund_clock.rows[0].fromComplaint).toBe('P5D');
 });
+
+// The bonus post reports one real run of Auto-Ontology on Store 014. Every claim in that section is pinned
+// to the run's record (src/data/auto-ontology-run.json), and the record's answers are pinned to the data.
+test('the bonus post reports the Store 014 run as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'what-would-a-machine-draft/');
+  const run = machineRun.run;
+  expect(run.chat_model).toMatch(/^qwen3:4b/);
+  expect(text).toContain('a small open model stood in, Qwen3 4B');
+  expect(text).toContain(`the ${run.tables} tables of June records`);
+  expect(text).toContain(`It drafted for ${run.draft_minutes} minutes and named ${machineRun.term_count} terms.`);
+  // Ten product terms, one per table that holds a SKU.
+  expect(machineRun.product_terms).toHaveLength(10);
+  expect(text).toContain('It named the product ten times');
+  // Four joins, all from the goods receipts, a fifth thrown out, and none between the till and UPI.
+  expect(run.compile.joins_inferred).toEqual(['0', '4']);
+  expect(run.compile.joins.every((j: string) => j.startsWith('goods_receipts.'))).toBe(true);
+  expect(run.compile.joins.map((j: string) => j.split(' -> ')[1].split('.')[0]).sort()).toEqual(['pallets', 'products', 'shipments']);
+  expect(run.compile.joins_rejected).toEqual(['goods_receipts.units_booked']);
+  expect(text).toContain('It found four joins, all from the goods receipts – to the shipment, the pallet and the product.');
+  expect(run.compile.sql_attributes_from_history).toBe('0');
+  expect(text).toContain('so it suggested no calculations');
+  expect(run.ossie_export_refused).toContain('to exactly one represented term');
+  // No term named for demand or a lost sale; demand only inside the forecast's description.
+  expect(machineRun.terms_naming_the_gap).toEqual([]);
+  expect(machineRun.descriptions_mentioning_the_gap).toContain('Forecast Variability');
+  expect(text).toContain('No term was named for demand or a lost sale.');
+  // The coverage check said every question was covered.
+  expect(machineRun.coverage.length).toBeGreaterThan(0);
+  expect(machineRun.coverage.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
+  expect(text).toContain('Its check said every question was covered');
+  // The agent answered none, though its query for the bags sold was right.
+  const asked = machineRun.answers as { id: string; answer: string; sql: string | null; truth: string[][] | null }[];
+  expect(asked).toHaveLength(4);
+  expect(asked.every((a) => a.answer.startsWith("I couldn't write a query"))).toBe(true);
+  const sold = asked.find((a) => a.id === 'sold')!;
+  expect(sold.truth).toEqual([[`${retailSoldJune()}`]]);
+  expect(text).toContain(`For the bags sold, it wrote the right query – ${retailSoldJune()} bags, as the till lines say – but never handed the answer back.`);
+  // The files box links to files that are there.
+  for (const f of ['store014-draft-terms.json', 'store014-run.json']) {
+    expect((await request.get(`data/auto-ontology/${f}`)).status()).toBe(200);
+  }
+});
+
+// Bags of 5 kg atta the till lines show sold, 1 to 28 June, from the published records.
+function retailSoldJune() {
+  const lines = readFileSync(new URL('../../public/data/india-grocery/pos-lines-may-june.csv', import.meta.url), 'utf8').trim().split('\n');
+  const head = lines[0].split(',');
+  const [ts, sku, qty] = ['bill_ts', 'sku_scanned', 'qty'].map((c) => head.indexOf(c));
+  return lines.slice(1).map((l) => l.split(',')).filter((r) => r[sku] === 'ATTA-WW-5KG' && r[ts] >= '2026-06-01' && r[ts] < '2026-07-01').reduce((n, r) => n + Number(r[qty]), 0);
+}

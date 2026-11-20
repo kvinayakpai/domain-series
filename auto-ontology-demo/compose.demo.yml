@@ -1,0 +1,36 @@
+# Added to NVIDIA's docker-compose.yml for the Store 014 demo:
+#   docker compose -f docker-compose.yml -f <this file> up ...
+# A local Ollama server stands in for NVIDIA's hosted models, and the model
+# adapter serves embeddings and reranking in the shape Auto-Ontology expects.
+services:
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    environment:
+      OLLAMA_KEEP_ALIVE: "-1"
+      OLLAMA_NUM_PARALLEL: "2"
+      OLLAMA_MAX_LOADED_MODELS: "2"
+      OLLAMA_CONTEXT_LENGTH: "16384"
+    volumes:
+      - ollama_models:/root/.ollama
+
+  model-adapter:
+    image: python:3.12-slim
+    container_name: model-adapter
+    restart: unless-stopped
+    command: ["python", "-u", "/demo/model_adapter.py"]
+    ports:
+      - "8000:8000"
+    environment:
+      OLLAMA_URL: http://ollama:11434
+      EMBED_LOCAL_MODEL: ${EMBED_LOCAL_MODEL:-nomic-embed-text}
+    volumes:
+      - ${DEMO_DIR}:/demo:ro
+    depends_on:
+      - ollama
+
+volumes:
+  ollama_models:
