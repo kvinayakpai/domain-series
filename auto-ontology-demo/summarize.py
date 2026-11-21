@@ -6,11 +6,12 @@ term names demand or a lost sale, the coverage check for each question, and each
 its SQL. Each answer's SQL is run again on a Postgres copy of Store 014 (given as a psql
 connection string) so the post can say whether the number is right.
 
-    python3 auto-ontology-demo/summarize.py <results/run-N> [psql-connection] [--bigger <run> --expert <run>]
+    python3 auto-ontology-demo/summarize.py <results/run-N> [psql-connection] [--bigger <run> --expert <run>] [--nvidia <run>]
 
 With --bigger and --expert it also records the runs answered by a 7B model: --bigger is a run on the
 draft alone, and --expert a run that asked, entered Season 2's knowledge (expert_layer.py) and asked
-again. Every answer's SQL is re-run on the records too.
+again. With --nvidia it records a run on NVIDIA's own hosted models that did the same. Every answer's
+SQL is re-run on the records too.
 """
 
 from __future__ import annotations
@@ -137,10 +138,72 @@ def with_a_7b_model(bigger: Path, expert: Path, conn: str | None) -> dict:
     }
 
 
+def draft_of(folder: Path) -> dict:
+    """The terms a run drafted, with the tables behind each, and which of them name the gap."""
+    terms = load(folder, "terms.json", []) or []
+    details = load(folder, "term-details.json", {}) or {}
+    drafted = []
+    for term in terms:
+        tables = (details.get(term["id"]) or {}).get("data", {}).get("tables") or []
+        drafted.append({
+            "name": term.get("name"),
+            "description": term.get("description"),
+            "tables": sorted({f"{t.get('schema_name')}.{t.get('name')}" for t in tables}),
+        })
+    drafted.sort(key=lambda t: (t["tables"][:1], t["name"] or ""))
+    gap_words = re.compile(r"\b(demand|lost|unmet|stock-?outs?|empty|shoppers?)\b", re.I)
+    return {
+        "terms": drafted,
+        "term_count": len(drafted),
+        "terms_naming_the_gap": [t["name"] for t in drafted if gap_words.search(t["name"] or "")],
+        "descriptions_mentioning_the_gap": [t["name"] for t in drafted if gap_words.search(t["description"] or "")],
+        "product_terms": [t["name"] for t in drafted if re.match(r"Product( SKU)?( \(|$)", t["name"] or "")],
+    }
+
+
+def with_nvidia_models(folder: Path, conn: str | None) -> dict:
+    """A run on NVIDIA's own hosted models: its draft, then the questions before and after Season 2's knowledge."""
+    run, setup = load(folder, "run.json", {}), load(folder, "setup.json", {})
+    entered = load(folder, "expert.json", {})
+    instructions = (folder / "expert-instructions.txt").read_text() if (folder / "expert-instructions.txt").exists() else ""
+    draft = draft_of(folder)
+    export = run.get("phases", {}).get("export", {})
+    rate_limited = folder / "logs" / "rate-limited-lines.txt"
+    return {
+        "run": setup.get("run_number"), "run_id": setup.get("run_id"),
+        "chat_model": setup.get("chat_model"), "embedding_model": setup.get("embedding_model"),
+        "rerank_model": setup.get("rerank_model"),
+        "phases": {k: {"status": v.get("status"), "minutes": v.get("minutes")} for k, v in run.get("phases", {}).items()},
+        "draft_minutes": round(run.get("phases", {}).get("compile", {}).get("minutes") or 0),
+        "compile": log_facts(folder),
+        "term_count": draft["term_count"],
+        "terms_naming_the_gap": draft["terms_naming_the_gap"],
+        "descriptions_mentioning_the_gap": draft["descriptions_mentioning_the_gap"],
+        "product_terms": draft["product_terms"],
+        "terms": draft["terms"],
+        "ossie_export_refused": (export.get("ossie_refused") or {}).get("body"),
+        "export_files": export.get("files"),
+        "rate_limited_log_lines": int(rate_limited.read_text().strip() or 0) if rate_limited.exists() else None,
+        "before": read_answers(load(folder, "answers.json", []), conn),
+        "entered": {
+            "instructions_chars": entered.get("instructions_chars"),
+            "rules_quoted": [r["n"] for r in json.loads((ROOT / "src" / "data" / "ontology.json").read_text())["rules"] if r["text"] in instructions],
+            "glossary": entered.get("glossary"),
+            "tables_certified": sorted(k for k, v in (entered.get("tables") or {}).items() if v == "certified"),
+            "tables_error": entered.get("tables_error"),
+            "calculations": entered.get("calculations"),
+            "analyses": entered.get("analyses"),
+        },
+        "after": read_answers(load(folder, "answers-after.json", []), conn),
+        "coverage_before": coverage_of(load(folder, "coverage.json", [])),
+        "coverage_after": coverage_of(load(folder, "coverage-after.json", [])),
+    }
+
+
 def main() -> None:
     args = sys.argv[1:]
     flags = {}
-    for flag in ("--bigger", "--expert"):
+    for flag in ("--bigger", "--expert", "--nvidia"):
         if flag in args:
             i = args.index(flag)
             flags[flag] = Path(args[i + 1])
@@ -197,6 +260,8 @@ def main() -> None:
     }
     if "--bigger" in flags and "--expert" in flags:
         summary["with_a_7b_model"] = with_a_7b_model(flags["--bigger"], flags["--expert"], conn)
+    if "--nvidia" in flags:
+        summary["with_nvidia_models"] = with_nvidia_models(flags["--nvidia"], conn)
     out = ROOT / "src" / "data" / "auto-ontology-run.json"
     out.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     files = ROOT / "public" / "data" / "auto-ontology"
@@ -205,6 +270,9 @@ def main() -> None:
     (files / "store014-run.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     if "with_a_7b_model" in summary:
         (files / "store014-expert-instructions.txt").write_text(summary["with_a_7b_model"]["instructions"])
+    if "with_nvidia_models" in summary:
+        nvidia_terms = summary["with_nvidia_models"]["terms"]
+        (files / "store014-nemotron-draft-terms.json").write_text(json.dumps(nvidia_terms, indent=2, ensure_ascii=False) + "\n")
     print(f"{out}: {len(drafted)} terms, {len(coverage)} coverage checks, {len(asked)} answers")
 
 

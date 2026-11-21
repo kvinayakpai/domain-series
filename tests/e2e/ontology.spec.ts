@@ -491,6 +491,73 @@ test('the bonus post reports the 7B runs and the knowledge layer as recorded', a
   expect((await request.get('data/auto-ontology/store014-expert-instructions.txt')).status()).toBe(200);
 });
 
+// The same section's run on NVIDIA's own model (run 10): Nemotron drafting and answering, with the local
+// embeddings the other runs used. Each claim is pinned to the record, and each number to the answer's own
+// query re-run on the records.
+test('the bonus post reports the run on NVIDIA\'s own model as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'what-would-a-machine-draft/');
+  const n = machineRun.with_nvidia_models;
+  type A = { id: string; answer: string | null; sql: string | null; rerun_on_store014: string[][] | null; truth: string[][] | null };
+  const by = (list: A[], id: string) => list.find((a) => a.id === id)!;
+  expect(n.chat_model).toBe('nvidia/nemotron-3.5-lightning-30b-a3b');
+  expect(n.embedding_model).toMatch(/^nomic-embed-text/);
+  expect(machineRun.run.embedding_model).toMatch(/^nomic-embed-text/);
+  expect(text).toContain("I ran it once more with NVIDIA's own model, Nemotron 3.5 Lightning");
+  expect(text).toContain('so that part stayed on the same small model as the other runs.');
+  // The draft: one term per table, none for the gap, three joins to the shipments, none for the till and UPI.
+  expect(n.draft_minutes).toBe(10);
+  expect(n.term_count).toBe(machineRun.run.tables);
+  const tables = new Set(n.terms.flatMap((t: { tables: string[] }) => t.tables.slice(0, 1)));
+  expect(n.terms.every((t: { tables: string[] }) => t.tables.length === 1 || t.tables.includes('warehouse.shipments'))).toBe(true);
+  expect(tables.size + 1).toBe(machineRun.run.tables);
+  expect(text).toContain(`It drafted in ${n.draft_minutes} minutes and named ${n.term_count} terms, one for each table – shelf audit, POS line item, inventory book, UPI settlement.`);
+  for (const name of ['Shelf Audit', 'POS Line Item', 'Inventory Book', 'UPI Settlement']) {
+    expect(n.terms.map((t: { name: string }) => t.name)).toContain(name);
+  }
+  expect(n.terms_naming_the_gap).toEqual([]);
+  expect(text).toContain('Again no term was named for demand or a lost sale.');
+  expect(n.compile.joins_inferred).toEqual(['0', '3']);
+  expect(n.compile.joins.map((j: string) => j.split(' -> ')[1])).toEqual(['shipments.shipment_id', 'shipments.shipment_id', 'shipments.shipment_id']);
+  expect(n.compile.joins.map((j: string) => j.split('.')[0]).sort()).toEqual(['goods_receipts', 'pallets', 'pick_confirmations']);
+  expect(n.compile.joins_considered.some((j: string) => /pos_payments|psp_upi_report/.test(j))).toBe(false);
+  expect(text).toContain("It found three joins, all to the shipments – from the goods receipts, the pallets and the warehouse's picks – and, like the small model, none between the till's payments and UPI's report.");
+  // On the draft alone: the two the records can answer, right; the two they cannot, answered anyway.
+  const sold = by(n.before, 'sold');
+  expect(sold.rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
+  const shelf = by(n.before, 'on-shelf');
+  expect(shelf.rerun_on_store014).toEqual([['8', '6', '75.00']]);
+  expect(shelf.truth).toEqual([['6 of 8']]);
+  expect(text).toContain('On the draft alone, it got the two questions the records can answer: 567 bags sold, and on-shelf availability of 75% – six of the eight shelf audits.');
+  const left = by(n.before, 'left-without');
+  expect(left.sql).toContain('store.shelf_audits');
+  expect(left.sql).toContain("status = 'empty'");
+  expect(left.rerun_on_store014).toEqual([['2']]);
+  const lost = by(n.before, 'lost-sales');
+  expect(lost.sql).toContain('store.write_offs');
+  expect(lost.rerun_on_store014).toEqual([['3']]);
+  const writeOffs = readFileSync(new URL('../../public/data/india-grocery/write-offs-june.csv', import.meta.url), 'utf8')
+    .trim().split(/\r?\n/).slice(1).map((l) => l.split(',')).filter((r) => r[1] === 'ATTA-WW-5KG');
+  expect(writeOffs.reduce((s, r) => s + Number(r[2]), 0)).toBe(3);
+  expect(writeOffs.every((r) => r[3] === 'damaged')).toBe(true);
+  expect(text).toContain('The shoppers who left without became 2 – the shelf audits that found the shelf empty – and the lost sales became 3 bags, the ones written off as damaged.');
+  // After the season's knowledge: the same two right, and the two gaps named as gaps.
+  expect(n.entered.rules_quoted).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  expect(by(n.after, 'sold').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
+  expect(by(n.after, 'on-shelf').rerun_on_store014?.[0].slice(0, 2)).toEqual(['8', '6']);
+  const leftAfter = by(n.after, 'left-without');
+  expect(leftAfter.answer).toContain('No table records shoppers who left without the item');
+  expect(leftAfter.rerun_on_store014).toEqual([['2', `${retailSoldJune()}`]]);
+  const lostAfter = by(n.after, 'lost-sales');
+  expect(lostAfter.answer).toContain("are not stored in any table per the organization's rules");
+  expect(lostAfter.rerun_on_store014).toEqual([['empty_shelf_audits', '2'], ['units_sold', `${retailSoldJune()}`]]);
+  expect(text).toContain('With this season\'s knowledge, it kept both right answers and corrected the other two.');
+  expect(text).toContain('gave what the records do show: two shelf audits that found the shelf empty, and 567 bags sold.');
+  expect(n.coverage_before.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
+  expect(n.coverage_after.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
+  expect(text).toContain('Its check still said every question was covered.');
+  expect((await request.get('data/auto-ontology/store014-nemotron-draft-terms.json')).status()).toBe(200);
+});
+
 // Bags of 5 kg atta the till lines show sold, 1 to 28 June, from the published records.
 function retailSoldJune() {
   const lines = readFileSync(new URL('../../public/data/india-grocery/pos-lines-may-june.csv', import.meta.url), 'utf8').trim().split('\n');

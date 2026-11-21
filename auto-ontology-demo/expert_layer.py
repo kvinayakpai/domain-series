@@ -202,13 +202,14 @@ def apply(call, terms: list[dict], details: dict) -> dict:
         schemas = [s for s in db.get("schemas") or [] if isinstance(s, dict) and s.get("id")]
         if not schemas:  # run 8 got schema names here, not objects: ask for the schemas themselves
             got = call("GET", f"/api/schemas/{db['id']}")
-            listed = got.get("data", got) if isinstance(got, dict) else got
+            # Run 10 showed the shape: {"schemas_count": 3, "schemas": [{"id": ..., "schema_name": ...}]}.
+            listed = (got.get("schemas") or got.get("data") or []) if isinstance(got, dict) else got
             schemas = [s for s in listed or [] if isinstance(s, dict) and s.get("id")]
             record["schemas_seen"] = str(listed)[:300]
         for schema in schemas:
             tables = (call("GET", f"/api/tables/{schema['id']}") or {}).get("data") or []
             for table in tables:
-                key = f"{table.get('schema_name') or schema.get('name')}.{table.get('name')}"
+                key = f"{table.get('schema_name') or schema.get('schema_name') or schema.get('name')}.{table.get('name')}"
                 if key in TABLES:
                     try:
                         call("PATCH", f"/api/nodes/{table['id']}", {"description": TABLES[key], "description_certified": True})
