@@ -1,0 +1,46 @@
+{
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "pack": "hand",
+  "rule_line": false,
+  "prompt_chars": 29257,
+  "seconds": 95,
+  "sql_calls": [
+    {
+      "sql": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'store' ORDER BY table_name;",
+      "result": "daily_sales\nforecasts\nfresh_deliveries\ngoods_receipts\ninventory_book\npos_lines\nproducts\nshelf_audits\nstock_counts\nstore_orders\nwrite_offs"
+    },
+    {
+      "sql": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'products' AND table_schema = 'store' ORDER BY ordinal_position;",
+      "result": "sku|text\ngtin|text\nname|text\npack|text\ncase_units|integer\ncase_kg|numeric\nflow|text\ndc_slot|text\nprice_inr|numeric\ncost_inr|numeric"
+    },
+    {
+      "sql": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'daily_sales' AND table_schema = 'store' ORDER BY ordinal_position;",
+      "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+      "sql": "SELECT sku, gtin, name, pack, case_units, case_kg FROM store.products WHERE pack LIKE '%5 kg%' OR name LIKE '%atta%';",
+      "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|20.3"
+    },
+    {
+      "sql": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'shelf_audits' AND table_schema = 'store' ORDER BY ordinal_position;",
+      "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+      "sql": "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'stock_counts' AND table_schema = 'store' ORDER BY ordinal_position;",
+      "result": "count_ts|timestamp without time zone\nsku|text\nbook_before|integer\ncounted|integer\nadjustment|integer\ntrigger|text"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) AS total_bags_sold\nFROM store.daily_sales\nWHERE sku = 'ATTA-WW-5KG'\n  AND date >= '2026-06-01' AND date < '2026-07-01';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT * FROM store.stock_counts WHERE sku = 'ATTA-WW-5KG';",
+      "result": "2026-06-01 05:45:00|ATTA-WW-5KG|36|36|0|scheduled full count\n2026-06-26 09:00:00|ATTA-WW-5KG|63|0|-63|manager request after complaints\n2026-06-28 22:30:00|ATTA-WW-5KG|63|62|-1|scheduled full count"
+    },
+    {
+      "sql": "SELECT * FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG';",
+      "result": "2026-06-02 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-05 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-09 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-12 11:00:00|ATTA-WW-5KG|empty\n2026-06-16 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-19 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-23 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-26 11:00:00|ATTA-WW-5KG|empty"
+    }
+  ],
+  "final": "1. **SQL:** `SELECT SUM(units_sold) AS total_bags_sold FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01';`  \n   **Answer:** 567 bags  \n   **Basis:** The `daily_sales` table records till-level units sold per SKU per day; summing `units_sold` for `ATTA-WW-5KG` across June 2026 gives the total.\n\n2. **SQL:** none  \n   **Answer:** Records do not capture per\u2011shopper lost\u2011sale counts.  \n   **Basis:** Ontology Rule 3 states \u201clost sale, which no record holds.\u201d The `shelf_audits` table shows the shelf was \u201cempty\u201d on 2 dates in June 2026 (June\u202f12 and 26), but the database does not record how many shoppers left without the item.\n\n3. **SQL:** none  \n   **Answer:** 75% on\u2011shelf availability based on audit records.  \n   **Basis:** The `shelf_audits` table records status at 8 audit dates in June; 6 showed \u201con shelf\u201d and 2 showed \u201cempty,\u201d yielding 6/8 \u2248 75% availability based on audit frequency.\n\n4. **SQL:** none  \n   **Answer:** Lost sales not directly recorded; estimated ~38 using shelf\u2011empty days and average daily sales.  \n   **Basis:** Rule 3 explicitly says lost sales \u201cno record holds \u2013 estimate it and say how.\u201d With 2 shelf\u2011empty days and ~19 bags sold per day on average (567/30), an estimated ~38 lost sales may have occurred, but the database holds no explicit lost\u2011sales figure.\n\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(units_sold) AS total_bags_sold FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01';\",\"answer\":\"567 bags\",\"basis\":\"daily_sales table records till-level units sold per SKU per day; summing units_sold for ATTA-WW-5KG across June 2026 gives the total.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"Records do not capture per\u2011shopper lost\u2011sale counts.\",\"basis\":\"Ontology Rule 3 states \u201clost sale, which no record holds.\u201d shelf_audits shows the shelf was \u201cempty\u201d on 2 dates in June 2026 (June\u202f12 and 26), but the database does not record how many shoppers were affected.\"},{\"id\":3,\"sql\":\"none\",\"answer\":\"75% on\u2011shelf availability based on audit records.\",\"basis\":\"shelf_audits table records status at 8 audit dates in June; 6 showed \u201con shelf\u201d and 2 showed \u201cempty,\u201d yielding 6/8 \u2248 75% availability based on audit frequency.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"Lost sales not directly recorded; estimated ~38 using shelf\u2011empty days and average daily sales.\",\"basis\":\"Rule 3 explicitly says lost sales \u201cno record holds \u2013 estimate it and say how.\u201d With 2 shelf\u2011empty days and ~19 bags sold per day on average (567/30), an estimated ~38 lost sales may have occurred, but the database holds no explicit lost\u2011sales figure.\"}]}"
+}
