@@ -65,7 +65,7 @@ export const ONTOLOGY_CARDS = [
 
   {
     slug: 'does-written-down-knowledge-help',
-    eyebrow: `${SEASON} · Putting it together · 2 of 4`,
+    eyebrow: `${SEASON} · Putting it together · 2 of 5`,
     headline: 'Two answers exist. Two do not.',
     scope: '5 kg atta, June 2026',
     reported: { label: 'In the shop’s records', value: `${AGENTS.truth.sold}`, how: `bags sold, and ${AGENTS.truth.availability_pct}% on the shelf` },
@@ -101,7 +101,7 @@ export const ONTOLOGY_CARDS = [
   {
     slug: 'the-auto-ontology-experiment-in-full',
     only: ['summary'],
-    eyebrow: `${SEASON} · Putting it together · 3 of 4`,
+    eyebrow: `${SEASON} · Putting it together · 3 of 5`,
     chart: {
       type: 'hbars',
       title: `The draft took ${AGENTS.draft.small_model.minutes} minutes on a small model, ${AGENTS.draft.nvidia.minutes} on NVIDIA’s`,
@@ -114,6 +114,25 @@ export const ONTOLOGY_CARDS = [
         { label: `${AGENTS.draft.nvidia.name}, ${AGENTS.draft.nvidia.terms} terms`, v: AGENTS.draft.nvidia.minutes, kind: 'real', text: `${AGENTS.draft.nvidia.minutes} minutes`, bold: true },
       ],
       note: 'Neither draft had a term for demand or a lost sale.',
+    },
+  },
+
+  {
+    slug: 'ontology-tools-in-the-market',
+    only: ['summary'],
+    eyebrow: `${SEASON} · Putting it together · 4 of 5`,
+    chart: {
+      type: 'hbars',
+      title: 'Four of ten ontology tools are open, six are not',
+      sub: 'Ten tools in this blog, by licence',
+      legend: [{ name: 'Open source or open standard', color: C.real }, { name: 'Proprietary or commercial', color: C.grey }],
+      labelW: 700,
+      max: 8,
+      rows: [
+        { label: 'Open source or standard', v: 4, kind: 'real', text: '4 tools', bold: true },
+        { label: 'Proprietary or commercial', v: 6, kind: 'grey', text: '6 tools' },
+      ],
+      note: 'Open: Ontop, Protégé, Auto-Ontology, Ossie. Paid: Stardog and Timbr also speak RDF and OWL.',
     },
   },
 ];
