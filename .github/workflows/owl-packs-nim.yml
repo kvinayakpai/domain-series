@@ -48,14 +48,14 @@ jobs:
       - name: Pick the Qwen model NVIDIA hosts
         run: |
           if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
-          curl -s -H "Authorization: Bearer $NVIDIA_API_KEY" https://integrate.api.nvidia.com/v1/models | python3 -c "import json,sys; print('\n'.join(m['id'] for m in json.load(sys.stdin)['data'] if 'qwen' in m['id'].lower()))" | tee "$RESULTS/qwen-models-offered.txt"
-          for m in qwen/qwen2.5-7b-instruct qwen/qwen2-7b-instruct qwen/qwen2.5-coder-7b-instruct; do
+          curl -s -H "Authorization: Bearer $NVIDIA_API_KEY" https://integrate.api.nvidia.com/v1/models | python3 -c "import json,sys; print('\n'.join(sorted(m['id'] for m in json.load(sys.stdin)['data'])))" > "$RESULTS/all-models-offered.txt"; grep -ci qwen "$RESULTS/all-models-offered.txt" || true
+          for m in $(grep -i qwen "$RESULTS/all-models-offered.txt" | head -5) qwen/qwen3-next-80b-a3b-instruct qwen/qwen2.5-coder-32b-instruct qwen/qwq-32b qwen/qwen3-coder-480b-a35b-instruct qwen/qwen2.5-7b-instruct; do
             code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $NVIDIA_API_KEY" -H "Content-Type: application/json" \
               -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":5}" https://integrate.api.nvidia.com/v1/chat/completions)
             echo "$m -> $code"
             if [ "$code" = 200 ]; then echo "QWEN_NIM_MODEL=$m" >> "$GITHUB_ENV"; break; fi
           done
-          grep -q QWEN_NIM_MODEL "$GITHUB_ENV" || { echo "::error::none of the Qwen 7B models answered"; exit 1; }
+          grep -q QWEN_NIM_MODEL "$GITHUB_ENV" || { echo "::error::no Qwen model answered; see all-models-offered.txt"; exit 1; }
 
       - name: Qwen on NVIDIA's GPUs
         run: python3 owl-packs-test/run.py "$RESULTS" qwen-nim
