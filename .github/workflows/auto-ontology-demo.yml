@@ -3,7 +3,8 @@ name: Auto-Ontology demo (Store 014)
 # Runs NVIDIA's open-source Auto-Ontology on Store 014's June records, on GitHub's own
 # machine. auto-ontology-demo/run-config.env picks the models: NVIDIA's own hosted models
 # (MODELS=nvidia, with a free key from build.nvidia.com in the NVIDIA_API_KEY secret) or a
-# small open model served by Ollama (MODELS=ollama, no keys). The drafted ontology, its
+# small open model served by Ollama (MODELS=ollama, no keys). With MODELS=nvidia,
+# EMBEDDINGS=local keeps the Ollama runs' local embeddings and reranking. The drafted ontology, its
 # answers and the logs are committed back to this branch under auto-ontology-demo/results,
 # with the run's passwords and the key taken out first.
 
@@ -54,8 +55,18 @@ jobs:
               echo "::error::run-config.env: MODELS must be nvidia or ollama, not '$MODELS'"
               exit 1 ;;
           esac
+          EMBEDDINGS=$(grep -E '^EMBEDDINGS=' auto-ontology-demo/run-config.env | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+          if [ "$MODELS" = ollama ]; then EMBEDDINGS=local; fi
+          if [ -z "$EMBEDDINGS" ]; then EMBEDDINGS=nvidia; fi
+          case "$EMBEDDINGS" in
+            nvidia|local) ;;
+            *)
+              echo "::error::run-config.env: EMBEDDINGS must be nvidia or local, not '$EMBEDDINGS'"
+              exit 1 ;;
+          esac
           echo "MODELS=$MODELS" >> "$GITHUB_ENV"
-          echo "Models: $MODELS"
+          echo "EMBEDDINGS=$EMBEDDINGS" >> "$GITHUB_ENV"
+          echo "Models: $MODELS. Embeddings and reranking: $EMBEDDINGS."
 
       - name: Free disk space
         run: |
@@ -76,14 +87,24 @@ jobs:
           echo "::add-mask::$PG"; echo "::add-mask::$ADMIN"; echo "::add-mask::$SECRET"
           if [ "$MODELS" = nvidia ]; then
             # NVIDIA's own model settings, as its .env.example names them at this commit, with the key.
+            # With EMBEDDINGS=local, embeddings and reranking come from the model adapter instead.
             python3 - "$AO/.env.example" > /tmp/models.env <<'PY'
           import os, sys
-          prefixes = ("DEFAULT_MODELS_", "REASONING_", "NON_REASONING_", "EMBED_", "RERANK_")
+          local = os.environ.get("EMBEDDINGS") == "local"
+          prefixes = ("DEFAULT_MODELS_", "REASONING_", "NON_REASONING_") + (() if local else ("EMBED_", "RERANK_"))
           for line in open(sys.argv[1]):
               line = line.strip()
               if line.startswith(prefixes) and "=" in line:
                   key, value = line.split("=", 1)
                   print(f"{key}={os.environ['NVIDIA_API_KEY'] if key.endswith('_API_KEY') else value}")
+          if local:
+              model = os.environ["EMBED_LOCAL_MODEL"]
+              print("EMBED_API_KEY=local")
+              print("EMBED_ENDPOINT=http://model-adapter:8000/v1")
+              print(f"EMBED_MODEL={model}")
+              print("RERANK_API_KEY=local")
+              print("RERANK_ENDPOINT=http://model-adapter:8000/v1/rerank")
+              print(f"RERANK_MODEL={model}")
           print("LLM_INVOKE_TIMEOUT_S=600")
           PY
           else
@@ -137,6 +158,8 @@ jobs:
               echo "NV_CHAT_ENDPOINT=$(setting REASONING_ENDPOINT)"
               echo "NV_CHAT_MODEL=$(setting REASONING_MODEL)"
               echo "NV_NON_REASONING_MODEL=$(setting NON_REASONING_MODEL)"
+            fi
+            if [ "$MODELS" = nvidia ] && [ "$EMBEDDINGS" = nvidia ]; then
               echo "NV_EMBED_ENDPOINT=$(setting EMBED_ENDPOINT)"
               echo "NV_EMBED_MODEL=$(setting EMBED_MODEL)"
               echo "NV_RERANK_ENDPOINT=$(setting RERANK_ENDPOINT)"
@@ -144,11 +167,19 @@ jobs:
             fi
           } >> "$GITHUB_ENV"
 
-      - name: Start Postgres (and, for open models, Ollama and the model adapter)
+      - name: Start Postgres (and, for local models, Ollama and the model adapter)
         run: |
-          if [ "$MODELS" = ollama ]; then $DC up -d postgres ollama model-adapter; else $DC up -d postgres; fi
+          if [ "$EMBEDDINGS" = local ]; then $DC up -d postgres ollama model-adapter; else $DC up -d postgres; fi
           for i in $(seq 60); do docker exec postgres pg_isready -U postgres >/dev/null 2>&1 && break; sleep 2; done
-          if [ "$MODELS" = ollama ]; then docker exec ollama ollama --version; fi
+          if [ "$EMBEDDINGS" = local ]; then docker exec ollama ollama --version; fi
+
+      - name: Pull the local embedding model
+        if: env.MODELS == 'nvidia' && env.EMBEDDINGS == 'local'
+        run: |
+          docker exec ollama ollama pull "$EMBED_LOCAL_MODEL" >/dev/null
+          docker exec ollama ollama list
+          for i in $(seq 30); do curl -sf http://localhost:8000/health >/dev/null && break; sleep 2; done
+          time curl -sf http://localhost:8000/v1/embeddings -H 'Content-Type: application/json' -d "{\"model\":\"$EMBED_LOCAL_MODEL\",\"input\":[\"5 kg atta\"],\"input_type\":\"query\"}" | python3 -c "import json,sys; d=json.load(sys.stdin); v=d['data'][0]['embedding']; print('dimensions', len(v), 'nonzero', sum(1 for x in v if x))"
 
       - name: Check NVIDIA's models answer
         if: env.MODELS == 'nvidia'
@@ -162,13 +193,15 @@ jobs:
           ask chat "$NV_CHAT_ENDPOINT/chat/completions" \
             "{\"model\":\"$NV_CHAT_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Name one Indian grocery staple, in one word.\"}],\"max_tokens\":2048}"
           python3 -c "import json; d=json.load(open('/tmp/chat.json')); m=d['choices'][0]['message']; print(d.get('model'), '|', repr((m.get('content') or '')[:120]), '|', d.get('usage'))"
-          ask embeddings "$NV_EMBED_ENDPOINT/embeddings" \
-            "{\"model\":\"$NV_EMBED_MODEL\",\"input\":[\"5 kg atta\"],\"input_type\":\"query\"}"
-          python3 -c "import json; d=json.load(open('/tmp/embeddings.json')); print('dimensions', len(d['data'][0]['embedding']))"
-          # Reranking only serves one of the answer flows, so a refusal here is reported, not fatal.
-          ask rerank "$NV_RERANK_ENDPOINT" \
-            "{\"model\":\"$NV_RERANK_MODEL\",\"query\":{\"text\":\"5 kg atta\"},\"passages\":[{\"text\":\"wheat flour, 5 kg bag\"},{\"text\":\"UPI payment declined\"}]}" \
-            && head -c 300 /tmp/rerank.json && echo || true
+          if [ "$EMBEDDINGS" = nvidia ]; then
+            ask embeddings "$NV_EMBED_ENDPOINT/embeddings" \
+              "{\"model\":\"$NV_EMBED_MODEL\",\"input\":[\"5 kg atta\"],\"input_type\":\"query\"}"
+            python3 -c "import json; d=json.load(open('/tmp/embeddings.json')); print('dimensions', len(d['data'][0]['embedding']))"
+            # Reranking only serves one of the answer flows, so a refusal here is reported, not fatal.
+            ask rerank "$NV_RERANK_ENDPOINT" \
+              "{\"model\":\"$NV_RERANK_MODEL\",\"query\":{\"text\":\"5 kg atta\"},\"passages\":[{\"text\":\"wheat flour, 5 kg bag\"},{\"text\":\"UPI payment declined\"}]}" \
+              && head -c 300 /tmp/rerank.json && echo || true
+          fi
 
       - name: Pull the open models
         if: env.MODELS == 'ollama'
@@ -246,8 +279,8 @@ jobs:
           # How often NVIDIA's endpoints asked the run to slow down.
           docker logs auto-ontology 2>&1 | grep -cE "429|Too Many Requests|RateLimit" > "$RESULTS/logs/rate-limited-lines.txt" || true
           OLLAMA_VERSION=""
-          if [ "$MODELS" = ollama ]; then
-            docker exec ollama ollama show "$LOCAL_MODEL_NAME" > "$RESULTS/logs/model.txt" 2>&1 || true
+          if [ "$EMBEDDINGS" = local ]; then
+            if [ "$MODELS" = ollama ]; then docker exec ollama ollama show "$LOCAL_MODEL_NAME" > "$RESULTS/logs/model.txt" 2>&1 || true; fi
             docker exec ollama ollama list >> "$RESULTS/logs/model.txt" 2>&1 || true
             OLLAMA_VERSION=$(docker exec ollama ollama --version 2>&1 | tail -1)
           fi
@@ -255,17 +288,19 @@ jobs:
           import json, os
           e = os.environ.get
           nvidia = e("MODELS") == "nvidia"
+          local = e("EMBEDDINGS") == "local"
           print(json.dumps({
               "run_number": e("GITHUB_RUN_NUMBER"),
               "run_id": e("GITHUB_RUN_ID"),
               "nvidia_auto_ontology_commit": e("NVIDIA_COMMIT"),
               "models": e("MODELS"),
+              "embeddings": e("EMBEDDINGS"),
               "chat_model": e("NV_CHAT_MODEL") if nvidia else e("CHAT_BASE"),
               "non_reasoning_model": e("NV_NON_REASONING_MODEL") if nvidia else e("CHAT_BASE"),
               "answer_model": e("NV_CHAT_MODEL") if nvidia else (e("ANSWER_BASE") or e("CHAT_BASE")),
-              "embedding_model": e("NV_EMBED_MODEL") if nvidia else e("EMBED_LOCAL_MODEL"),
-              "rerank_model": e("NV_RERANK_MODEL") if nvidia else "cosine similarity in model_adapter.py",
-              "ollama": None if nvidia else e("OLLAMA_VERSION"),
+              "embedding_model": f"{e('EMBED_LOCAL_MODEL')}, padded to 2048" if local else e("NV_EMBED_MODEL"),
+              "rerank_model": "cosine similarity in model_adapter.py" if local else e("NV_RERANK_MODEL"),
+              "ollama": e("OLLAMA_VERSION") or None,
               "runner": {"cpus": os.cpu_count()},
           }, indent=2))
           PY
