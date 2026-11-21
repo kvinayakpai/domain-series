@@ -15,6 +15,8 @@ const ai = json('retail-ai.json');
 const finale = json('finale.json');
 // One run of NVIDIA's Auto-Ontology on Store 014, summarised by auto-ontology-demo/summarize.py.
 const machineRun = json('auto-ontology-run.json');
+// Six fresh Claude agents and NVIDIA's Nemotron on the same questions, scored against the records.
+const claudeAgents = json('auto-ontology-claude-agents.json');
 const story = retail.story;
 const ep = story.episode;
 
@@ -34,16 +36,18 @@ const POSTS: [string, string][] = [
   ['a-payment-has-three-witnesses', 'Ontology · Payments: 1 of 3'],
   ['one-bill-one-payment', 'Ontology · Payments: 2 of 3'],
   ['the-refund-clock', 'Ontology · Payments: 3 of 3'],
-  ['what-would-a-machine-draft', 'Ontology · Putting it together: 1 of 2'],
-  ['start-a-domain-ontology', 'Ontology · Putting it together: 2 of 2'],
+  ['what-would-a-machine-draft', 'Ontology · Putting it together: 1 of 4'],
+  ['does-written-down-knowledge-help', 'Ontology · Putting it together: 2 of 4'],
+  ['the-auto-ontology-experiment-in-full', 'Ontology · Putting it together: 3 of 4'],
+  ['start-a-domain-ontology', 'Ontology · Putting it together: 4 of 4'],
 ];
 // Posts 6 to 14 take Season 1's problems; post 15 says how to start.
 const PROBLEMS = ['demand-is-not-sales', 'a-correction-needs-a-reason', 'waste-and-the-empty-shelf', 'an-item-is-the-pack',
   'a-delivery-ends-on-the-shelf', 'four-corrections-one-mistake', 'a-payment-has-three-witnesses', 'one-bill-one-payment', 'the-refund-clock'];
 // Post 1 is in Vinayak's voice; the others are narrated by his AI assistant.
-const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'what-would-a-machine-draft', 'start-a-domain-ontology'];
+const NARRATED = ['why-ontology-matters', 'store-014-ontology', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'what-would-a-machine-draft', 'does-written-down-knowledge-help', 'the-auto-ontology-experiment-in-full', 'start-a-domain-ontology'];
 // Posts that end with one rule for an agent. The full ontology post lists all twelve instead.
-const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'what-would-a-machine-draft', 'start-a-domain-ontology'];
+const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-has-a-place', ...PROBLEMS, 'what-would-a-machine-draft', 'does-written-down-knowledge-help', 'the-auto-ontology-experiment-in-full', 'start-a-domain-ontology'];
 // Posts about a Season 1 problem carry its record and reality lines; the opening posts explain instead.
 const WITH_PAIR = ['stock-has-a-place', ...PROBLEMS];
 
@@ -88,12 +92,12 @@ test('home points to Season 2 ahead of Season 3, and the season pages say which 
   await expect(page.locator('.season')).toHaveText(/season three/i);
 });
 
-test('the season page lists all sixteen posts, links the ones that are out, and covers every Season 1 KPI', async ({ page, request }) => {
+test('the season page lists all eighteen posts, links the ones that are out, and covers every Season 1 KPI', async ({ page, request }) => {
   await page.goto('ontology/');
   await expect(page.locator('.opener a[href$="/what-is-an-ontology/"]')).toHaveCount(1);
-  await expect(page.locator('.on-posts li')).toHaveCount(16);
+  await expect(page.locator('.on-posts li')).toHaveCount(18);
   await expect(page.locator('.on-posts li.is-out')).toHaveCount(POSTS.length);
-  await expect(page.locator('.on-posts li.is-coming')).toHaveCount(16 - POSTS.length);
+  await expect(page.locator('.on-posts li.is-coming')).toHaveCount(18 - POSTS.length);
   for (const [slug] of POSTS) await expect(page.locator(`.on-posts a[href$="/${slug}/"]`)).toHaveCount(1);
   await expect(page.locator('.on-part h3')).toHaveText(['Start here', 'A technical detour', 'Retail', 'Logistics', 'Payments', 'Putting it together']);
   // Every one of Season 1's eighteen KPIs is solved by some post of the plan.
@@ -238,7 +242,10 @@ test('previous and next stay within Season 2', async ({ page }) => {
   await expect(page.locator('.pager a[href$="/ontology-in-open-standards/"]')).toHaveCount(1);
   await page.goto('start-a-domain-ontology/');
   await expect(page.locator('.pager a')).toHaveCount(1);
+  await expect(page.locator('.pager a[href$="/the-auto-ontology-experiment-in-full/"]')).toHaveCount(1);
+  await page.goto('does-written-down-knowledge-help/');
   await expect(page.locator('.pager a[href$="/what-would-a-machine-draft/"]')).toHaveCount(1);
+  await expect(page.locator('.pager a[href$="/the-auto-ontology-experiment-in-full/"]')).toHaveCount(1);
   await page.goto('who-saw-what/');
   await expect(page.locator('.pager a[href$="/what-is-an-ontology/"]')).toHaveCount(0);
   await page.goto('every-barrel/');
@@ -361,6 +368,8 @@ const DRAWS_ON: Record<string, string[]> = {
   'one-bill-one-payment': ['charged-twice', 'match-rate', 'payments'],
   'the-refund-clock': ['refund-turnaround', 'payments'],
   'what-would-a-machine-draft': ['store-014-ontology', 'who-saw-what'],
+  'does-written-down-knowledge-help': ['what-would-a-machine-draft'],
+  'the-auto-ontology-experiment-in-full': ['what-would-a-machine-draft'],
   'start-a-domain-ontology': ['who-saw-what'],
 };
 // Not data: rule numbers and pack sizes, the year, the store's name and the date under the title. Post 15
@@ -371,7 +380,7 @@ const OUTSIDE: Record<string, string[]> = {
   'start-a-domain-ontology': ['0.5', '0.8', '17', '30', '2.0'],
 };
 
-test('posts 6 to 16 quote their rules from the ontology and their numbers from Season 1', async ({ page, request }) => {
+test('posts 6 to 18 quote their rules from the ontology and their numbers from Season 1', async ({ page, request }) => {
   const numbers = (s: string) => new Set((s.replace(/[₹+−]/g, '').match(/\d[\d,]*(?:\.\d+)?%?/g) ?? []).map((n) => n.replace(/,+$/, '')));
   const known = await (await request.get('kpis/domain-kpis.yaml')).text() + JSON.stringify(check);
   const later = ON_POSTS.filter((x) => x.n >= 6);
@@ -382,7 +391,7 @@ test('posts 6 to 16 quote their rules from the ontology and their numbers from S
       const rule = ontology.rules.find((r: { n: number }) => r.n === n);
       expect(text, `${p.slug} rule ${n}`).toContain(`Rule ${n} – ${rule.text.replace(/[“”]/g, '"')}`);
     }
-    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '');
+    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (p.slug.startsWith('does-written') || p.slug.startsWith('the-auto-ontology') ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) : '');
     for (const s of DRAWS_ON[p.slug]) sources += ` ${await articleText(page, `${s}/`)}`;
     const found = numbers(sources);
     for (const n of numbers(text)) {
@@ -565,3 +574,37 @@ function retailSoldJune() {
   const [ts, sku, qty] = ['bill_ts', 'sku_scanned', 'qty'].map((c) => head.indexOf(c));
   return lines.slice(1).map((l) => l.split(',')).filter((r) => r[sku] === 'ATTA-WW-5KG' && r[ts] >= '2026-06-01' && r[ts] < '2026-07-01').reduce((n, r) => n + Number(r[qty]), 0);
 }
+
+// Posts 16 and 17: the same four questions put to NVIDIA's model and six fresh Claude agents. The answers
+// the agents gave are pinned to the file, and what they were checked against to the records.
+test('posts 16 and 17 report the Claude agents and Nemotron as recorded', async ({ page }) => {
+  const a = claudeAgents;
+  expect(a.truth.sold).toBe(retailSoldJune());
+  expect(a.truth.on_shelf / a.truth.audits * 100).toBe(a.truth.availability_pct);
+  expect(a.agents.map((x: { model: string; knowledge: boolean }) => `${x.model} ${x.knowledge}`)).toEqual(
+    ['Haiku false', 'Haiku true', 'Sonnet false', 'Sonnet true', 'Opus false', 'Opus true']);
+  for (const x of a.agents) {
+    expect(x.sold, `${x.model} sold`).toBe(a.truth.sold);
+    expect(x.availability_pct, `${x.model} availability`).toBe(a.truth.availability_pct);
+  }
+  // "Honest" means the answer starts with "no record" for both unanswerable questions, or for one of them.
+  for (const x of a.agents) {
+    const said = [x.shoppers, x.lost].filter((t: string) => t.startsWith('no record') && !/\d/.test(t.replace(/two|29 and 30 June/g, '')));
+    expect(said.length, `${x.model} ${x.knowledge}`).toBe(x.honest);
+  }
+  expect(a.nemotron.map((x: { honest: number }) => x.honest)).toEqual([0, 2]);
+
+  const simple = await articleText(page, 'does-written-down-knowledge-help/');
+  expect(simple).toContain('The till lines say 567 bags were sold, and six of the eight shelf audits found the atta on the shelf, which is 75%.');
+  expect(simple).toContain('It said 2 shoppers, which were really the two times the shelf was found empty, and 3 bags lost, which were really the ones written off as damaged.');
+  expect(simple).toContain('Sonnet said there was no record, with or without the knowledge.');
+  expect(simple).toContain('it turned the forecast into 43 to 84 shoppers');
+  expect(simple).toContain('When no record holds the answer, say so, and if you estimate, say how.');
+
+  const full = await articleText(page, 'the-auto-ontology-experiment-in-full/');
+  expect(full).toContain(`The draft by Qwen3 4B took ${a.draft.small_model.minutes} minutes and named ${a.draft.small_model.terms} terms`);
+  expect(full).toContain(`drafted in ${a.draft.nvidia.minutes} minutes and named ${a.draft.nvidia.terms} terms, one for each table.`);
+  expect(full).toContain('answered 503 and 504 for over an hour');
+  expect(full).toContain('The till data ends on 28 June, so 29 and 30 June are not in the database.');
+  expect(a.truth.data_ends).toBe('28 June');
+});
