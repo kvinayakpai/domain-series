@@ -3,7 +3,14 @@
 // close). The full ontology map and its lit-up parts come from ontology-map.mjs instead.
 // The study in "Why does an ontology matter for AI now?" is outside data, quoted from its paper (see
 // the post's sources).
+import { readFileSync } from 'node:fs';
 import { C } from './charts.mjs';
+
+// Six fresh Claude agents and NVIDIA's Nemotron on Store 014 (src/data/auto-ontology-claude-agents.json).
+const AGENTS = JSON.parse(readFileSync(new URL('../../src/data/auto-ontology-claude-agents.json', import.meta.url), 'utf8'));
+const honest = (model, knowledge) => AGENTS.agents.find((a) => a.model === model && a.knowledge === knowledge).honest;
+const NEMO = (knowledge) => AGENTS.nemotron.find((a) => a.knowledge === knowledge).honest;
+const row = (label, n, bold) => ({ label, v: n, kind: n === 2 ? 'real' : 'grey', text: `${n} of 2`, bold });
 
 const SEASON = 'Why Domain Matters · Ontology';
 
@@ -53,6 +60,50 @@ export const ONTOLOGY_CARDS = [
         { label: 'With the note, highest model', v: STUDY.note[1], kind: 'real', text: `${STUDY.note[1]}%`, bold: true },
       ],
       note: 'Claude Opus 4.7, Claude Sonnet 4.6 and GPT-5.4. Rumiantsau and Fokeev, April 2026.',
+    },
+  },
+
+  {
+    slug: 'does-written-down-knowledge-help',
+    only: ['summary'],
+    eyebrow: `${SEASON} · Putting it together · 2 of 4`,
+    chart: {
+      type: 'hbars',
+      title: 'Who said “no record holds it”?',
+      sub: 'Two questions no record can answer: shoppers who left without, and lost sales',
+      legend: [{ name: 'Both answered honestly', color: C.real }, { name: 'Fewer than both', color: C.grey }],
+      labelW: 1000,
+      max: 2,
+      rows: [
+        row('NVIDIA Nemotron, draft only', NEMO(false)),
+        row('NVIDIA Nemotron, with the knowledge', NEMO(true), true),
+        row('Haiku, draft only', honest('Haiku', false)),
+        row('Haiku, with the knowledge', honest('Haiku', true)),
+        row('Sonnet, draft only', honest('Sonnet', false)),
+        row('Sonnet, with the knowledge', honest('Sonnet', true), true),
+        row('Opus, draft only', honest('Opus', false)),
+        row('Opus, with the knowledge', honest('Opus', true)),
+      ],
+      note: 'One run each, 21 November 2026. A labelled estimate is not counted as “no record”.',
+    },
+  },
+
+  {
+    slug: 'the-auto-ontology-experiment-in-full',
+    only: ['summary'],
+    eyebrow: `${SEASON} · Putting it together · 3 of 4`,
+    chart: {
+      type: 'hbars',
+      title: `The draft took ${AGENTS.draft.small_model.minutes} minutes on a small model, ${AGENTS.draft.nvidia.minutes} on NVIDIA’s`,
+      sub: 'Minutes to draft the Store 014 ontology from its 21 tables',
+      legend: [{ name: 'Small open model, free GitHub machine', color: C.grey }, { name: 'NVIDIA’s own model', color: C.real }],
+      labelW: 1000,
+      max: 50,
+      rows: [
+        { label: `${AGENTS.draft.small_model.name}, ${AGENTS.draft.small_model.terms} terms`, v: AGENTS.draft.small_model.minutes, kind: 'grey', text: `${AGENTS.draft.small_model.minutes} minutes` },
+        { label: `${AGENTS.draft.nvidia.name}, ${AGENTS.draft.nvidia.terms} terms`, v: AGENTS.draft.nvidia.minutes, kind: 'real', text: `${AGENTS.draft.nvidia.minutes} minutes`, bold: true },
+      ],
+      note: 'Neither draft had a term for demand or a lost sale.',
     },
   },
 ];
