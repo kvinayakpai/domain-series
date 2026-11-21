@@ -1,0 +1,54 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-sonnet",
+  "rule_line": true,
+  "prompt_chars": 44200,
+  "seconds": 387,
+  "sql_calls": [
+    {
+      "sql": "SELECT SUM(bl.quantity) \nFROM store.bill_lines bl \nJOIN store.products p ON bl.sku_scanned = p.sku \nWHERE p.product_name ILIKE '%atta%' \n  AND p.pack_size = '5 kg' \n  AND bl.bill_timestamp >= '2026-06-01' \n  AND bl.bill_timestamp < '2026-07-01';",
+      "result": "ERROR: relation \"store.bill_lines\" does not exist\nLINE 2: FROM store.bill_lines bl \n             ^\n"
+    },
+    {
+      "sql": "SELECT table_name \nFROM information_schema.tables \nWHERE table_schema = 'store';",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.product_name ILIKE '%atta%' \n  AND p.pack_size = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 4: WHERE p.product_name ILIKE '%atta%' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30';",
+      "result": "ERROR: column ds.record_date does not exist\nLINE 6:   AND ds.record_date >= '2026-06-01' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE sa.shelf_status = 'empty') as empty_count,\n    COUNT(*) FILTER (WHERE sa.shelf_status = 'on shelf') as on_shelf_count\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND sa.audit_timestamp >= '2026-06-01' \n  AND sa.audit_timestamp < '2026-07-01';",
+      "result": "ERROR: column sa.shelf_status does not exist\nLINE 2:     COUNT(*) FILTER (WHERE sa.shelf_status = 'empty') as emp...\n                                   ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE sa.status = 'empty') as empty_count,\n    COUNT(*) FILTER (WHERE sa.status = 'on shelf') as on_shelf_count\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND sa.audit_ts >= '2026-06-01' \n  AND sa.audit_ts < '2026-07-01';",
+      "result": "2|6"
+    },
+    {
+      "sql": "SELECT AVG(units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "20.2500000000000000"
+    }
+  ],
+  "final": "1. How many bags of 5 kg atta were sold in June 2026?\nSQL: `SELECT SUM(ds.units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';`\nAnswer: 567\nBasis: Sum of units_sold from daily_sales for the matching product in June 2026.\n\n2. How many shoppers left without 5 kg atta in June 2026?\nSQL: none\nAnswer: no record\nBasis: The database contains shelf audits and sales, but no record of individual shoppers who left without purchasing.\n\n3. What was on-shelf availability for 5 kg atta in June 2026?\nSQL: `SELECT COUNT(*) FILTER (WHERE sa.status = 'empty') as empty_count, COUNT(*) FILTER (WHERE sa.status = 'on shelf') as on_shelf_count FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';`\nAnswer: 75%\nBasis: Calculated as (on_shelf_count / total_audits) = 6 / (6 + 2) = 0.75.\n\n4. What were the lost sales of 5 kg atta in June 2026?\nSQL: `SELECT AVG(units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';`\nAnswer: 40.5 units\nBasis: Estimated as (number of empty audit instances) * (average daily sales) = 2 * 20.25 = 40.5.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(ds.units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units_sold from daily_sales for the matching product in June 2026.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"no record\",\"basis\":\"The database contains shelf audits and sales, but no record of individual shoppers who left without purchasing.\"},{\"id\":3,\"sql\":\"SELECT COUNT(*) FILTER (WHERE sa.status = 'empty') as empty_count, COUNT(*) FILTER (WHERE sa.status = 'on shelf') as on_shelf_count FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';\",\"answer\":\"75%\",\"basis\":\"Calculated as (on_shelf_count / total_audits) = 6 / (6 + 2) = 0.75.\"},{\"id\":4,\"sql\":\"SELECT AVG(units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';\",\"answer\":\"40.5 units\",\"basis\":\"Estimated as (number of empty audit instances) * (average daily sales) = 2 * 20.25 = 40.5.\"}]}\n```"
+}

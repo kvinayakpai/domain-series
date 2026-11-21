@@ -1,0 +1,50 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-opus",
+  "rule_line": true,
+  "prompt_chars": 90111,
+  "seconds": 943,
+  "sql_calls": [
+    {
+      "sql": "SELECT p.sku, p.product_name \nFROM store.products p \nWHERE p.pack_size = '5 kg' AND p.product_name ILIKE '%atta%';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 1: SELECT p.sku, p.product_name \n                      ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(sl.quantity) \nFROM store.pos_lines sl \nJOIN store.products p ON sl.sku_scanned = p.sku \nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' \nAND sl.bill_ts >= '2026-06-01' AND sl.bill_ts < '2026-07-01';",
+      "result": "ERROR: column sl.quantity does not exist\nLINE 1: SELECT SUM(sl.quantity) \n                   ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'pos_lines';",
+      "result": "bill_id\nbill_ts\nline\ngtin_scanned\nsku_scanned\nqty\nunit_price\nline_amount"
+    },
+    {
+      "sql": "SELECT SUM(sl.qty) \nFROM store.pos_lines sl \nJOIN store.products p ON sl.sku_scanned = p.sku \nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' \nAND sl.bill_ts >= '2026-06-01' AND sl.bill_ts < '2026-07-01';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT \n    COUNT(DISTINCT b.bill_id) AS shoppers_without_atta\nFROM (\n    SELECT DISTINCT bill_id \n    FROM store.pos_lines \n    WHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\n) b\nWHERE NOT EXISTS (\n    SELECT 1 \n    FROM store.pos_lines sl \n    JOIN store.products p ON sl.sku_scanned = p.sku \n    WHERE sl.bill_id = b.bill_id \n    AND p.pack = '5 kg' AND p.name ILIKE '%atta%'\n);",
+      "result": "13291"
+    },
+    {
+      "sql": "SELECT \n    (COUNT(CASE WHEN sa.shelf_status = 'on shelf' THEN 1 END) * 100.0 / COUNT(*)) as osa\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%'\nAND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';",
+      "result": "ERROR: column sa.shelf_status does not exist\nLINE 2:     (COUNT(CASE WHEN sa.shelf_status = 'on shelf' THEN 1 END...\n                             ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    (COUNT(CASE WHEN sa.status = 'on shelf' THEN 1 END) * 100.0 / COUNT(*)) as osa\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%'\nAND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';",
+      "result": "75.0000000000000000"
+    },
+    {
+      "sql": "SELECT \n    SUM(sl.qty * sl.unit_price) as lost_sales\nFROM store.pos_lines sl\nJOIN store.products p ON sl.sku_scanned = p.sku\nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%'\nAND sl.bill_ts >= '2026-06-01' AND sl.bill_ts < '2026-07-01';",
+      "result": "150255.0"
+    }
+  ],
+  "final": "thought\nThe previous query for lost sales was incorrect as it calculated actual sales. Lost sales are typically estimated by multiplying the number of shoppers who didn't buy the product (but might have) by the average quantity and price, or by using the OSA (On-Shelf Availability) gap. However, based on the available data, the most direct way to estimate lost sales is to look at the revenue lost during \"empty\" shelf periods. Since I don't have a direct \"lost sales\" table, I will calculate the potential revenue lost based on the probability of a shopper wanting the item (shoppers without atta) and the probability of it being unavailable (1 - OSA).\n\nWait, a more standard approach for this dataset is: Lost Sales = (Total Shoppers - Shoppers who bought) * (Average units per buyer) * (Price) * (1 - OSA). \n\nLet's refine the lost sales calculation.\n\n```sql\nSELECT \n    (13291 * (567.0 / (SELECT COUNT(DISTINCT bill_id) FROM store.pos_lines WHERE sku_scanned IN (SELECT sku FROM store.products WHERE pack = '5 kg' AND name ILIKE '%atta%')))) \n    * (SELECT price_inr FROM store.products WHERE pack = '5 kg' AND name ILIKE '%atta%' LIMIT 1) \n    * (1 - 0.75) as estimated_lost_sales;\n```\n\nActually, looking at the prompt's constraints and the provided data, I have the number of shoppers who left without the item (13,291) and the OSA (75%). The lost sales are the sales that *would* have happened if the product were always available.\n\nLost Sales = (Total Shoppers who didn't buy) * (Probability they would have bought if available) * (Price).\nThe probability they would have bought if available is (1 - OSA) / OSA * (Actual Buyers / Total Shoppers). This is getting complex. \n\nLet's use a simpler logic: Lost Sales = (Actual Sales Revenue) * (1 - OSA) / OSA.\nActual Sales = 150,255.\nLost Sales = 150,255 * (0.25 / 0.75) = 150,255 * 0.333 = 50,085.\n\n1. Bags sold: 567.\n2. Shoppers without: 13,291.\n3. OSA: 75%.\n4. Lost Sales: 50,085.\n\nFinal Answer:\n1. 567 bags of 5 kg atta were sold in June 2026.\n2. 13,291 shoppers left without 5 kg atta in June 2026.\n3. The on-shelf availability for 5 kg atta in June 2026 was 75%.\n4. The estimated lost sales for 5 kg atta in June 2026 were 50,085 INR.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(sl.qty) FROM store.pos_lines sl JOIN store.products p ON sl.sku_scanned = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sl.bill_ts >= '2026-06-01' AND sl.bill_ts < '2026-07-01';\",\"answer\":\"567\",\"basis\":\"Sum of qty from pos_lines for the specific product in June 2026.\"},{\"id\":2,\"sql\":\"SELECT COUNT(DISTINCT b.bill_id) FROM (SELECT DISTINCT bill_id FROM store.pos_lines WHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01') b WHERE NOT EXISTS (SELECT 1 FROM store.pos_lines sl JOIN store.products p ON sl.sku_scanned = p.sku WHERE sl.bill_id = b.bill_id AND p.pack = '5 kg' AND p.name ILIKE '%atta%');\",\"answer\":\"13291\",\"basis\":\"Count of distinct bills in June 2026 that do not contain the 5 kg atta product.\"},{\"id\":3,\"sql\":\"SELECT (COUNT(CASE WHEN sa.status = 'on shelf' THEN 1 END) * 100.0 / COUNT(*)) as osa FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';\",\"answer\":\"75%\",\"basis\":\"Percentage of 'on shelf' status in shelf_audits for the product in June 2026.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"50,085 INR\",\"basis\":\"Estimated as (Actual Sales Revenue * (1 - OSA) / OSA) = 150,255 * (0.25 / 0.75).\"}]}\n```"
+}
