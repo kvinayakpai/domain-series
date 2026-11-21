@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import time
 from pathlib import Path
@@ -26,8 +27,8 @@ MODELS = {
     "qwen": {"base": "http://localhost:11434/v1", "key": "ollama", "name": "qwen-16k"},
     # Qwen on NVIDIA's own GPUs through the free hosted API. These models take no tool calls, so the model
     # writes a ```sql block, we run it and send the rows back (protocol "text").
-    "qwen-nim": {"base": "https://integrate.api.nvidia.com/v1", "key": os.environ.get("NVIDIA_API_KEY", ""),
-                 "name": os.environ.get("QWEN_NIM_MODEL", "qwen/qwen2.5-7b-instruct"), "protocol": "text"},
+    "nim": {"base": "https://integrate.api.nvidia.com/v1", "key": os.environ.get("NVIDIA_API_KEY", ""),
+                 "name": os.environ.get("NIM_MODEL", "google/gemma-3-12b-it"), "protocol": "text"},
 }
 TEXT_INTRO = (
     "You are a data analyst agent for a grocery store (Store 014, India). Answer the questions below using the "
@@ -138,7 +139,8 @@ def main() -> None:
     for run in json.loads((HERE / "matrix.json").read_text()):
         if only and run["model"] not in only:
             continue
-        name = f"{run['model']}-{run['pack']}{'-rule' if run['rule'] else ''}"
+        tag = re.sub(r"[^a-z0-9.]+", "_", MODELS[run["model"]]["name"].lower()) if run["model"] == "nim" else run["model"]
+        name = f"{tag}-{run['pack']}{'-rule' if run['rule'] else ''}"
         print("running", name, flush=True)
         try:
             rec = run_one(run["model"], run["pack"], run["rule"])

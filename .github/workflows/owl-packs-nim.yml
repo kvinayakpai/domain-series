@@ -1,6 +1,6 @@
-name: OWL and SHACL packs test, Qwen on NVIDIA's GPUs (Store 014)
+name: OWL and SHACL packs test, every chat model on NVIDIA's free API (Store 014)
 
-# The same four questions and packs as owl-packs-test, with a Qwen model that NVIDIA hosts on its own GPUs
+# The same four questions and packs as owl-packs-test, with each chat model NVIDIA hosts
 # through the free API (build.nvidia.com), so no GPU is needed here. Needs the NVIDIA_API_KEY secret.
 # Raw answers are committed to owl-packs-test/results/nim-run-N with the key taken out first.
 
@@ -19,9 +19,15 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        model: ["nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "nvidia/nemotron-3.5-bolt-e4b", "nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3.5-super-vl-120b-a12b", "google/gemma-3-4b-it", "google/gemma-3-12b-it", "google/gemma-4-31b-it", "mistralai/mistral-large-4-1t-a52b", "moonshotai/kimi-k3.1-pro", "minimaxai/minimax-m3.1-flash", "z-ai/glm-5.3-flash", "stepfun-ai/step-5-preview", "poolside/laguna-xs-2.1", "meta/muse-glimmer-30b"]
     env:
       RESULTS: owl-packs-test/results/nim-run-${{ github.run_number }}
+      NIM_MODEL: ${{ matrix.model }}
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres
@@ -45,20 +51,10 @@ jobs:
           psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
           pip install --quiet requests psycopg2-binary
 
-      - name: Pick the Qwen model NVIDIA hosts
+      - name: Run the model
         run: |
           if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
-          curl -s -H "Authorization: Bearer $NVIDIA_API_KEY" https://integrate.api.nvidia.com/v1/models | python3 -c "import json,sys; print('\n'.join(sorted(m['id'] for m in json.load(sys.stdin)['data'])))" > "$RESULTS/all-models-offered.txt"; grep -ci qwen "$RESULTS/all-models-offered.txt" || true
-          for m in $(grep -i qwen "$RESULTS/all-models-offered.txt" | head -5) qwen/qwen3-next-80b-a3b-instruct qwen/qwen2.5-coder-32b-instruct qwen/qwq-32b qwen/qwen3-coder-480b-a35b-instruct qwen/qwen2.5-7b-instruct; do
-            code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $NVIDIA_API_KEY" -H "Content-Type: application/json" \
-              -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":5}" https://integrate.api.nvidia.com/v1/chat/completions)
-            echo "$m -> $code"
-            if [ "$code" = 200 ]; then echo "QWEN_NIM_MODEL=$m" >> "$GITHUB_ENV"; break; fi
-          done
-          grep -q QWEN_NIM_MODEL "$GITHUB_ENV" || { echo "::error::no Qwen model answered; see all-models-offered.txt"; exit 1; }
-
-      - name: Qwen on NVIDIA's GPUs
-        run: python3 owl-packs-test/run.py "$RESULTS" qwen-nim
+          python3 owl-packs-test/run.py "$RESULTS" nim
 
       - name: Take the key out and commit the results
         if: always()
@@ -66,6 +62,5 @@ jobs:
           python3 auto-ontology-demo/scrub.py "$RESULTS"
           git config user.name "github-actions"; git config user.email "actions@github.com"
           git add "$RESULTS"
-          git commit -q -m "OWL and SHACL packs test, Qwen on NVIDIA (run ${{ github.run_number }})" || exit 0
-          git pull -q --rebase origin owl-packs-nim || true
-          git push -q origin HEAD:owl-packs-nim
+          git commit -q -m "OWL and SHACL packs test, $NIM_MODEL (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3 4 5 6; do git pull -q --rebase origin owl-packs-nim && git push -q origin HEAD:owl-packs-nim && break; sleep $((RANDOM % 10 + 3)); done
