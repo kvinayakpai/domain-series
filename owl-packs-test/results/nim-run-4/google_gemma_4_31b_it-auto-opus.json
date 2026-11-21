@@ -1,0 +1,54 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-opus",
+  "rule_line": false,
+  "prompt_chars": 90041,
+  "seconds": 741,
+  "sql_calls": [
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.product_name = 'Atta' \n  AND p.pack_size = '5 kg' \n  AND ds.business_date >= '2026-06-01' \n  AND ds.business_date <= '2026-06-30';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 4: WHERE p.product_name = 'Atta' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.name = 'Atta' \n  AND p.pack = '5 kg' \n  AND ds.business_date >= '2026-06-01' \n  AND ds.business_date <= '2026-06-30';",
+      "result": "ERROR: column ds.business_date does not exist\nLINE 6:   AND ds.business_date >= '2026-06-01' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.name = 'Atta' \n  AND p.pack = '5 kg' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "(no rows)"
+    },
+    {
+      "sql": "SELECT name, pack FROM store.products;",
+      "result": "Whole wheat atta 5 kg|5 kg\nWhole wheat atta 1 kg|1 kg\nWhole wheat atta 10 kg|10 kg\nSona masoori rice 5 kg|5 kg\nToor dal 1 kg|1 kg\nSunflower oil 1 L pouch|1 L\nSugar 1 kg|1 kg\nToned milk 500 ml pouch|500 ml\nFull cream milk 500 ml pouch|500 ml\nCurd 500 g pouch|500 g\nWhite bread 400 g|400 g"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nJOIN store.products p ON ds.sku = p.sku \nWHERE p.name = 'Whole wheat atta 5 kg' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT \n    COUNT(DISTINCT CASE WHEN sa.shelf_status = 'empty' THEN sa.audit_timestamp END) as empty_days,\n    COUNT(DISTINCT sa.audit_timestamp) as total_audits\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.name = 'Whole wheat atta 5 kg'\n  AND sa.audit_timestamp >= '2026-06-01' \n  AND sa.audit_timestamp <= '2026-06-30 23:59:59';",
+      "result": "ERROR: column sa.shelf_status does not exist\nLINE 2:     COUNT(DISTINCT CASE WHEN sa.shelf_status = 'empty' THEN ...\n                                     ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    COUNT(DISTINCT CASE WHEN sa.status = 'empty' THEN CAST(sa.audit_ts AS DATE) END) as empty_days,\n    COUNT(DISTINCT CAST(sa.audit_ts AS DATE)) as total_days\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.name = 'Whole wheat atta 5 kg'\n  AND sa.audit_ts >= '2026-06-01' \n  AND sa.audit_ts <= '2026-06-30 23:59:59';",
+      "result": "2|8"
+    },
+    {
+      "sql": "SELECT \n    SUM(ds.units_sold * (1 - (CAST(empty_days AS FLOAT) / NULLIF(total_days, 0)))) as estimated_lost_sales\nFROM (\n    SELECT \n        SUM(units_sold) as units_sold \n    FROM store.daily_sales ds \n    JOIN store.products p ON ds.sku = p.sku \n    WHERE p.name = 'Whole wheat atta 5 kg' \n      AND ds.date >= '2026-06-01' \n      AND ds.date <= '2026-06-30'\n) ds,\n(\n    SELECT \n        COUNT(DISTINCT CASE WHEN sa.status = 'empty' THEN CAST(sa.audit_ts AS DATE) END) as empty_days,\n        COUNT(DISTINCT CAST(sa.audit_ts AS DATE)) as total_days\n    FROM store.shelf_audits sa\n    JOIN store.products p ON sa.sku = p.sku\n    WHERE p.name = 'Whole wheat atta 5 kg'\n      AND sa.audit_ts >= '2026-06-01' \n      AND sa.audit_ts <= '2026-06-30 23:59:59'\n) sa;",
+      "result": "425.25"
+    }
+  ],
+  "final": "To calculate the lost sales, we first determine the average daily sales for the product during the period and multiply it by the number of days the shelf was recorded as empty.\n\n1. **Bags sold**: 567 bags were sold in June 2026.\n2. **Shoppers who left**: The data does not record individual shoppers or \"walk-outs\"; it only records sales and shelf audits. Therefore, this cannot be answered.\n3. **On-shelf availability**: Based on 8 audit days in June, the shelf was empty for 2 days. Availability = (8 - 2) / 8 = 75%.\n4. **Lost sales**: \n   - Total sold: 567 units over 30 days $\\approx$ 18.9 units/day.\n   - Days empty: 2 days.\n   - Estimated lost sales: $18.9 \\times 2 \\approx 37.8$ units. (Note: The previous SQL attempt used a different logic; the standard retail calculation is `Avg Daily Sales * Days Out of Stock`).\n\nLet's refine the lost sales calculation:\nAverage daily sales = $567 / 30 = 18.9$.\nLost sales = $18.9 \\times 2 = 37.8$.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(ds.units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.name = 'Whole wheat atta 5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units_sold from daily_sales for the specific product in June 2026.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"The records cannot answer this question.\",\"basis\":\"The database tracks sales and audits, not individual customer behavior or lost visits.\"},{\"id\":3,\"sql\":\"SELECT (COUNT(DISTINCT CAST(sa.audit_ts AS DATE)) - COUNT(DISTINCT CASE WHEN sa.status = 'empty' THEN CAST(sa.audit_ts AS DATE) END)) * 100.0 / COUNT(DISTINCT CAST(sa.audit_ts AS DATE)) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name = 'Whole wheat atta 5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts <= '2026-06-30 23:59:59';\",\"answer\":\"75%\",\"basis\":\"Calculated as (Total audit days - Empty days) / Total audit days (6/8).\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"37.8\",\"basis\":\"Estimated as (Total June Sales / 30 days) * 2 empty days.\"}]}\n```"
+}

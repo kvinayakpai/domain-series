@@ -1,0 +1,70 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "hand",
+  "rule_line": false,
+  "prompt_chars": 29257,
+  "seconds": 1214,
+  "sql_calls": [
+    {
+      "sql": "SELECT \n    i.gtin, \n    p.name \nFROM store.product p \nJOIN store.item i ON p.id = i.product_id \nWHERE p.name ILIKE '%atta%' AND i.description ILIKE '%5 kg%';",
+      "result": "ERROR: relation \"store.product\" does not exist\nLINE 4: FROM store.product p \n             ^\n"
+    },
+    {
+      "sql": "SELECT table_name \nFROM information_schema.tables \nWHERE table_schema IN ('store', 'warehouse', 'payments');",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs\npick_confirmations\nstock_adjustments\nshipments\nshipping_notice_lines\npallets\npos_payments\npsp_upi_report\nupi_settlements\nupi_refunds\ncustomer_complaints"
+    },
+    {
+      "sql": "SELECT \n    p.id, \n    p.name, \n    i.gtin \nFROM store.products p \nJOIN store.inventory_book i ON p.id = i.product_id \nWHERE p.name ILIKE '%atta%' AND i.description ILIKE '%5 kg%'\nLIMIT 10;",
+      "result": "ERROR: column p.id does not exist\nLINE 6: JOIN store.inventory_book i ON p.id = i.product_id \n                                       ^\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku|text\ngtin|text\nname|text\npack|text\ncase_units|integer\ncase_kg|numeric\nflow|text\ndc_slot|text\nprice_inr|numeric\ncost_inr|numeric"
+    },
+    {
+      "sql": "SELECT \n    gtin, \n    name \nFROM store.products \nWHERE name ILIKE '%atta%' AND pack ILIKE '%5 kg%';",
+      "result": "2900001001014|Whole wheat atta 5 kg"
+    },
+    {
+      "sql": "SELECT \n    SUM(quantity) as total_sold\nFROM store.daily_sales\nWHERE gtin = '2900001001014' \n  AND date >= '2026-06-01' \n  AND date <= '2026-06-30';",
+      "result": "ERROR: column \"quantity\" does not exist\nLINE 2:     SUM(quantity) as total_sold\n                ^\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+      "sql": "SELECT \n    SUM(units_sold) as total_sold\nFROM store.daily_sales ds\nJOIN store.products p ON ds.sku = p.sku\nWHERE p.gtin = '2900001001014' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'pos_lines';",
+      "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'stock_adjustments';",
+      "result": "(no rows)"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'write_offs';",
+      "result": "date|date\nsku|text\nunits|integer\nreason|text"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'stock_counts';",
+      "result": "count_ts|timestamp without time zone\nsku|text\nbook_before|integer\ncounted|integer\nadjustment|integer\ntrigger|text"
+    },
+    {
+      "sql": "SELECT \n    SUM(units_lost) as total_lost_sales\nFROM store.daily_sales\nJOIN store.products p ON daily_sales.sku = p.sku\nWHERE p.gtin = '2900001001014' \n  AND date >= '2026-06-01' \n  AND date <= '2026-06-30';",
+      "result": "ERROR: column \"units_lost\" does not exist\nLINE 2:     SUM(units_lost) as total_lost_sales\n                ^\nHINT:  Perhaps you meant to reference the column \"daily_sales.units_sold\".\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    }
+  ],
+  "final": "Since the `daily_sales` table only contains `units_sold` and no column for lost sales or demand, and there is no dedicated `lost_sales` table in the schema, the records provided cannot answer questions 2, 3, and 4. According to Rule 3 in the ontology, lost sales are estimated and not directly recorded in a standard record.\n\n1. How many bags of 5 kg atta were sold in June 2026?\nSQL: `SELECT SUM(units_sold) as total_sold FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.gtin = '2900001001014' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';`\nAnswer: 567\nBasis: Based on the sum of `units_sold` in `store.daily_sales` for the specific GTIN.\n\n2. How many shoppers left without 5 kg atta in June 2026?\nSQL: none\nAnswer: The records cannot answer this question.\nBasis: No lost sales or demand data is available in the provided tables.\n\n3. What was on-shelf availability for 5 kg atta in June 2026?\nSQL: none\nAnswer: The records cannot answer this question.\nBasis: OSA requires a comparison of demand vs availability or a time-weighted average of stock, which cannot be calculated from the available tables.\n\n4. What were the lost sales of 5 kg atta in June 2026?\nSQL: none\nAnswer: The records cannot answer this question.\nBasis: No lost sales data is available in the provided tables.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(units_sold) as total_sold FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.gtin = '2900001001014' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units_sold in store.daily_sales for GTIN 2900001001014 in June 2026.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"The records cannot answer this question.\",\"basis\":\"No lost sales or demand data available.\"},{\"id\":3,\"sql\":\"none\",\"answer\":\"The records cannot answer this question.\",\"basis\":\"Insufficient data to calculate on-shelf availability.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"The records cannot answer this question.\",\"basis\":\"No lost sales data available.\"}]}\n```"
+}
