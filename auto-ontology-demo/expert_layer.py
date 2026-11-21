@@ -199,11 +199,13 @@ def apply(call, terms: list[dict], details: dict) -> dict:
     try:
         dbs = (call("GET", "/api/datasources/dbs") or {}).get("data") or []
         db = next(d for d in dbs if d.get("name") == "store014")
-        schemas = db.get("schemas") or []
-        if not schemas or not isinstance(schemas[0], dict):
+        schemas = [s for s in db.get("schemas") or [] if isinstance(s, dict) and s.get("id")]
+        if not schemas:  # run 8 got schema names here, not objects: ask for the schemas themselves
             got = call("GET", f"/api/schemas/{db['id']}")
-            schemas = got.get("data", got) if isinstance(got, dict) else got
-        for schema in schemas or []:
+            listed = got.get("data", got) if isinstance(got, dict) else got
+            schemas = [s for s in listed or [] if isinstance(s, dict) and s.get("id")]
+            record["schemas_seen"] = str(listed)[:300]
+        for schema in schemas:
             tables = (call("GET", f"/api/tables/{schema['id']}") or {}).get("data") or []
             for table in tables:
                 key = f"{table.get('schema_name') or schema.get('name')}.{table.get('name')}"
