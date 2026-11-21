@@ -1,0 +1,75 @@
+name: OWL and SHACL packs test (Store 014)
+
+# Gives NVIDIA's Nemotron and a small Qwen model an OWL and SHACL pack (hand-written, or written
+# automatically by a Claude agent from the tables), a read-only SQL tool on Store 014 and four
+# questions about 5 kg atta. The raw answers are committed to owl-packs-test/results/run-N with the
+# NVIDIA key taken out first. Needs the NVIDIA_API_KEY repository secret.
+
+on:
+  push:
+    branches: [owl-packs-test]
+    paths:
+      - "owl-packs-test/**"
+      - "!owl-packs-test/results/**"
+      - ".github/workflows/owl-packs-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    env:
+      RESULTS: owl-packs-test/results/run-${{ github.run_number }}
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      QWEN_BASE: qwen2.5:7b-instruct-q4_K_M
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          psql -h localhost -U postgres -d store014 -Atc "select count(*) from store.pos_lines"
+          pip install --quiet requests psycopg2-binary
+
+      - name: Nemotron
+        run: |
+          if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
+          python3 owl-packs-test/run.py "$RESULTS" nemotron
+
+      - name: Start Ollama and the Qwen model
+        run: |
+          docker run -d --name ollama -p 11434:11434 ollama/ollama:latest
+          for i in $(seq 1 30); do curl -sf http://localhost:11434/api/tags >/dev/null && break; sleep 2; done
+          docker exec ollama ollama pull "$QWEN_BASE" >/dev/null
+          docker exec ollama sh -c "printf 'FROM %s\nPARAMETER num_ctx 16384\nPARAMETER temperature 0.2\n' '$QWEN_BASE' > /tmp/Modelfile && ollama create qwen-16k -f /tmp/Modelfile"
+          docker exec ollama ollama list
+
+      - name: Qwen
+        run: python3 owl-packs-test/run.py "$RESULTS" qwen
+
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "OWL and SHACL packs test results (run ${{ github.run_number }})" || exit 0
+          git pull -q --rebase origin owl-packs-test || true
+          git push -q origin HEAD:owl-packs-test
