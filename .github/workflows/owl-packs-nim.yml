@@ -1,0 +1,71 @@
+name: OWL and SHACL packs test, Qwen on NVIDIA's GPUs (Store 014)
+
+# The same four questions and packs as owl-packs-test, with a Qwen model that NVIDIA hosts on its own GPUs
+# through the free API (build.nvidia.com), so no GPU is needed here. Needs the NVIDIA_API_KEY secret.
+# Raw answers are committed to owl-packs-test/results/nim-run-N with the key taken out first.
+
+on:
+  push:
+    branches: [owl-packs-nim]
+    paths:
+      - "owl-packs-test/**"
+      - "!owl-packs-test/results/**"
+      - ".github/workflows/owl-packs-nim.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      RESULTS: owl-packs-test/results/nim-run-${{ github.run_number }}
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          pip install --quiet requests psycopg2-binary
+
+      - name: Pick the Qwen model NVIDIA hosts
+        run: |
+          if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
+          curl -s -H "Authorization: Bearer $NVIDIA_API_KEY" https://integrate.api.nvidia.com/v1/models | python3 -c "import json,sys; print('\n'.join(m['id'] for m in json.load(sys.stdin)['data'] if 'qwen' in m['id'].lower()))" | tee "$RESULTS/qwen-models-offered.txt"
+          for m in qwen/qwen2.5-7b-instruct qwen/qwen2-7b-instruct qwen/qwen2.5-coder-7b-instruct; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $NVIDIA_API_KEY" -H "Content-Type: application/json" \
+              -d "{\"model\":\"$m\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":5}" https://integrate.api.nvidia.com/v1/chat/completions)
+            echo "$m -> $code"
+            if [ "$code" = 200 ]; then echo "QWEN_NIM_MODEL=$m" >> "$GITHUB_ENV"; break; fi
+          done
+          grep -q QWEN_NIM_MODEL "$GITHUB_ENV" || { echo "::error::none of the Qwen 7B models answered"; exit 1; }
+
+      - name: Qwen on NVIDIA's GPUs
+        run: python3 owl-packs-test/run.py "$RESULTS" qwen-nim
+
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "OWL and SHACL packs test, Qwen on NVIDIA (run ${{ github.run_number }})" || exit 0
+          git pull -q --rebase origin owl-packs-nim || true
+          git push -q origin HEAD:owl-packs-nim

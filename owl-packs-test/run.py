@@ -24,7 +24,19 @@ MODELS = {
     "nemotron": {"base": "https://integrate.api.nvidia.com/v1", "key": os.environ.get("NVIDIA_API_KEY", ""),
                  "name": "nvidia/nemotron-3.5-lightning-30b-a3b"},
     "qwen": {"base": "http://localhost:11434/v1", "key": "ollama", "name": "qwen-16k"},
+    # Qwen on NVIDIA's own GPUs through the free hosted API. These models take no tool calls, so the model
+    # writes a ```sql block, we run it and send the rows back (protocol "text").
+    "qwen-nim": {"base": "https://integrate.api.nvidia.com/v1", "key": os.environ.get("NVIDIA_API_KEY", ""),
+                 "name": os.environ.get("QWEN_NIM_MODEL", "qwen/qwen2.5-7b-instruct"), "protocol": "text"},
 }
+TEXT_INTRO = (
+    "You are a data analyst agent for a grocery store (Store 014, India). Answer the questions below using the "
+    "Postgres database, with read-only SQL, the way a text-to-SQL agent would. To run a query, reply with ONLY one "
+    "```sql code block holding a single query; you will get the rows back in the next message. You can run several queries "
+    "one after another (tables live in the schemas store, warehouse and payments; explore the schema yourself as you need). "
+    "When you are done, reply with the final answers and the JSON block, and no ```sql block.\n\n"
+    "Use only SQL queries and the material in this message.\n\n"
+)
 INTRO = (
     "You are a data analyst agent for a grocery store (Store 014, India). Answer the questions below using the "
     "Postgres database, with read-only SQL, the way a text-to-SQL agent would. Call the run_sql tool to run a query "
@@ -65,12 +77,13 @@ def sql(query: str) -> str:
 
 
 def chat(cfg: dict, messages: list) -> dict:
+    text = cfg.get("protocol") == "text"
     last = ""
     for attempt in range(6):
         try:
             r = requests.post(f"{cfg['base']}/chat/completions", timeout=900,
                               headers={"Authorization": f"Bearer {cfg['key']}"},
-                              json={"model": cfg["name"], "messages": messages, "tools": TOOL, "temperature": 0.2, "max_tokens": 4096})
+                              json={"model": cfg["name"], "messages": messages, **({} if text else {"tools": TOOL}), "temperature": 0.2, "max_tokens": 4096})
             if r.status_code < 300:
                 return r.json()["choices"][0]["message"]
             last = f"{r.status_code} {r.text[:200]}"
@@ -82,11 +95,25 @@ def chat(cfg: dict, messages: list) -> dict:
 
 def run_one(model: str, pack: str, rule: bool) -> dict:
     cfg = MODELS[model]
-    prompt = INTRO + "Here is an ontology of the business and the database, as OWL and SHACL files. Use it as you see fit:\n\n" + pack_text(pack) + (RULE if rule else "") + QUESTIONS
+    text = cfg.get("protocol") == "text"
+    prompt = (TEXT_INTRO if text else INTRO) + "Here is an ontology of the business and the database, as OWL and SHACL files. Use it as you see fit:\n\n" + pack_text(pack) + (RULE if rule else "") + QUESTIONS
     messages = [{"role": "user", "content": prompt}]
     calls, final, started = [], "", time.time()
     for _ in range(16):
         msg = chat(cfg, messages)
+        if text:
+            import re
+            content = msg.get("content") or ""
+            block = re.search(r"```sql\s*(.*?)```", content, re.S)
+            messages.append({"role": "assistant", "content": content})
+            if block and '"answers"' not in content:
+                q = block.group(1).strip()
+                res = sql(q)
+                calls.append({"sql": q, "result": res[:600]})
+                messages.append({"role": "user", "content": "Rows:\n" + res})
+                continue
+            final = content
+            break
         messages.append({k: v for k, v in msg.items() if k in ("role", "content", "tool_calls") and v is not None})
         if not msg.get("tool_calls"):
             final = msg.get("content") or ""
@@ -99,6 +126,8 @@ def run_one(model: str, pack: str, rule: bool) -> dict:
             res = sql(q)
             calls.append({"sql": q, "result": res[:600]})
             messages.append({"role": "tool", "tool_call_id": tc["id"], "content": res})
+    if not final and text:
+        final = "(no final answer in 16 turns) " + next((m["content"] for m in reversed(messages) if m["role"] == "assistant"), "")
     return {"model": cfg["name"], "pack": pack, "rule_line": rule, "prompt_chars": len(prompt),
             "seconds": round(time.time() - started), "sql_calls": calls, "final": final}
 
