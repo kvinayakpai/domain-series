@@ -4,13 +4,19 @@ A real run of NVIDIA's open-source [Auto-Ontology](https://github.com/NVIDIA/aut
 on Store 014's June records, for Season 2's post "What would a machine draft for Store 014?".
 
 The workflow `.github/workflows/auto-ontology-demo.yml` does it all on GitHub's own
-machine, with no keys or secrets:
+machine. `run-config.env` picks the models, and changing it starts a run:
+
+- `MODELS=nvidia`: NVIDIA's own hosted models, exactly as Auto-Ontology's
+  `.env.example` names them at the fixed commit. Needs a free key from
+  build.nvidia.com in the repository secret `NVIDIA_API_KEY`.
+- `MODELS=ollama`: small open models on GitHub's machine, with no keys or secrets.
 
 1. Loads Season 1's downloadable records (`public/data/india-grocery`, without the
    answer keys) into Postgres as 21 tables in three schemas: store, warehouse and
    payments (`seed_store014.py`).
 2. Fetches Auto-Ontology at a fixed commit and starts it with Docker Compose.
-3. Serves small open models with Ollama in place of NVIDIA's hosted models.
+3. With `MODELS=nvidia`, checks that NVIDIA's chat, embedding and reranking models
+   answer. With `MODELS=ollama`, serves small open models with Ollama instead:
    `compose.demo.yml` adds Ollama, and `model_adapter.py` passes chat on to it (capping
    each answer's length), serves embeddings and reranking in the shape Auto-Ontology
    expects, and can switch the chat model once the draft is done.
@@ -20,13 +26,15 @@ machine, with no keys or secrets:
    experts (`expert_layer.py`: the table guide, the joins, a glossary and the twelve rules
    as organization instructions, plus calculations and certified queries) and asks again.
 5. Commits everything, with the logs, to `results/run-N` on the `auto-ontology-demo` branch.
+   `scrub.py` takes the run's throwaway passwords and the NVIDIA key out of every file
+   first, at each progress push and at the end.
 
 `summarize.py` turns one run's results into `src/data/auto-ontology-run.json` and the two
 downloads in `public/data/auto-ontology/`, and checks each answer against a Postgres copy
 of the same records.
 
-Small models on a CPU are much weaker than NVIDIA's default models, so read the draft and
-the answers as a floor, not as what the tool does with its own models.
+Small models on a CPU are much weaker than NVIDIA's default models, so read the Ollama
+runs' drafts and answers as a floor, not as what the tool does with its own models.
 
 Auto-Ontology is NVIDIA's, under the Apache License 2.0. It is fetched when the workflow
 runs, not copied into this repository.

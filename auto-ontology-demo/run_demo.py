@@ -24,7 +24,10 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-BASE = os.environ.get("APP_URL", "http://localhost:3000").rstrip("/")
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import scrub  # noqa: E402  (takes passwords and the NVIDIA key out of what gets pushed)
+
+BASE =os.environ.get("APP_URL", "http://localhost:3000").rstrip("/")
 INGESTION = os.environ.get("INGESTION_URL", "http://localhost:3002").rstrip("/")
 EMAIL = os.environ["AUTO_ONTOLOGY_ADMIN_EMAIL"]
 PASSWORD = os.environ["AUTO_ONTOLOGY_ADMIN_PASSWORD"]
@@ -54,20 +57,19 @@ def checkpoint(note: str, force: bool = False) -> None:
     if os.environ.get("CHECKPOINT_PUSH") != "1" or (not force and time.time() - _last_checkpoint < 600):
         return
     _last_checkpoint = time.time()
-    scrub = [s for s in os.environ.get("SCRUB", "").split("|") if s]
     logs = OUT / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     for name, lines in (("auto-ontology-ingestion-service", "200"), ("auto-ontology", "80"), ("model-adapter", "300"), ("ollama", "40")):
         try:
             tail = subprocess.run(["docker", "logs", "--tail", lines, name], capture_output=True, text=True, timeout=60)
-            text = tail.stdout + tail.stderr
-            for secret in scrub:
-                text = text.replace(secret, "[redacted]")
-            (logs / f"progress-{name}.log").write_text(text)
+            if tail.returncode != 0:  # with NVIDIA's models there is no Ollama or adapter
+                continue
+            (logs / f"progress-{name}.log").write_text(scrub.clean(tail.stdout + tail.stderr))
         except Exception:
             pass
     branch = os.environ.get("GITHUB_REF_NAME", "")
     try:
+        scrub.clean_tree(OUT)
         subprocess.run(["git", "add", str(OUT)], capture_output=True, timeout=120)
         subprocess.run(["git", "commit", "-q", "-m", f"Auto-Ontology demo progress: {note}"], capture_output=True, timeout=120)
         for _ in range(3):  # each run writes its own folder, so a rebase never conflicts
