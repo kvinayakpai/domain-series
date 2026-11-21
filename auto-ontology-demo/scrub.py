@@ -1,7 +1,8 @@
 """Take secrets out of the files a run commits.
 
 Removes the run's throwaway passwords (SCRUB, separated by |), the NVIDIA key
-(NVIDIA_API_KEY) and anything else shaped like an NVIDIA key from every text file
+(NVIDIA_API_KEY), anything shaped like an NVIDIA key, Bearer tokens and
+key/token/password assignments from every text file
 under a folder, in place.
 
     python3 auto-ontology-demo/scrub.py <folder>
@@ -17,6 +18,11 @@ import sys
 from pathlib import Path
 
 NVIDIA_KEY_SHAPE = re.compile(r"nvapi-[A-Za-z0-9_\-]{8,}")
+# Authorization headers and key/token/password assignments, in logs, tracebacks and JSON.
+BEARER = re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9\-._~+/]+=*")
+ASSIGNED = re.compile(
+    r"""(?i)(["']?(?:api[_-]?key|secret|token|password)["']?\s*[:=]\s*["']?)[A-Za-z0-9_\-.]{12,}(["']?)"""
+)
 
 
 def secrets() -> list[str]:
@@ -28,7 +34,9 @@ def secrets() -> list[str]:
 def clean(text: str) -> str:
     for secret in secrets():
         text = text.replace(secret, "[redacted]")
-    return NVIDIA_KEY_SHAPE.sub("[redacted]", text)
+    text = NVIDIA_KEY_SHAPE.sub("[redacted]", text)
+    text = BEARER.sub(r"\1[redacted]", text)
+    return ASSIGNED.sub(r"\1[redacted]\2", text)
 
 
 def clean_tree(root: str | Path) -> int:

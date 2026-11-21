@@ -304,7 +304,7 @@ dom_short = [
     ("Every success in the provider’s report has an approved till payment", f"{len(dom[0]['failing'])} credits"),
     ("Every UPI attempt joins the provider’s status by RRN", f"{len(dom[1]['failing'])} timeouts"),
     ("No bill is paid twice, once timeouts are matched", f"{M['customers']} bills"),
-    ("Every extra charge comes back within five days of the debit", f"{F['over_tat'] + F['not_refunded']} charges"),
+    ("Every extra charge comes back within five days of the debit", f"{F['over_tat'] + F['not_refunded']} charges: {F['over_tat']} late refunds + {F['not_refunded']} unrefunded"),
     ("No hour has a burst of timeouts", f"{len(dom[4]['failing'])} hours"),
 ]
 slides["tests"] = section("tests", "\n".join([

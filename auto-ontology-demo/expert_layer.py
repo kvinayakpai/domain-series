@@ -198,7 +198,9 @@ def apply(call, terms: list[dict], details: dict) -> dict:
     # Table descriptions, certified.
     try:
         dbs = (call("GET", "/api/datasources/dbs") or {}).get("data") or []
-        db = next(d for d in dbs if d.get("name") == "store014")
+        db = next((d for d in dbs if d.get("name") == "store014"), None)
+        if db is None:
+            raise RuntimeError(f"Datasource 'store014' not found; available: {[d.get('name') for d in dbs]}")
         schemas = [s for s in db.get("schemas") or [] if isinstance(s, dict) and s.get("id")]
         if not schemas:  # run 8 got schema names here, not objects: ask for the schemas themselves
             got = call("GET", f"/api/schemas/{db['id']}")
