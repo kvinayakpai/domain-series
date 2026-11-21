@@ -1324,5 +1324,622 @@
       ]
     ],
     "instructions": "STORE 014 ONTOLOGY. Season 2's hand-built ontology of this store. Follow it over table and column names.\n\nIts things: product, item, place, customer, store order, pick, case, pallet, shipment, receiving, stock, stock change, forecast, demand, sale, lost sale, bill, payment attempt, debit, settlement, refund, complaint. Demand (a customer wants an item) and lost sales (demand that found the shelf empty) are in no table.\n\nWhat each table is:\n- store.pos_lines: Till lines: every sale as scanned (sku_scanned, qty, bill_ts). Looks at the world. Sales, not demand.\n- store.daily_sales: The till lines totalled per item per day. Sales, not demand.\n- store.inventory_book: Book stock: what the system believes is on hand at close. It copies other records (the last count, plus receipts, minus sales and write-offs) and never looks at the shelf.\n- store.shelf_audits: Staff looking at the shelf at 11:00, twice a week: status 'on shelf' or 'empty'. The only record of what was on the shelf.\n- store.stock_counts: Physical counts of the stock, and the corrections they made to the book. Looks at the world.\n- store.goods_receipts: Pallets received from the warehouse, as booked. Deliveries into the store, not sales. Copies the shipping notice.\n- store.forecasts: The nightly forecast of demand, and the order it made, for each warehouse item. Not sales.\n- store.write_offs: Stock thrown away or written off, with a reason.\n- store.store_orders: Orders the store sent to the warehouse.\n- store.fresh_deliveries: Milk, curd and bread delivered each morning by the dairy and bakery routes.\n- warehouse.pick_confirmations: The warehouse's pick confirmations for the store's orders.\n- warehouse.shipping_notice_lines: What each shipping notice said was on each pallet. Copies the picks.\n- warehouse.pallets: One row per pallet label (sscc). Copies the shipping notice.\n- warehouse.shipments: Trucks: dispatch, delivery slot and arrival.\n- warehouse.stock_adjustments: Corrections the warehouse made to its stock of the store's lines.\n- payments.pos_payments: The till's view of each payment attempt: till_status, and the rrn when the till got one.\n- payments.psp_upi_report: UPI's report: each UPI payment's final status and when it was known. Looks at the world.\n- payments.upi_settlements: The acquirer's daily UPI settlement. Copies UPI's report.\n- payments.upi_refunds: Refunds the store made for UPI payments.\n- payments.customer_complaints: Customer complaints about payments.\n\nJoins:\n- every sku column (sku, sku_scanned, asn_sku, sku_booked) = store.products.sku\n- store.pos_lines.bill_id = payments.pos_payments.bill_id\n- payments.pos_payments.rrn = payments.psp_upi_report.rrn\n- payments.psp_upi_report.bill_ref = payments.pos_payments.bill_id, when bill_ref is set\n- payments.upi_refunds.rrn = payments.psp_upi_report.rrn\n- store.goods_receipts.sscc = warehouse.pallets.sscc\n- store.goods_receipts.shipment_id = warehouse.shipments.shipment_id\n- warehouse.shipping_notice_lines.sscc = warehouse.pallets.sscc\n- warehouse.pick_confirmations.order_id = store.store_orders.order_id\n\nRules, each with what it means here:\n1. Available means on the shelf. Book stock is a belief – the last count, plus receipts, minus sales and write-offs.\n   Here: On-shelf availability is the share of store.shelf_audits rows with status 'on shelf'. Never compute it from store.inventory_book.\n2. Silence is a question. No sales while the books show stock means someone should look at the shelf.\n   Here: Days with no sales in store.pos_lines while store.inventory_book shows stock mean the shelf may be empty: check store.shelf_audits.\n3. Demand is not sales. Demand that finds an empty shelf becomes a lost sale, which no record holds – estimate it and say how.\n   Here: Units sold come from store.pos_lines (or store.daily_sales). If asked how many shoppers left without an item, or for lost sales, do not count goods receipts, shelf audits, forecasts or write-offs as shoppers or sales. Say that no record holds them, and if you estimate them, say how. Give what the records show: the shelf audits that found the item missing, and its sales by day.\n4. A forecast predicts demand, so score it against demand, not sales.\n   Here: store.forecasts predict demand. Do not score them against store.daily_sales alone.\n5. Every stock correction has a reason. Mirror-image corrections on lookalike items, neighboring slots or two buildings are one event.\n   Here: store.stock_counts.adjustment and warehouse.stock_adjustments need a reason. Mirror-image corrections on lookalike items or across the two buildings are one event.\n6. Fresh stock expires. Waste and the empty shelf are one decision – count both.\n   Here: For fresh items, store.write_offs and the shelf audits that found the shelf empty are one decision.\n7. An item is the pack, known by the code on the pack. Match on that code – never on the slot, the pallet label or the product name.\n   Here: Match items on store.products.gtin or sku (pos_lines.gtin_scanned, shipping_notice_lines.gtin), never on a slot, an sscc or the product name.\n8. A delivery is on time, in full and right – checked case by case at the door, and done only when the stock is on the shelf.\n   Here: A delivery is done only when the stock is on the shelf: compare warehouse.shipments.arrived_ts, store.goods_receipts and later shelf audits.\n9. A payment has three witnesses – the till, UPI and the banks. A timeout at the till means “not known yet”, and UPI's final status decides.\n   Here: A payments.pos_payments.till_status of 'failed: no response' is a timeout: not known yet. payments.psp_upi_report.status ('success', 'failed', 'returned') decides.\n10. One bill, one payment. Every UPI request carries the bill ID, and a debit with no approved payment is a customer charged twice until proven otherwise.\n   Here: A UPI 'success' in payments.psp_upi_report with no approved payment for its bill at the till is a customer charged twice until proven otherwise.\n11. A refund answers a debit. The clock starts at the extra debit, not at the complaint.\n   Here: Refund time runs from the extra debit (payments.psp_upi_report.status_ts) to payments.upi_refunds.completed_ts, not from the complaint.\n12. Every record either looks at the world or copies another record. Before acting on a KPI, find the record it reads and an observation that can contradict it.\n   Here: Before trusting a number, name the table it reads and a table that could contradict it, such as store.shelf_audits against store.inventory_book."
+  },
+  "with_nvidia_models": {
+    "run": "10",
+    "run_id": "44879659097",
+    "chat_model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "embedding_model": "nomic-embed-text, padded to 2048",
+    "rerank_model": "cosine similarity in model_adapter.py",
+    "phases": {
+      "sign_in": {
+        "status": "ok",
+        "minutes": 0.0
+      },
+      "compile": {
+        "status": "ok",
+        "minutes": 10.0
+      },
+      "collect": {
+        "status": "ok",
+        "minutes": 0.0
+      },
+      "export": {
+        "status": "ok",
+        "minutes": 0.0
+      },
+      "switch_model": {
+        "status": "ok",
+        "minutes": 0.0
+      },
+      "coverage": {
+        "status": "ok",
+        "minutes": 7.8
+      },
+      "ask": {
+        "status": "ok",
+        "minutes": 0.7
+      },
+      "expert": {
+        "status": "ok",
+        "minutes": 0.0
+      },
+      "coverage_after": {
+        "status": "ok",
+        "minutes": 10.8
+      },
+      "ask_after": {
+        "status": "ok",
+        "minutes": 1.1
+      }
+    },
+    "draft_minutes": 10,
+    "compile": {
+      "compile_summary": "21 table(s), 0 term family(ies), 3 semantic FK edge(s), 3 unmatched FK column(s) attached, 0 SqlAttribute(s), 0 bridge table(s), 135 ColumnAttribute(s) described in 549.9s",
+      "compiled_seconds": "549.9",
+      "sql_attributes_from_history": "0",
+      "column_attributes_described": "135",
+      "bridge_tables": "0",
+      "concept_merges": "0",
+      "joins_inferred": [
+        "0",
+        "3"
+      ],
+      "joins": [
+        "goods_receipts.shipment_id -> shipments.shipment_id",
+        "pallets.shipment_id -> shipments.shipment_id",
+        "pick_confirmations.shipment_id -> shipments.shipment_id"
+      ],
+      "joins_considered": [
+        "customer_complaints.bill_id",
+        "goods_receipts.shipment_id",
+        "pallets.shipment_id",
+        "pick_confirmations.shipment_id",
+        "shipping_notice_lines.order_id",
+        "upi_refunds.bill_id"
+      ],
+      "joins_rejected": [
+        "customer_complaints.bill_id",
+        "upi_refunds.bill_id"
+      ],
+      "concepts_merged": [],
+      "main_terms_by_table": {
+        "customer_complaints": "['Customer Complaint']",
+        "pos_payments": "['Payment Transaction']",
+        "psp_upi_report": "['UPI Transaction Report']",
+        "upi_refunds": "['UPI Refund']",
+        "upi_settlements": "['UPI Settlement']",
+        "daily_sales": "['Daily Sales']",
+        "forecasts": "['Forecast Plan']",
+        "fresh_deliveries": "['Fresh Delivery']",
+        "goods_receipts": "['Goods Receipt']",
+        "inventory_book": "['Inventory Book']",
+        "pos_lines": "['POS Line Item']",
+        "products": "['Product Information']",
+        "shelf_audits": "['Shelf Audit']",
+        "stock_counts": "['Stock Count']",
+        "store_orders": "['Store Order']",
+        "write_offs": "['Write Off']",
+        "pallets": "['Pallet']",
+        "pick_confirmations": "['Pick Confirmation']",
+        "shipments": "['Shipment']",
+        "shipping_notice_lines": "['Shipping Notice Line']",
+        "stock_adjustments": "['Stock Adjustment']"
+      }
+    },
+    "term_count": 21,
+    "terms_naming_the_gap": [],
+    "descriptions_mentioning_the_gap": [],
+    "product_terms": [],
+    "terms": [
+      {
+        "name": "Customer Complaint",
+        "description": "A payment-related customer complaint record tracking issue type, amount, resolution, and timestamps.",
+        "tables": [
+          "payments.customer_complaints"
+        ]
+      },
+      {
+        "name": "Payment Transaction",
+        "description": "A single payment transaction recorded in the POS system.",
+        "tables": [
+          "payments.pos_payments"
+        ]
+      },
+      {
+        "name": "UPI Transaction Report",
+        "description": "Central record of Unified Payments Interface transactions processed through a Payment Service Provider",
+        "tables": [
+          "payments.psp_upi_report"
+        ]
+      },
+      {
+        "name": "UPI Refund",
+        "description": "A single refund transaction record for UPI payments",
+        "tables": [
+          "payments.upi_refunds"
+        ]
+      },
+      {
+        "name": "UPI Settlement",
+        "description": "Represents a Unified Payments Interface settlement record with transaction and financial details.",
+        "tables": [
+          "payments.upi_settlements"
+        ]
+      },
+      {
+        "name": "Daily Sales",
+        "description": "A single sales transaction record captured each day.",
+        "tables": [
+          "store.daily_sales"
+        ]
+      },
+      {
+        "name": "Forecast Plan",
+        "description": "A single forecasting/planning record for inventory and replenishment.",
+        "tables": [
+          "store.forecasts"
+        ]
+      },
+      {
+        "name": "Fresh Delivery",
+        "description": "",
+        "tables": [
+          "store.fresh_deliveries"
+        ]
+      },
+      {
+        "name": "Goods Receipt",
+        "description": "A single business entity representing the receipt of goods, tracking identifiers, quantities, SKUs, and validation methods.",
+        "tables": [
+          "store.goods_receipts"
+        ]
+      },
+      {
+        "name": "Shipment",
+        "description": "Core logistics record for a single shipment entity.",
+        "tables": [
+          "store.goods_receipts",
+          "warehouse.pallets",
+          "warehouse.pick_confirmations",
+          "warehouse.shipments"
+        ]
+      },
+      {
+        "name": "Inventory Book",
+        "description": "Represents inventory records with snapshot dates, product SKUs, and on-hand quantities.",
+        "tables": [
+          "store.inventory_book"
+        ]
+      },
+      {
+        "name": "POS Line Item",
+        "description": "Represents an individual line item within a point-of-sale bill.",
+        "tables": [
+          "store.pos_lines"
+        ]
+      },
+      {
+        "name": "Product Information",
+        "description": "Core product master data for inventory and supply chain management",
+        "tables": [
+          "store.products"
+        ]
+      },
+      {
+        "name": "Shelf Audit",
+        "description": "Represents a single inventory audit record for a shelf location.",
+        "tables": [
+          "store.shelf_audits"
+        ]
+      },
+      {
+        "name": "Stock Count",
+        "description": "Represents a single inventory counting event tracking planned vs actual quantities.",
+        "tables": [
+          "store.stock_counts"
+        ]
+      },
+      {
+        "name": "Store Order",
+        "description": "Represents a single order record in the store system.",
+        "tables": [
+          "store.store_orders"
+        ]
+      },
+      {
+        "name": "Write Off",
+        "description": "",
+        "tables": [
+          "store.write_offs"
+        ]
+      },
+      {
+        "name": "Pallet",
+        "description": "",
+        "tables": [
+          "warehouse.pallets"
+        ]
+      },
+      {
+        "name": "Pick Confirmation",
+        "description": "A single record confirming that a line item has been picked and confirmed in a sales order.",
+        "tables": [
+          "warehouse.pick_confirmations"
+        ]
+      },
+      {
+        "name": "Shipping Notice Line",
+        "description": "",
+        "tables": [
+          "warehouse.shipping_notice_lines"
+        ]
+      },
+      {
+        "name": "Stock Adjustment",
+        "description": "Represents inventory or cost adjustments recorded in the system.",
+        "tables": [
+          "warehouse.stock_adjustments"
+        ]
+      }
+    ],
+    "ossie_export_refused": null,
+    "export_files": {
+      "store014-ossie.zip": 44971,
+      "store014-auto-ontology.yaml": 105403
+    },
+    "rate_limited_log_lines": 2,
+    "before": [
+      {
+        "id": "sold",
+        "question": "How many bags of 5 kg atta were sold in June 2026?",
+        "seconds": 7,
+        "answer": "The total number of 5 kg atta bags sold in June 2026 is 567. This figure is obtained by summing the units_sold column from the store.daily_sales table for the SKU 'ATTA-WW-5KG' whose date falls between 2026‑06‑01 and 2026‑06‑30.",
+        "sql": "SELECT SUM(units_sold) AS total_bags\nFROM store.daily_sales\nWHERE sku = 'ATTA-WW-5KG'\n  AND date >= '2026-06-01'\n  AND date <= '2026-06-30'",
+        "rows": [
+          "[{\"total_bags\":567}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "567"
+          ]
+        ],
+        "truth": [
+          [
+            "567"
+          ]
+        ]
+      },
+      {
+        "id": "left-without",
+        "question": "How many shoppers left without 5 kg atta in June 2026?",
+        "seconds": 11,
+        "answer": "The count of shelf‑audit records for 5 kg atta (ATTA‑WW‑5KG) marked as empty in June 2026 is 2. These records indicate occasions when the product was out of stock and shoppers likely left without it.",
+        "sql": "SELECT count(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND status = 'empty' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01'",
+        "rows": [
+          "[{\"count\":2}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "2"
+          ]
+        ],
+        "truth": null
+      },
+      {
+        "id": "on-shelf",
+        "question": "What was on-shelf availability for 5 kg atta in June 2026?",
+        "seconds": 14,
+        "answer": "On‑shelf availability for 5 kg atta (SKU ATTA‑WW‑5KG) in June 2026 was 75 % (6 out of 8 shelf‑audit records recorded the product as 'on shelf'). The calculation was based on store.shelf_audits records with audit timestamps in June 2026 and sku matching ATTA‑WW‑5KG.",
+        "sql": "SELECT \n    COUNT(*) AS total_audits,\n    COUNT(CASE WHEN status = 'on shelf' THEN 1 END) AS on_shelf_audits,\n    ROUND(100.0 * COUNT(CASE WHEN status = 'on shelf' THEN 1 END) / COUNT(*), 2) AS availability_pct\nFROM store.shelf_audits\nWHERE sku = 'ATTA-WW-5KG'\n  AND audit_ts >= '2026-06-01'\n  AND audit_ts < '2026-07-01'",
+        "rows": [
+          "[{\"total_audits\":8,\"on_shelf_audits\":6,\"availability_pct\":75.0}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "8",
+            "6",
+            "75.00"
+          ]
+        ],
+        "truth": [
+          [
+            "6 of 8"
+          ]
+        ]
+      },
+      {
+        "id": "lost-sales",
+        "question": "What were the lost sales of 5 kg atta in June 2026?",
+        "seconds": 12,
+        "answer": "The lost sales (write‑offs) of 5 kg atta in June 2026 total 3 units. This figure is obtained from the store.write_offs table, filtered by SKU 'ATTA-WW-5KG' and dates between 2026‑06‑01 and 2026‑06‑30.",
+        "sql": "SELECT SUM(units) AS lost_units\nFROM store.write_offs\nWHERE sku = 'ATTA-WW-5KG'\n  AND date >= '2026-06-01' AND date <= '2026-06-30'",
+        "rows": [
+          "[{\"lost_units\":3}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "3"
+          ]
+        ],
+        "truth": null
+      }
+    ],
+    "entered": {
+      "instructions_chars": 6525,
+      "rules_quoted": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "glossary": [
+        "OSA",
+        "SKU",
+        "GTIN",
+        "SSCC",
+        "RRN",
+        "UPI",
+        "ASN",
+        "GRN"
+      ],
+      "tables_certified": [],
+      "tables_error": null,
+      "calculations": [
+        {
+          "name": "Units sold (till lines)",
+          "table": "store.pos_lines",
+          "term": "POS Line Item",
+          "status": "added"
+        },
+        {
+          "name": "On-shelf availability (shelf audits)",
+          "table": "store.shelf_audits",
+          "term": "Shelf Audit",
+          "status": "added"
+        },
+        {
+          "name": "Book stock at close (a belief)",
+          "table": "store.inventory_book",
+          "term": "Inventory Book",
+          "status": "added"
+        },
+        {
+          "name": "Units received (goods receipts)",
+          "table": "store.goods_receipts",
+          "term": "Goods Receipt",
+          "status": "added"
+        }
+      ],
+      "analyses": [
+        {
+          "name": "Units sold by item and month",
+          "status": "added"
+        },
+        {
+          "name": "On-shelf availability by item",
+          "status": "added"
+        },
+        {
+          "name": "Shelf audits that found an item missing",
+          "status": "added"
+        }
+      ]
+    },
+    "after": [
+      {
+        "id": "sold",
+        "question": "How many bags of 5 kg atta were sold in June 2026?",
+        "seconds": 15,
+        "answer": "The total number of 5 kg atta bags sold in June 2026 is 567. This is computed by summing the `units_sold` column from `store.daily_sales` for SKU `ATTA-WW-5KG` across all dates from 2026-06-01 to 2026-06-30.",
+        "sql": "SELECT SUM(units_sold) AS total_bags_5kg_atta_sold\nFROM store.daily_sales\nWHERE sku = 'ATTA-WW-5KG'\n  AND date >= '2026-06-01'\n  AND date < '2026-07-01'",
+        "rows": [
+          "[{\"total_bags_5kg_atta_sold\":567}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "567"
+          ]
+        ],
+        "truth": [
+          [
+            "567"
+          ]
+        ]
+      },
+      {
+        "id": "left-without",
+        "question": "How many shoppers left without 5 kg atta in June 2026?",
+        "seconds": 24,
+        "answer": "The query returns two columns for June 2026:\n - empty_shelf_audits: 2 (the number of shelf‑audit records where 5 kg atta was found empty).\n - units_sold: 567 (the total quantity of 5 kg atta units sold via the till, from store.pos_lines).\n \n No table records shoppers who left without the item; lost sales are not directly captured. An informal estimate of potential lost sales could be the 2 empty‑audit occurrences, but this is highly uncertain and should be presented as a rough indicator only.",
+        "sql": "WITH empty_audits AS (\n  SELECT COUNT(*) AS cnt\n  FROM store.shelf_audits\n  WHERE sku = 'ATTA-WW-5KG'\n    AND status = 'empty'\n    AND audit_ts >= '2026-06-01'\n    AND audit_ts < '2026-07-01'\n),\nunits_sold AS (\n  SELECT SUM(qty) AS total_units\n  FROM store.pos_lines\n  WHERE sku_scanned = 'ATTA-WW-5KG'\n    AND bill_ts >= '2026-06-01'\n    AND bill_ts < '2026-07-01'\n)\nSELECT ea.cnt AS empty_shelf_audits, us.total_units AS units_sold\nFROM empty_audits ea, units_sold us",
+        "rows": [
+          "[{\"empty_shelf_audits\":2,\"units_sold\":567}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "2",
+            "567"
+          ]
+        ],
+        "truth": null
+      },
+      {
+        "id": "on-shelf",
+        "question": "What was on-shelf availability for 5 kg atta in June 2026?",
+        "seconds": 9,
+        "answer": "On‑shelf availability for 5 kg atta (SKU ATTA‑WW‑5KG) in June 2026 was 75 %. This is calculated from store.shelf_audits: 8 audit records were taken during June 2026, of which 6 recorded the item as 'on shelf'. OSA = on‑shelf audits / total audits = 6/8 = 0.75.",
+        "sql": "SELECT \n    COUNT(*) AS total_audits,\n    COUNT(CASE WHEN status = 'on shelf' THEN 1 END) AS on_shelf_audits,\n    COUNT(CASE WHEN status = 'on shelf' THEN 1 END)::numeric / COUNT(*)::numeric AS on_shelf_availability\nFROM store.shelf_audits\nWHERE sku = 'ATTA-WW-5KG'\n  AND audit_ts >= '2026-06-01'\n  AND audit_ts < '2026-07-01'",
+        "rows": [
+          "[{\"total_audits\":8,\"on_shelf_audits\":6,\"on_shelf_availability\":0.75}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "8",
+            "6",
+            "0.75000000000000000000"
+          ]
+        ],
+        "truth": [
+          [
+            "6 of 8"
+          ]
+        ]
+      },
+      {
+        "id": "lost-sales",
+        "question": "What were the lost sales of 5 kg atta in June 2026?",
+        "seconds": 19,
+        "answer": "The query returns two metrics for 5 kg atta (SKU ATTA‑WW‑5KG) in June 2026: 2 shelf‑audit rows where the shelf was found empty, and 567 units sold via point‑of‑sale transactions. Lost sales (demand that encountered an empty shelf) are not stored in any table per the organization's rules; the only available indicators are the empty shelf‑audit count and the sales figure shown above.",
+        "sql": "SELECT 'empty_shelf_audits' AS metric, COUNT(*) AS cnt\nFROM store.shelf_audits\nWHERE sku = 'ATTA-WW-5KG'\n  AND audit_ts >= '2026-06-01'::timestamp\n  AND audit_ts < '2026-07-01'::timestamp\n  AND status = 'empty'\n\nUNION ALL\n\nSELECT 'units_sold' AS metric, SUM(qty) AS cnt\nFROM store.pos_lines\nWHERE sku_scanned = 'ATTA-WW-5KG'\n  AND bill_ts >= '2026-06-01'::timestamp\n  AND bill_ts < '2026-07-01'::timestamp",
+        "rows": [
+          "[{\"metric\":\"empty_shelf_audits\",\"cnt\":2},{\"metric\":\"units_sold\",\"cnt\":567}]"
+        ],
+        "errors": null,
+        "skipped": null,
+        "rerun_on_store014": [
+          [
+            "empty_shelf_audits",
+            "2"
+          ],
+          [
+            "units_sold",
+            "567"
+          ]
+        ],
+        "truth": null
+      }
+    ],
+    "coverage_before": [
+      {
+        "id": "sold",
+        "question": "How many bags of 5 kg atta were sold in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Stock Count: Product SKU",
+          "Forecast Plan: SKU"
+        ]
+      },
+      {
+        "id": "left-without",
+        "question": "How many shoppers left without 5 kg atta in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Forecast Plan: SKU",
+          "Stock Count: Product SKU"
+        ]
+      },
+      {
+        "id": "on-shelf",
+        "question": "What was on-shelf availability for 5 kg atta in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Stock Count: Product SKU",
+          "Stock Adjustment: Product Sku"
+        ]
+      },
+      {
+        "id": "lost-sales",
+        "question": "What were the lost sales of 5 kg atta in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Stock Adjustment: Product Sku",
+          "Forecast Plan: SKU"
+        ]
+      },
+      {
+        "id": "charged-twice",
+        "question": "How many customers were charged twice for one bill in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Customer Complaint: Issue Type",
+          "Customer Complaint: billId"
+        ]
+      }
+    ],
+    "coverage_after": [
+      {
+        "id": "sold",
+        "question": "How many bags of 5 kg atta were sold in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Stock Count: Product SKU",
+          "Forecast Plan: SKU",
+          ": Units sold by item and month",
+          "POS Line Item: Units sold (till lines)"
+        ]
+      },
+      {
+        "id": "left-without",
+        "question": "How many shoppers left without 5 kg atta in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Forecast Plan: SKU",
+          "Stock Count: Product SKU"
+        ]
+      },
+      {
+        "id": "on-shelf",
+        "question": "What was on-shelf availability for 5 kg atta in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Stock Count: Product SKU",
+          "Stock Adjustment: Product Sku"
+        ]
+      },
+      {
+        "id": "lost-sales",
+        "question": "What were the lost sales of 5 kg atta in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Stock Adjustment: Product Sku",
+          "Forecast Plan: SKU",
+          ": Units sold by item and month",
+          "POS Line Item: Units sold (till lines)",
+          ": On-shelf availability by item"
+        ]
+      },
+      {
+        "id": "charged-twice",
+        "question": "How many customers were charged twice for one bill in June 2026?",
+        "coverage": 1.0,
+        "uncovered": null,
+        "matched": [
+          "Customer Complaint: Issue Type",
+          "Customer Complaint: billId"
+        ]
+      }
+    ]
   }
 }
