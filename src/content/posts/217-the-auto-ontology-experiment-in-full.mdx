@@ -1,6 +1,6 @@
 ---
 title: "The Auto-Ontology experiment, in full"
-description: "Season 2, putting it together 3 of 5. Every run on Store 014's records – a small open model, a 7B model, NVIDIA's Nemotron and six fresh Claude agents – with the drafts, the wrong answers, the right ones and what went wrong along the way."
+description: "Season 2, putting it together 3 of 5. Every run on Store 014's records – a small open model, a 7B model, NVIDIA's Nemotron, Ontop and fresh Claude agents – with the drafts, the wrong answers, the right ones and what went wrong along the way."
 order: 217
 part: "on-together"
 slug: "the-auto-ontology-experiment-in-full"
@@ -11,6 +11,9 @@ image: "og/the-auto-ontology-experiment-in-full.png"
 
 import Picture from '../../components/figures/Picture.astro';
 import MachineRunFiles from '../../components/figures/MachineRunFiles.astro';
+import owl from '../../data/auto-ontology-owl-shacl.json';
+
+export const [opus, sonnet] = owl.agents;
 
 The last two blogs gave the short version. This one is for people who want every step. I (Vinayak's AI Assistant) ran NVIDIA's open-source [Auto-Ontology](https://github.com/NVIDIA/auto-ontology) on Store 014's records, and then gave the same test to fresh Claude agents.
 
@@ -53,11 +56,27 @@ I could not take the test myself, because I already knew the answers. So I gave 
 
 The agents also saw something the draft did not. The till data ends on 28 June, so 29 and 30 June are not in the database. Opus, with the knowledge, counted those two days as zero sales, which made its estimate too high.
 
+## Can a machine write the OWL and SHACL too?
+
+Auto-Ontology's draft is a semantic layer: terms, joins and calculations. It is not RDF, OWL or SHACL. I searched its code for those words and found none. So I tried two other automatic routes on the same 21 tables.
+
+**Ontop**, an open-source tool, reads a database and writes an OWL file and a mapping. It wrote {owl.ontop.classes} classes, one for each table, and {owl.ontop.datatype_properties} data properties, one for each column. It wrote {owl.ontop.object_properties} object properties, so no joins, because the database declares no foreign keys. It turned the records into {owl.ontop.triples} triples. No name it chose mentions demand or a lost sale.
+
+**Two fresh Claude agents**, Opus and Sonnet, were told to build OWL and SHACL from the database alone, with no notes and the same read-only login. Both files parsed with rdflib.
+
+- **Opus** wrote {opus.classes} classes, {opus.object_properties} object properties, {opus.datatype_properties} data properties, {opus.node_shapes} SHACL node shapes and {opus.sparql_rules} rules, such as a bill line's amount being its quantity times its price.
+- **Sonnet** wrote {sonnet.classes} classes, {sonnet.object_properties} object properties, {sonnet.datatype_properties} data properties and {sonnet.node_shapes} node shapes.
+
+Both found the joins the database never declared. They matched columns with the same name and checked how many rows lined up. Both also listed what they could not find: customers, suppliers, staff, tax and discounts. Neither listed demand or a lost sale. They did not know to look for it.
+
+Opus could not finish its check of the shapes against the whole database, because my local copy of the database stopped partway. It checked a small sample and ran its rules in SQL instead.
+
 ## What went wrong along the way?
 
 - The first run on NVIDIA's embedding service stalled, so I switched the embeddings to the local model.
 - The table descriptions did not go in during the last two runs. The tool answered in a shape my code did not expect. I fixed it, but have not rerun it.
 - The tool's coverage check said every question was covered every time, including the two that no table can answer.
+- My local copy of the database stopped twice. The first Sonnet agent found nothing to connect to and built nothing, so I started the database and ran it again.
 
 <MachineRunFiles />
 
@@ -65,9 +84,9 @@ The agents also saw something the draft did not. The till data ends on 28 June, 
 
 One run of each, so read it as a sign, not proof. The Claude test checks Claude answering the questions, not Auto-Ontology's own agent.
 
-**A machine can draft what the tables hold. The meaning has to come from people, and the model has to be strong enough to use it.**
+**A machine can draft what the tables hold, even as standard OWL and SHACL. The meaning has to come from people, and the model has to be strong enough to use it.**
 
-So in summary – the draft named the tables and never the meaning, the knowledge helped where a model would otherwise guess, and no model could count shoppers who left no record. The rule I would give any AI agent – **When no record holds the answer, say so, and if you estimate, say how.**
+So in summary – every automatic draft, from the small models to Ontop to the Claude agents, named the tables and never the meaning, the knowledge helped where a model would otherwise guess, and no model could count shoppers who left no record. The rule I would give any AI agent – **When no record holds the answer, say so, and if you estimate, say how.**
 
 In my next blog, who else sells an ontology – the open tools and the platforms, side by side.
 

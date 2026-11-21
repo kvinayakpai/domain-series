@@ -1,0 +1,152 @@
+@prefix : <http://example.org/store014#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://example.org/store014> a owl:Ontology ; rdfs:label "Store 014 grocery ontology" ; rdfs:comment "Inferred solely from the Store 014 database (schemas store, warehouse, payments). June 2026 data." .
+
+:Product a owl:Class ; rdfs:label "Product (SKU)" ; rdfs:comment "A sellable item the store stocks, identified by SKU and GTIN barcode. Table store.products." .
+:DCProduct a owl:Class ; rdfs:label "Distribution-centre product" ; rdfs:comment "Product replenished from the distribution centre by case (flow = DC); has a DC pick slot and case weight." ; rdfs:subClassOf :Product .
+:DSDProduct a owl:Class ; rdfs:label "Direct-store-delivery product" ; rdfs:comment "Fresh product (milk, curd, bread) delivered directly to the store on routes (flow = DSD); no DC slot." ; rdfs:subClassOf :Product .
+:Bill a owl:Class ; rdfs:label "Sales bill" ; rdfs:comment "A customer bill at the till, identified by bill_id (format Byymmdd-nnnnnn)." .
+:BillLine a owl:Class ; rdfs:label "Bill line" ; rdfs:comment "One scanned line on a bill: GTIN/SKU scanned, quantity, unit price, line amount." .
+:PaymentAttempt a owl:Class ; rdfs:label "Payment attempt" ; rdfs:comment "One tender attempt against a bill, keyed by bill_id + attempt number (table payments.pos_payments)." .
+:CashPayment a owl:Class ; rdfs:label "Cash payment attempt" ; rdfs:comment "Payment attempt with tender = cash." ; rdfs:subClassOf :PaymentAttempt .
+:CardPayment a owl:Class ; rdfs:label "Card payment attempt" ; rdfs:comment "Payment attempt with tender = card." ; rdfs:subClassOf :PaymentAttempt .
+:UPIPayment a owl:Class ; rdfs:label "UPI payment attempt" ; rdfs:comment "Payment attempt with tender = UPI; may carry a bank reference number (RRN) linking to the PSP report." ; rdfs:subClassOf :PaymentAttempt .
+:PSPTransaction a owl:Class ; rdfs:label "PSP UPI transaction" ; rdfs:comment "A UPI transaction as reported by the payment service provider, keyed by RRN." .
+:UPIRefund a owl:Class ; rdfs:label "UPI refund" ; rdfs:comment "A refund of a UPI transaction raised from a customer complaint." .
+:CustomerComplaint a owl:Class ; rdfs:label "Customer complaint" ; rdfs:comment "A customer complaint about a UPI payment (charged twice, or debited though till showed failure)." .
+:UPISettlement a owl:Class ; rdfs:label "UPI daily settlement" ; rdfs:comment "Daily summary of UPI credits, gross, refunds, MDR and net amounts." .
+:DailySales a owl:Class ; rdfs:label "Daily sales record" ; rdfs:comment "Units and revenue for one SKU on one date." .
+:Forecast a owl:Class ; rdfs:label "Demand forecast and reorder plan" ; rdfs:comment "Daily forecast per SKU with reorder point, order-up-to level, on-order and ordered units." .
+:InventoryBookBalance a owl:Class ; rdfs:label "Book inventory balance" ; rdfs:comment "Closing book (system) on-hand for one SKU on one date." .
+:StockCount a owl:Class ; rdfs:label "Stock count" ; rdfs:comment "A physical count of a SKU compared with book on-hand, with the resulting adjustment." .
+:ShelfAudit a owl:Class ; rdfs:label "Shelf audit" ; rdfs:comment "Observation of whether a SKU is on the shelf or empty at a time." .
+:WriteOff a owl:Class ; rdfs:label "Write-off" ; rdfs:comment "Units of a SKU written off on a date as expired or damaged." .
+:StoreOrder a owl:Class ; rdfs:label "Store order line" ; rdfs:comment "A line of a replenishment order (order_id, SKU) placed by the store, in units and cases." .
+:PickConfirmation a owl:Class ; rdfs:label "Pick confirmation" ; rdfs:comment "Warehouse confirmation of cases picked for a store order line from a slot." .
+:Shipment a owl:Class ; rdfs:label "Shipment" ; rdfs:comment "A truck delivery from the warehouse to the store with a delivery slot window and arrival time." .
+:Pallet a owl:Class ; rdfs:label "Pallet" ; rdfs:comment "A pallet identified by SSCC, carried on a shipment." .
+:ShippingNoticeLine a owl:Class ; rdfs:label "Shipping notice line" ; rdfs:comment "Advance shipping notice line: what was declared on a pallet (SKU, GTIN, cases, units, order)." .
+:GoodsReceipt a owl:Class ; rdfs:label "Goods receipt line" ; rdfs:comment "Store receiving line (GRN) booking the units received against a shipping notice via pallet SSCC scan." .
+:FreshDelivery a owl:Class ; rdfs:label "Fresh delivery" ; rdfs:comment "A direct-store delivery of crates of a fresh SKU on a route, with use-by date." .
+:WarehouseStockAdjustment a owl:Class ; rdfs:label "Warehouse stock adjustment" ; rdfs:comment "Warehouse inventory adjustment of a SKU in a slot, valued at cost, with a reason." .
+:Route a owl:Class ; rdfs:label "Delivery route" ; rdfs:comment "A fresh delivery route code (e.g. R-07, R-12)." .
+:Vehicle a owl:Class ; rdfs:label "Vehicle" ; rdfs:comment "A truck identified by a code (e.g. TRK-07)." .
+:StorageSlot a owl:Class ; rdfs:label "Storage slot" ; rdfs:comment "A warehouse pick/storage location code (e.g. A-07-03)." .
+:DCProduct owl:disjointWith :DSDProduct .
+:CashPayment owl:disjointWith :CardPayment, :UPIPayment . :CardPayment owl:disjointWith :UPIPayment .
+
+:ofProduct a owl:ObjectProperty ; rdfs:label "of product" ; rdfs:comment "Links a record to the product (SKU) it concerns. Matched on sku." ; rdfs:range :Product .
+:hasSku a owl:DatatypeProperty ; rdfs:label "SKU" ; rdfs:comment "Stock keeping unit code; unique per product." ; rdfs:domain :Product ; rdfs:range xsd:string .
+:hasGtin a owl:DatatypeProperty ; rdfs:label "GTIN" ; rdfs:comment "13-digit barcode; unique per product; matches scanned GTIN on bill lines and shipping notices." ; rdfs:domain :Product ; rdfs:range xsd:string .
+:productName a owl:DatatypeProperty ; rdfs:label "name" ; rdfs:comment "Display name." ; rdfs:domain :Product ; rdfs:range xsd:string .
+:packSize a owl:DatatypeProperty ; rdfs:label "pack size" ; rdfs:comment "Pack size text such as 5 kg or 500 ml." ; rdfs:domain :Product ; rdfs:range xsd:string .
+:caseUnits a owl:DatatypeProperty ; rdfs:label "units per case" ; rdfs:comment "Units in one case." ; rdfs:domain :Product ; rdfs:range xsd:integer .
+:caseKg a owl:DatatypeProperty ; rdfs:label "case weight kg" ; rdfs:comment "Weight of a case in kg." ; rdfs:domain :DCProduct ; rdfs:range xsd:decimal .
+:hasSlot a owl:ObjectProperty ; rdfs:label "has DC slot" ; rdfs:comment "DC pick slot of the product." ; rdfs:domain :DCProduct ; rdfs:range :StorageSlot .
+:sellingPriceInr a owl:DatatypeProperty ; rdfs:label "selling price INR" ; rdfs:comment "Shelf price in rupees." ; rdfs:domain :Product ; rdfs:range xsd:decimal .
+:costInr a owl:DatatypeProperty ; rdfs:label "cost INR" ; rdfs:comment "Unit cost in rupees." ; rdfs:domain :Product ; rdfs:range xsd:decimal .
+:billId a owl:DatatypeProperty ; rdfs:label "bill id" ; rdfs:comment "Bill identifier." ; rdfs:range xsd:string .
+:billTimestamp a owl:DatatypeProperty ; rdfs:label "bill time" ; rdfs:comment "Time of the bill." ; rdfs:domain :BillLine ; rdfs:range xsd:dateTime .
+:lineNumber a owl:DatatypeProperty ; rdfs:label "line number" ; rdfs:comment "Line number within its parent." ; rdfs:range xsd:integer .
+:onBill a owl:ObjectProperty ; rdfs:label "on bill" ; rdfs:comment "Bill the line belongs to (matched on bill_id)." ; rdfs:domain :BillLine ; rdfs:range :Bill .
+:scannedGtin a owl:DatatypeProperty ; rdfs:label "scanned GTIN" ; rdfs:comment "Barcode scanned at the till." ; rdfs:domain :BillLine ; rdfs:range xsd:string .
+:scannedProduct a owl:ObjectProperty ; rdfs:label "scanned product" ; rdfs:comment "Product identified by the scan (sku_scanned; agrees with GTIN lookup on every row)." ; rdfs:domain :BillLine ; rdfs:range :Product .
+:quantity a owl:DatatypeProperty ; rdfs:label "quantity" ; rdfs:comment "Units sold on the line." ; rdfs:domain :BillLine ; rdfs:range xsd:integer .
+:unitPriceInr a owl:DatatypeProperty ; rdfs:label "unit price INR" ; rdfs:comment "Price per unit; equals product price in all rows." ; rdfs:domain :BillLine ; rdfs:range xsd:decimal .
+:lineAmountInr a owl:DatatypeProperty ; rdfs:label "line amount INR" ; rdfs:comment "qty x unit price." ; rdfs:domain :BillLine ; rdfs:range xsd:decimal .
+:paysBill a owl:ObjectProperty ; rdfs:label "pays bill" ; rdfs:comment "Bill the attempt is for (matched on bill_id)." ; rdfs:domain :PaymentAttempt ; rdfs:range :Bill .
+:attemptNumber a owl:DatatypeProperty ; rdfs:label "attempt number" ; rdfs:comment "1-based attempt count for the bill." ; rdfs:domain :PaymentAttempt ; rdfs:range xsd:integer .
+:paymentTimestamp a owl:DatatypeProperty ; rdfs:label "payment time" ; rdfs:comment "When the attempt happened." ; rdfs:domain :PaymentAttempt ; rdfs:range xsd:dateTime .
+:tender a owl:DatatypeProperty ; rdfs:label "tender" ; rdfs:comment "Payment mode: cash, card or UPI." ; rdfs:domain :PaymentAttempt ; rdfs:range xsd:string .
+:amountInr a owl:DatatypeProperty ; rdfs:label "amount INR" ; rdfs:comment "Amount in rupees." ; rdfs:range xsd:decimal .
+:tillStatus a owl:DatatypeProperty ; rdfs:label "till status" ; rdfs:comment "Outcome shown at the till: approved, declined, failed, failed: no response." ; rdfs:domain :PaymentAttempt ; rdfs:range xsd:string .
+:hasRrn a owl:DatatypeProperty ; rdfs:label "RRN" ; rdfs:comment "Retrieval reference number (12 digits) of a UPI transaction." ; rdfs:range xsd:string .
+:reconcilesTo a owl:ObjectProperty ; rdfs:label "reconciles to PSP transaction" ; rdfs:comment "Till UPI attempt matched to the PSP report row by RRN. Absent for 'failed: no response' attempts, which carry no RRN." ; rdfs:domain :UPIPayment ; rdfs:range :PSPTransaction .
+:initiatedTimestamp a owl:DatatypeProperty ; rdfs:label "initiated time" ; rdfs:comment "When the PSP saw the transaction start." ; rdfs:domain :PSPTransaction ; rdfs:range xsd:dateTime .
+:pspStatus a owl:DatatypeProperty ; rdfs:label "PSP status" ; rdfs:comment "success, failed or returned." ; rdfs:domain :PSPTransaction ; rdfs:range xsd:string .
+:pspStatusTimestamp a owl:DatatypeProperty ; rdfs:label "PSP status time" ; rdfs:comment "When the PSP status was set." ; rdfs:domain :PSPTransaction ; rdfs:range xsd:dateTime .
+:refundId a owl:DatatypeProperty ; rdfs:label "refund id" ; rdfs:comment "Refund identifier (RF-nnnnnn)." ; rdfs:domain :UPIRefund ; rdfs:range xsd:string .
+:refundsTransaction a owl:ObjectProperty ; rdfs:label "refunds transaction" ; rdfs:comment "Transaction refunded (matched on rrn)." ; rdfs:domain :UPIRefund ; rdfs:range :PSPTransaction .
+:refundForBill a owl:ObjectProperty ; rdfs:label "refund for bill" ; rdfs:comment "Bill of the refunded payment (matched on bill_id)." ; rdfs:domain :UPIRefund ; rdfs:range :Bill .
+:refundTrigger a owl:DatatypeProperty ; rdfs:label "refund trigger" ; rdfs:comment "Why the refund was raised; only 'customer complaint' observed." ; rdfs:domain :UPIRefund ; rdfs:range xsd:string .
+:requestedTimestamp a owl:DatatypeProperty ; rdfs:label "requested time" ; rdfs:comment "Refund request time." ; rdfs:domain :UPIRefund ; rdfs:range xsd:dateTime .
+:completedTimestamp a owl:DatatypeProperty ; rdfs:label "completed time" ; rdfs:comment "Refund completion time (2-5 days after request)." ; rdfs:domain :UPIRefund ; rdfs:range xsd:dateTime .
+:complaintTimestamp a owl:DatatypeProperty ; rdfs:label "complaint time" ; rdfs:comment "When the complaint was raised." ; rdfs:domain :CustomerComplaint ; rdfs:range xsd:dateTime .
+:complaintKind a owl:DatatypeProperty ; rdfs:label "complaint kind" ; rdfs:comment "charged twice, or debited but the till said failed." ; rdfs:domain :CustomerComplaint ; rdfs:range xsd:string .
+:complaintAbout a owl:ObjectProperty ; rdfs:label "complaint about transaction" ; rdfs:comment "Transaction complained about (rrn)." ; rdfs:domain :CustomerComplaint ; rdfs:range :PSPTransaction .
+:complaintBill a owl:ObjectProperty ; rdfs:label "complaint bill" ; rdfs:comment "Bill the complaint refers to (bill_id)." ; rdfs:domain :CustomerComplaint ; rdfs:range :Bill .
+:resolvedTimestamp a owl:DatatypeProperty ; rdfs:label "resolved time" ; rdfs:comment "When resolved." ; rdfs:domain :CustomerComplaint ; rdfs:range xsd:dateTime .
+:resolution a owl:DatatypeProperty ; rdfs:label "resolution" ; rdfs:comment "Free-text resolution." ; rdfs:domain :CustomerComplaint ; rdfs:range xsd:string .
+:settlementDate a owl:DatatypeProperty ; rdfs:label "settlement date" ; rdfs:comment "Date of settlement." ; rdfs:domain :UPISettlement ; rdfs:range xsd:date .
+:upiCredits a owl:DatatypeProperty ; rdfs:label "UPI credits" ; rdfs:comment "Number of successful UPI credits (equals PSP success count overall)." ; rdfs:domain :UPISettlement ; rdfs:range xsd:integer .
+:grossInr a owl:DatatypeProperty ; rdfs:label "gross INR" ; rdfs:comment "Gross settled." ; rdfs:domain :UPISettlement ; rdfs:range xsd:decimal .
+:refundsInr a owl:DatatypeProperty ; rdfs:label "refunds INR" ; rdfs:comment "Refunds netted." ; rdfs:domain :UPISettlement ; rdfs:range xsd:decimal .
+:mdrInr a owl:DatatypeProperty ; rdfs:label "MDR INR" ; rdfs:comment "Merchant discount rate charges." ; rdfs:domain :UPISettlement ; rdfs:range xsd:decimal .
+:netInr a owl:DatatypeProperty ; rdfs:label "net INR" ; rdfs:comment "Net settled." ; rdfs:domain :UPISettlement ; rdfs:range xsd:decimal .
+:recordDate a owl:DatatypeProperty ; rdfs:label "record date" ; rdfs:comment "Date of the record." ; rdfs:range xsd:date .
+:unitsSold a owl:DatatypeProperty ; rdfs:label "units sold" ; rdfs:comment "Units sold that day (equals sum of bill-line quantity for that SKU/day)." ; rdfs:domain :DailySales ; rdfs:range xsd:integer .
+:revenueInr a owl:DatatypeProperty ; rdfs:label "revenue INR" ; rdfs:comment "Revenue in rupees." ; rdfs:domain :DailySales ; rdfs:range xsd:decimal .
+:forecastUnitsPerDay a owl:DatatypeProperty ; rdfs:label "forecast units per day" ; rdfs:comment "Forecast demand." ; rdfs:domain :Forecast ; rdfs:range xsd:decimal .
+:sigma a owl:DatatypeProperty ; rdfs:label "sigma" ; rdfs:comment "Demand variability." ; rdfs:domain :Forecast ; rdfs:range xsd:decimal .
+:reorderPoint a owl:DatatypeProperty ; rdfs:label "reorder point" ; rdfs:comment "Stock level triggering an order." ; rdfs:domain :Forecast ; rdfs:range xsd:integer .
+:orderUpTo a owl:DatatypeProperty ; rdfs:label "order-up-to level" ; rdfs:comment "Target stock level." ; rdfs:domain :Forecast ; rdfs:range xsd:integer .
+:bookOnHand a owl:DatatypeProperty ; rdfs:label "book on hand" ; rdfs:comment "System on-hand quantity." ; rdfs:range xsd:integer .
+:onOrder a owl:DatatypeProperty ; rdfs:label "on order" ; rdfs:comment "Units on order." ; rdfs:domain :Forecast ; rdfs:range xsd:integer .
+:orderedUnits a owl:DatatypeProperty ; rdfs:label "ordered units" ; rdfs:comment "Units ordered by the plan." ; rdfs:domain :Forecast ; rdfs:range xsd:integer .
+:forecastMethod a owl:DatatypeProperty ; rdfs:label "forecast method" ; rdfs:comment "Method; only '28-day mean of recorded sales'." ; rdfs:domain :Forecast ; rdfs:range xsd:string .
+:countTimestamp a owl:DatatypeProperty ; rdfs:label "count time" ; rdfs:comment "Time of physical count." ; rdfs:domain :StockCount ; rdfs:range xsd:dateTime .
+:bookBefore a owl:DatatypeProperty ; rdfs:label "book before" ; rdfs:comment "Book quantity before the count." ; rdfs:domain :StockCount ; rdfs:range xsd:integer .
+:countedQuantity a owl:DatatypeProperty ; rdfs:label "counted" ; rdfs:comment "Physically counted units." ; rdfs:domain :StockCount ; rdfs:range xsd:integer .
+:adjustmentUnits a owl:DatatypeProperty ; rdfs:label "adjustment" ; rdfs:comment "Units adjusted (equals counted minus book_before for stock counts)." ; rdfs:range xsd:integer .
+:countTrigger a owl:DatatypeProperty ; rdfs:label "count trigger" ; rdfs:comment "scheduled full count or manager request after complaints." ; rdfs:domain :StockCount ; rdfs:range xsd:string .
+:auditTimestamp a owl:DatatypeProperty ; rdfs:label "audit time" ; rdfs:comment "Time of shelf audit." ; rdfs:domain :ShelfAudit ; rdfs:range xsd:dateTime .
+:shelfStatus a owl:DatatypeProperty ; rdfs:label "shelf status" ; rdfs:comment "on shelf or empty." ; rdfs:domain :ShelfAudit ; rdfs:range xsd:string .
+:writeOffUnits a owl:DatatypeProperty ; rdfs:label "write-off units" ; rdfs:comment "Units written off." ; rdfs:domain :WriteOff ; rdfs:range xsd:integer .
+:writeOffReason a owl:DatatypeProperty ; rdfs:label "write-off reason" ; rdfs:comment "expired or damaged." ; rdfs:domain :WriteOff ; rdfs:range xsd:string .
+:orderId a owl:DatatypeProperty ; rdfs:label "order id" ; rdfs:comment "Order identifier." ; rdfs:range xsd:string .
+:units a owl:DatatypeProperty ; rdfs:label "units" ; rdfs:comment "Unit quantity." ; rdfs:range xsd:integer .
+:cases a owl:DatatypeProperty ; rdfs:label "cases" ; rdfs:comment "Case quantity." ; rdfs:range xsd:integer .
+:createdTimestamp a owl:DatatypeProperty ; rdfs:label "created time" ; rdfs:comment "When the order line was created." ; rdfs:domain :StoreOrder ; rdfs:range xsd:dateTime .
+:orderReason a owl:DatatypeProperty ; rdfs:label "order reason" ; rdfs:comment "How the order was raised; only 'auto' observed." ; rdfs:domain :StoreOrder ; rdfs:range xsd:string .
+:pickForOrder a owl:ObjectProperty ; rdfs:label "pick for order" ; rdfs:comment "Order picked (order_id; 2 pick lines reference SO-260531 which is absent from store_orders)." ; rdfs:domain :PickConfirmation ; rdfs:range :StoreOrder .
+:pickInShipment a owl:ObjectProperty ; rdfs:label "pick in shipment" ; rdfs:comment "Shipment the pick went on." ; rdfs:domain :PickConfirmation ; rdfs:range :Shipment .
+:pickedFromSlot a owl:ObjectProperty ; rdfs:label "picked from slot" ; rdfs:comment "Slot the pick was taken from." ; rdfs:domain :PickConfirmation ; rdfs:range :StorageSlot .
+:pickTimestamp a owl:DatatypeProperty ; rdfs:label "pick time" ; rdfs:comment "Time of pick." ; rdfs:domain :PickConfirmation ; rdfs:range xsd:dateTime .
+:casesOrdered a owl:DatatypeProperty ; rdfs:label "cases ordered" ; rdfs:comment "Cases requested." ; rdfs:domain :PickConfirmation ; rdfs:range xsd:integer .
+:casesConfirmed a owl:DatatypeProperty ; rdfs:label "cases confirmed" ; rdfs:comment "Cases picked (2 short picks seen)." ; rdfs:domain :PickConfirmation ; rdfs:range xsd:integer .
+:confirmationMethod a owl:DatatypeProperty ; rdfs:label "confirmation method" ; rdfs:comment "How a pick/receipt was verified (slot label scan / pallet label SSCC scan)." ; rdfs:range xsd:string .
+:shipmentId a owl:DatatypeProperty ; rdfs:label "shipment id" ; rdfs:comment "Shipment identifier (SHP-yymmdd)." ; rdfs:domain :Shipment ; rdfs:range xsd:string .
+:byVehicle a owl:ObjectProperty ; rdfs:label "by vehicle" ; rdfs:comment "Vehicle used." ; rdfs:domain :Shipment ; rdfs:range :Vehicle .
+:dispatchedTimestamp a owl:DatatypeProperty ; rdfs:label "dispatched time" ; rdfs:comment "Dispatch time." ; rdfs:domain :Shipment ; rdfs:range xsd:dateTime .
+:slotStart a owl:DatatypeProperty ; rdfs:label "slot start" ; rdfs:comment "Delivery window start." ; rdfs:domain :Shipment ; rdfs:range xsd:dateTime .
+:slotEnd a owl:DatatypeProperty ; rdfs:label "slot end" ; rdfs:comment "Delivery window end." ; rdfs:domain :Shipment ; rdfs:range xsd:dateTime .
+:arrivedTimestamp a owl:DatatypeProperty ; rdfs:label "arrived time" ; rdfs:comment "Arrival at store." ; rdfs:domain :Shipment ; rdfs:range xsd:dateTime .
+:palletCount a owl:DatatypeProperty ; rdfs:label "pallet count" ; rdfs:comment "Pallets on the shipment (equals number of pallet rows)." ; rdfs:domain :Shipment ; rdfs:range xsd:integer .
+:sscc a owl:DatatypeProperty ; rdfs:label "SSCC" ; rdfs:comment "18-digit pallet serial shipping container code." ; rdfs:range xsd:string .
+:onShipment a owl:ObjectProperty ; rdfs:label "on shipment" ; rdfs:comment "Shipment the record belongs to (matched on shipment_id)." ; rdfs:range :Shipment .
+:noticeKg a owl:DatatypeProperty ; rdfs:label "declared weight kg" ; rdfs:comment "Weight declared in shipping notice." ; rdfs:domain :Pallet ; rdfs:range xsd:decimal .
+:weightCheck a owl:DatatypeProperty ; rdfs:label "weight check" ; rdfs:comment "Only 'not weighed' observed." ; rdfs:domain :Pallet ; rdfs:range xsd:string .
+:onPallet a owl:ObjectProperty ; rdfs:label "on pallet" ; rdfs:comment "Pallet the record refers to (matched on sscc)." ; rdfs:range :Pallet .
+:noticeForOrder a owl:ObjectProperty ; rdfs:label "notice for order" ; rdfs:comment "Order the notice line serves (order_id)." ; rdfs:domain :ShippingNoticeLine ; rdfs:range :StoreOrder .
+:noticeGtin a owl:DatatypeProperty ; rdfs:label "notice GTIN" ; rdfs:comment "GTIN declared." ; rdfs:domain :ShippingNoticeLine ; rdfs:range xsd:string .
+:noticeProduct a owl:ObjectProperty ; rdfs:label "notice product" ; rdfs:comment "Product declared." ; rdfs:domain :ShippingNoticeLine ; rdfs:range :Product .
+:receivedTimestamp a owl:DatatypeProperty ; rdfs:label "received time" ; rdfs:comment "Receipt time." ; rdfs:domain :GoodsReceipt ; rdfs:range xsd:dateTime .
+:grnId a owl:DatatypeProperty ; rdfs:label "GRN id" ; rdfs:comment "Goods receipt note identifier (one per shipment)." ; rdfs:domain :GoodsReceipt ; rdfs:range xsd:string .
+:asnSku a owl:DatatypeProperty ; rdfs:label "ASN SKU" ; rdfs:comment "SKU declared on the notice." ; rdfs:domain :GoodsReceipt ; rdfs:range xsd:string .
+:asnUnits a owl:DatatypeProperty ; rdfs:label "ASN units" ; rdfs:comment "Units declared." ; rdfs:domain :GoodsReceipt ; rdfs:range xsd:integer .
+:bookedProduct a owl:ObjectProperty ; rdfs:label "booked product" ; rdfs:comment "Product booked into stock." ; rdfs:domain :GoodsReceipt ; rdfs:range :Product .
+:unitsBooked a owl:DatatypeProperty ; rdfs:label "units booked" ; rdfs:comment "Units booked into stock." ; rdfs:domain :GoodsReceipt ; rdfs:range xsd:integer .
+:deliveryTimestamp a owl:DatatypeProperty ; rdfs:label "delivery time" ; rdfs:comment "Delivery time." ; rdfs:domain :FreshDelivery ; rdfs:range xsd:dateTime .
+:onRoute a owl:ObjectProperty ; rdfs:label "on route" ; rdfs:comment "Route used." ; rdfs:domain :FreshDelivery ; rdfs:range :Route .
+:crates a owl:DatatypeProperty ; rdfs:label "crates" ; rdfs:comment "Crates delivered." ; rdfs:domain :FreshDelivery ; rdfs:range xsd:integer .
+:useByDate a owl:DatatypeProperty ; rdfs:label "use-by date" ; rdfs:comment "Use-by date." ; rdfs:domain :FreshDelivery ; rdfs:range xsd:date .
+:adjustedTimestamp a owl:DatatypeProperty ; rdfs:label "adjusted time" ; rdfs:comment "Time of warehouse adjustment." ; rdfs:domain :WarehouseStockAdjustment ; rdfs:range xsd:dateTime .
+:adjustmentSlot a owl:ObjectProperty ; rdfs:label "adjusted slot" ; rdfs:comment "Slot adjusted." ; rdfs:domain :WarehouseStockAdjustment ; rdfs:range :StorageSlot .
+:valueAtCostInr a owl:DatatypeProperty ; rdfs:label "value at cost INR" ; rdfs:comment "Adjustment value at cost." ; rdfs:domain :WarehouseStockAdjustment ; rdfs:range xsd:decimal .
+:adjustmentReason a owl:DatatypeProperty ; rdfs:label "adjustment reason" ; rdfs:comment "short pick: slot count variance; cycle count variance." ; rdfs:domain :WarehouseStockAdjustment ; rdfs:range xsd:string .
+:code a owl:DatatypeProperty ; rdfs:label "code" ; rdfs:comment "Code of a route, vehicle or slot." ; rdfs:range xsd:string .
+:flow a owl:DatatypeProperty ; rdfs:label "replenishment flow" ; rdfs:comment "DC (via distribution centre) or DSD (direct store delivery)." ; rdfs:domain :Product ; rdfs:range xsd:string .
+:hasSku a owl:FunctionalProperty . :hasGtin a owl:FunctionalProperty . :hasRrn a owl:FunctionalProperty .

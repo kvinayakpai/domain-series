@@ -17,6 +17,7 @@ const finale = json('finale.json');
 const machineRun = json('auto-ontology-run.json');
 // Six fresh Claude agents and NVIDIA's Nemotron on the same questions, scored against the records.
 const claudeAgents = json('auto-ontology-claude-agents.json');
+const owlShacl = json('auto-ontology-owl-shacl.json');
 const story = retail.story;
 const ep = story.episode;
 
@@ -394,7 +395,7 @@ test('posts 6 to 19 quote their rules from the ontology and their numbers from S
       const rule = ontology.rules.find((r: { n: number }) => r.n === n);
       expect(text, `${p.slug} rule ${n}`).toContain(`Rule ${n} – ${rule.text.replace(/[“”]/g, '"')}`);
     }
-    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (p.slug.startsWith('does-written') || p.slug.startsWith('the-auto-ontology') ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) : '');
+    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (p.slug.startsWith('does-written') || p.slug.startsWith('the-auto-ontology') ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) + JSON.stringify(owlShacl) : '');
     for (const s of DRAWS_ON[p.slug]) sources += ` ${await articleText(page, `${s}/`)}`;
     const found = numbers(sources);
     for (const n of numbers(text)) {
@@ -611,4 +612,21 @@ test('posts 16 and 17 report the Claude agents and Nemotron as recorded', async 
   expect(full).toContain('answered 503 and 504 for over an hour');
   expect(full).toContain('The till data ends on 28 June, so 29 and 30 June are not in the database.');
   expect(a.truth.data_ends).toBe('28 June');
+});
+
+// Post 17 also reports two automatic routes to OWL and SHACL, pinned to src/data/auto-ontology-owl-shacl.json.
+test('post 17 reports Ontop and the two Claude agents writing OWL and SHACL as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'the-auto-ontology-experiment-in-full/');
+  const o = owlShacl.ontop;
+  expect(text).toContain(`It wrote ${o.classes} classes, one for each table, and ${o.datatype_properties} data properties, one for each column. It wrote ${o.object_properties} object properties`);
+  expect(text).toContain(`${o.triples} triples`);
+  const [opus, sonnet] = owlShacl.agents;
+  expect(text).toContain(`Opus wrote ${opus.classes} classes, ${opus.object_properties} object properties, ${opus.datatype_properties} data properties, ${opus.node_shapes} SHACL node shapes and ${opus.sparql_rules} rules`);
+  expect(text).toContain(`Sonnet wrote ${sonnet.classes} classes, ${sonnet.object_properties} object properties, ${sonnet.datatype_properties} data properties and ${sonnet.node_shapes} node shapes`);
+  expect(text).toContain('Neither listed demand or a lost sale.');
+  expect(opus.lists_demand_or_lost_sale_as_missing || sonnet.lists_demand_or_lost_sale_as_missing).toBe(false);
+  // The five files are served.
+  for (const f of ['ontop-ontology.owl', 'opus-ontology.ttl', 'opus-shapes.ttl', 'sonnet-ontology.ttl', 'sonnet-shapes.ttl']) {
+    expect((await request.get(`data/auto-ontology/store014-${f}`)).status(), f).toBe(200);
+  }
 });
