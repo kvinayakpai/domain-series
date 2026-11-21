@@ -184,11 +184,16 @@ jobs:
       - name: Check NVIDIA's models answer
         if: env.MODELS == 'nvidia'
         run: |
-          ask() {  # ask <name> <url> <json>: prints the HTTP status, and the body when it fails
-            code=$(curl -sS -o "/tmp/$1.json" -w '%{http_code}' --max-time 300 "$2" \
-              -H "Authorization: Bearer $NVIDIA_API_KEY" -H 'Content-Type: application/json' -H 'Accept: application/json' -d "$3")
-            echo "$1: HTTP $code"
-            [ "$code" = 200 ] || { head -c 800 "/tmp/$1.json"; echo; return 1; }
+          ask() {  # ask <name> <url> <json>: prints the HTTP status, and the body when it fails; tries up to 6 times
+            for try in 1 2 3 4 5 6; do
+              code=$(curl -sS -o "/tmp/$1.json" -w '%{http_code}' --max-time 300 "$2" \
+                -H "Authorization: Bearer $NVIDIA_API_KEY" -H 'Content-Type: application/json' -H 'Accept: application/json' -d "$3")
+              echo "$1: HTTP $code (try $try)"
+              [ "$code" = 200 ] && return 0
+              head -c 800 "/tmp/$1.json"; echo
+              sleep 30
+            done
+            return 1
           }
           ask chat "$NV_CHAT_ENDPOINT/chat/completions" \
             "{\"model\":\"$NV_CHAT_MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Name one Indian grocery staple, in one word.\"}],\"max_tokens\":2048}"
