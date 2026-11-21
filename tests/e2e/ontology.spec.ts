@@ -595,10 +595,11 @@ test('posts 16 and 17 report the Claude agents and Nemotron as recorded', async 
   expect(a.nemotron.map((x: { honest: number }) => x.honest)).toEqual([0, 2]);
 
   const simple = await articleText(page, 'does-written-down-knowledge-help/');
-  expect(simple).toContain('The till lines say 567 bags were sold, and six of the eight shelf audits found the atta on the shelf, which is 75%.');
-  expect(simple).toContain('It said 2 shoppers, which were really the two times the shelf was found empty, and 3 bags lost, which were really the ones written off as damaged.');
-  expect(simple).toContain('Sonnet said there was no record, with or without the knowledge.');
-  expect(simple).toContain('it turned the forecast into 43 to 84 shoppers');
+  expect(simple).toContain('The till says 567 bags were sold. Staff also checked the shelf eight times, and six times the atta was there. That is 75%.');
+  expect(simple).toContain('It said 2 shoppers, but those were really the two times staff found the shelf empty. It said 3 bags lost, but those were bags thrown away as damaged.');
+  expect(simple).toContain('With our notes, it said "no record holds this".');
+  expect(simple).toContain('Sonnet said "no record" both times.');
+  expect(simple).toContain('it took a sales forecast and called it 43 to 84 shoppers');
   expect(simple).toContain('When no record holds the answer, say so, and if you estimate, say how.');
 
   const full = await articleText(page, 'the-auto-ontology-experiment-in-full/');
