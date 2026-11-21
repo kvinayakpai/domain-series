@@ -84,7 +84,7 @@ def chat(cfg: dict, messages: list) -> dict:
         try:
             r = requests.post(f"{cfg['base']}/chat/completions", timeout=900,
                               headers={"Authorization": f"Bearer {cfg['key']}"},
-                              json={"model": cfg["name"], "messages": messages, **({} if text else {"tools": TOOL}), "temperature": 0.2, "max_tokens": 4096})
+                              json={"model": cfg["name"], "messages": messages, **({} if text else {"tools": TOOL}), "temperature": 0.2, "max_tokens": 16000})
             if r.status_code < 300:
                 return r.json()["choices"][0]["message"]
             last = f"{r.status_code} {r.text[:200]}"
