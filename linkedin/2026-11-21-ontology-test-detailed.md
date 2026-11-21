@@ -7,7 +7,7 @@ The site's blogs on this are posts 16 and 17 of Season 2.
 
 My learning from this experiment – "A machine can draft the tables. The meaning has to come from people, and the model has to be strong enough to respect it."
 
-So far I have covered 12 KPIs in this series. This is where it is leading: ontology, the written-down meaning of a business, under every KPI.
+So far I have covered 18 KPIs in this series. This is where it is leading: ontology, the written-down meaning of a business, under every KPI.
 
 The test – Store 014, 5 kg atta, June 2026, four questions: bags sold, shoppers who left without, on-shelf availability, lost sales.
 
