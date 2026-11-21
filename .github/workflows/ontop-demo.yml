@@ -1,0 +1,105 @@
+name: Ontop bootstrap (Store 014)
+
+# Runs the open-source Ontop on Store 014's June records, on GitHub's own machine: its
+# `bootstrap` command writes an OWL ontology and a mapping from the database's tables, and
+# `materialize` writes the RDF they expose. Results are committed back to this branch under
+# ontop-demo/results.
+
+on:
+  push:
+    branches: [ontop-demo]
+    paths:
+      - "ontop-demo/**"
+      - "!ontop-demo/results/**"
+      - ".github/workflows/ontop-demo.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      RESULTS: ontop-demo/results/run-${{ github.run_number }}
+      PGPASSWORD: postgres
+      DB_URL: jdbc:postgresql://localhost:5432/store014
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          psql -h localhost -U postgres -d store014 -Atc "select table_schema || '.' || table_name from information_schema.tables where table_schema in ('store','warehouse','payments') order by 1" | tee "$RESULTS/tables.txt"
+
+      - name: Get Ontop and the PostgreSQL driver
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          curl -sSf -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/ontop/ontop/releases/latest -o /tmp/release.json
+          python3 - <<'PY' > /tmp/ontop_url.txt
+          import json
+          d = json.load(open('/tmp/release.json'))
+          urls = [a['browser_download_url'] for a in d['assets'] if a['name'].startswith('ontop-cli') and a['name'].endswith('.zip')]
+          print(urls[0])
+          open('/tmp/ontop_tag.txt', 'w').write(d['tag_name'])
+          PY
+          echo "Ontop $(cat /tmp/ontop_tag.txt): $(cat /tmp/ontop_url.txt)"
+          curl -sSfL "$(cat /tmp/ontop_url.txt)" -o /tmp/ontop.zip
+          mkdir /tmp/ontop && unzip -q /tmp/ontop.zip -d /tmp/ontop
+          ls /tmp/ontop
+          curl -sSfL https://repo1.maven.org/maven2/org/postgresql/postgresql/42.7.4/postgresql-42.7.4.jar -o /tmp/ontop/jdbc/postgresql-42.7.4.jar
+          cp /tmp/ontop_tag.txt "$RESULTS/ontop-version.txt"
+
+      - name: Bootstrap an ontology and a mapping from the tables
+        run: |
+          cd /tmp/ontop
+          chmod +x ontop
+          ./ontop bootstrap -b http://example.org/store014/ -m "$GITHUB_WORKSPACE/$RESULTS/mapping.obda" -t "$GITHUB_WORKSPACE/$RESULTS/ontology.owl" \
+            --db-url "$DB_URL" --db-driver org.postgresql.Driver -u postgres --db-password postgres 2>&1 | tee "$GITHUB_WORKSPACE/$RESULTS/bootstrap.log"
+          ls -l "$GITHUB_WORKSPACE/$RESULTS"
+
+      - name: Materialize the RDF the mapping exposes
+        continue-on-error: true
+        run: |
+          cd /tmp/ontop
+          ./ontop materialize -m "$GITHUB_WORKSPACE/$RESULTS/mapping.obda" -t "$GITHUB_WORKSPACE/$RESULTS/ontology.owl" -f turtle -o /tmp/store014.ttl \
+            --db-url "$DB_URL" --db-driver org.postgresql.Driver -u postgres --db-password postgres 2>&1 | tail -30 | tee "$GITHUB_WORKSPACE/$RESULTS/materialize.log"
+          ls -l /tmp/store014.ttl
+          gzip -9 -c /tmp/store014.ttl > "$GITHUB_WORKSPACE/$RESULTS/store014.ttl.gz"
+          grep -c ' \.$' /tmp/store014.ttl | tee "$GITHUB_WORKSPACE/$RESULTS/triple-lines.txt"
+
+      - name: Summarize
+        run: |
+          pip install -q rdflib
+          python3 ontop-demo/summarize.py "$RESULTS/ontology.owl" "$RESULTS/mapping.obda" | tee "$RESULTS/summary.json"
+
+      - name: Commit the results to this branch
+        if: ${{ !cancelled() }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          find "$RESULTS" -size +40M -delete
+          git add "$RESULTS"
+          git commit -q -m "Ontop bootstrap results (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3; do
+            git pull -q --rebase origin "$GITHUB_REF_NAME" && git push -q origin "HEAD:$GITHUB_REF_NAME" && break
+            sleep 5
+          done
