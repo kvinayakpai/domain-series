@@ -12,6 +12,14 @@ const honest = (model, knowledge) => AGENTS.agents.find((a) => a.model === model
 const NEMO = (knowledge) => AGENTS.nemotron.find((a) => a.knowledge === knowledge).honest;
 const row = (label, n, bold) => ({ label, v: n, kind: n === 2 ? 'real' : 'grey', text: `${n} of 2`, bold });
 
+// One run of NVIDIA's Auto-Ontology on Store 014 (src/data/auto-ontology-run.json), and fourteen models read
+// answer by answer (src/data/auto-ontology-model-sweep.json, its reviewed block).
+const RUN = JSON.parse(readFileSync(new URL('../../src/data/auto-ontology-run.json', import.meta.url), 'utf8'));
+const SWEEP = JSON.parse(readFileSync(new URL('../../src/data/auto-ontology-model-sweep.json', import.meta.url), 'utf8'));
+const REV = SWEEP.reviewed;
+const RIGHT = Object.entries(REV.per_model).filter(([, m]) => m.all_four_right > 0);
+const NEVER = Object.keys(REV.per_model).length - RIGHT.length;
+
 const SEASON = 'Why Domain Matters · Ontology';
 
 // Rumiantsau and Fokeev (28 April 2026), arXiv 2604.25149: share of 100 questions answered
@@ -64,6 +72,23 @@ export const ONTOLOGY_CARDS = [
   },
 
   {
+    slug: 'what-would-a-machine-draft',
+    only: ['open', 'close'],
+    eyebrow: `${SEASON} · Putting it together · 1 of 5`,
+    headline: 'The records knew the sales, not the shopper who left',
+    scope: 'Store 014, June 2026',
+    reported: { label: 'Named from the records', value: `${RUN.term_count}`, how: `things, in a ${RUN.run.draft_minutes}-minute draft by a machine` },
+    observed: { label: 'Never named', value: '2', how: 'demand and the lost sale' },
+    blind: 'A shopper who walks away leaves no row.',
+    lesson: 'Ask what the records cannot see',
+    ruleLabel: 'Tell your AI agent',
+    rule: 'Before you trust a number, ask what its records cannot see.',
+    checkLabel: 'Ask',
+    checks: ['Which record does this KPI read?', 'Does that record look at the world, or copy another?', 'What happens in the business that no record holds?'],
+    next: 'the knowledge layer',
+  },
+
+  {
     slug: 'does-written-down-knowledge-help',
     eyebrow: `${SEASON} · Putting it together · 2 of 5`,
     headline: 'Two answers exist. Two do not.',
@@ -71,30 +96,23 @@ export const ONTOLOGY_CARDS = [
     reported: { label: 'In the shop’s records', value: `${AGENTS.truth.sold}`, how: `bags sold, and ${AGENTS.truth.availability_pct}% on the shelf` },
     observed: { label: 'In no record at all', value: 'none', how: 'walk-aways and lost sales' },
     blind: 'A shopper who walks away leaves no row.',
-    chart: {
-      type: 'hbars',
-      title: 'Who said “no record” on both?',
-      sub: 'The two questions no record can answer: shoppers who left without, and lost sales',
-      legend: [{ name: 'Said “no record” on both', color: C.real }, { name: 'Gave a number on at least one', color: C.grey }],
-      labelW: 1000,
-      max: 2,
+    layers: {
+      title: 'Five parts of a knowledge layer',
+      sub: 'And what an AI does with each, at Store 014',
       rows: [
-        row('NVIDIA Nemotron, table list only', NEMO(false)),
-        row('NVIDIA Nemotron, with our notes', NEMO(true), true),
-        row('Haiku, table list only', honest('Haiku', false)),
-        row('Haiku, with our notes', honest('Haiku', true)),
-        row('Sonnet, table list only', honest('Sonnet', false)),
-        row('Sonnet, with our notes', honest('Sonnet', true), true),
-        row('Opus, table list only', honest('Opus', false)),
-        row('Opus, with our notes', honest('Opus', true)),
+        { name: 'Words', example: 'OSA, RRN and the other codes', does: 'Reads the question as the business means it' },
+        { name: 'Records', example: 'Till lines are sales, not demand. Book stock is a belief', does: 'Picks the right record, and spots the copies' },
+        { name: 'KPIs', example: 'On-shelf: the share of shelf checks that found it', does: 'Uses the agreed formula, not its own' },
+        { name: 'Rules', example: 'Demand is not sales. Say no record holds walk-aways', does: 'Knows when to say “no record”' },
+        { name: 'Examples', example: 'Units sold by item and month, checked', does: 'Copies a pattern known to be right' },
       ],
-      note: 'One run each. A number that is called an estimate still counts as a number.',
+      note: 'Formal OWL and SHACL files are a sixth form, for machines that check the data.',
     },
-    lesson: 'Say “no record” before you guess',
+    lesson: 'Write it in plain words, tied to the records',
     ruleLabel: 'Tell your AI agent',
     rule: 'When no record holds the answer, say so, and if you estimate, say how.',
     checkLabel: 'Ask',
-    checks: ['Which table does this number come from?', 'Could anyone have written this down at all?', 'How sure is the AI, and why?'],
+    checks: ['Is each rule tied to the record it is about?', 'Does every KPI have one agreed formula?', 'Can your AI say “no record”?'],
     next: 'the whole experiment',
   },
 
@@ -119,20 +137,54 @@ export const ONTOLOGY_CARDS = [
 
   {
     slug: 'ontology-tools-in-the-market',
-    only: ['summary'],
     eyebrow: `${SEASON} · Putting it together · 4 of 5`,
+    headline: `Same four questions, fourteen models, ${SWEEP.runs} runs`,
+    scope: '5 kg atta at Store 014, June 2026',
+    chips: [
+      { text: 'Made up a month without one query' },
+      { text: 'Called a forecast 84 shoppers' },
+      { text: 'Said “no record” even to 567 bags sold' },
+      { text: 'Kept looking until the turns ran out' },
+    ],
+    blind: `All four right: ${REV.plain.all_four_right} of ${REV.plain.runs} runs. With one plain sentence: ${REV.rule.all_four_right}.`,
     chart: {
       type: 'hbars',
-      title: 'Four of ten ontology tools are open, six are not',
-      sub: 'Ten tools in this blog, by licence',
-      legend: [{ name: 'Open source or open standard', color: C.real }, { name: 'Proprietary or commercial', color: C.grey }],
-      labelW: 700,
-      max: 8,
+      title: `${RIGHT.length} of ${Object.keys(REV.per_model).length} models got all four answers right at least once`,
+      sub: 'Runs with all four answers right, out of six per model',
+      legend: [{ name: 'All four right at least once', color: C.real }, { name: 'Never', color: C.grey }],
+      labelW: 1000,
+      max: 6,
       rows: [
-        { label: 'Open source or standard', v: 4, kind: 'real', text: '4 tools', bold: true },
-        { label: 'Proprietary or commercial', v: 6, kind: 'grey', text: '6 tools' },
+        ...RIGHT.map(([name, m]) => ({ label: name, v: m.all_four_right, kind: 'real', text: `${m.all_four_right}`, bold: m.all_four_right === Math.max(...RIGHT.map(([, x]) => x.all_four_right)) })),
+        { label: `The other ${NEVER} models`, v: 0, kind: 'grey', text: '0' },
       ],
-      note: 'Open: Ontop, Protégé, Auto-Ontology, Ossie. Paid: Stardog and Timbr also speak RDF and OWL.',
+      note: `One run per setting, ${SWEEP.runs} runs read by hand.`,
     },
+    lesson: 'Test before you trust',
+    ruleLabel: 'Tell your AI agent',
+    rule: 'When you are not sure, say so, and never fill a gap with a number.',
+    checkLabel: 'Check',
+    checks: ['Does it get the answers you already know?', 'Does it say “no record” where no record exists?', 'Does it do both every time you run it?'],
+    next: 'the last step',
+  },
+
+  {
+    slug: 'start-a-domain-ontology',
+    only: ['open', 'close'],
+    eyebrow: `${SEASON} · Putting it together · 5 of 5`,
+    headline: 'The last step is yours',
+    scope: 'What only people can add to a machine’s draft',
+    chips: [
+      { n: '1', text: 'What no record holds' },
+      { n: '2', text: 'Which records are copies' },
+      { n: '3', text: 'How the work really happens' },
+    ],
+    blind: 'You can buy the model and the tool. Not how your business works.',
+    lesson: 'Write down how the work happens',
+    ruleLabel: 'Tell your AI agent',
+    rule: 'Before you act on a KPI, find the record it reads and an observation that can contradict it.',
+    checkLabel: 'Monday',
+    checks: ['Pick the KPI your business argues about most', 'Walk the work behind it, step by step', 'Write each disagreement down as a rule in plain words'],
+    next: 'Season 3',
   },
 ];

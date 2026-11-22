@@ -374,14 +374,14 @@ const DRAWS_ON: Record<string, string[]> = {
   'does-written-down-knowledge-help': ['what-would-a-machine-draft'],
   'the-auto-ontology-experiment-in-full': ['what-would-a-machine-draft'],
   'ontology-tools-in-the-market': ['what-would-a-machine-draft'],
-  'start-a-domain-ontology': ['who-saw-what'],
+  'start-a-domain-ontology': ['who-saw-what', 'store-014-ontology'],
 };
 // Not data: rule numbers and pack sizes, the year, the store's name and the date under the title. Post 15
 // also gives the similarity range, issue and acceptance date of the study it cites.
 const NOT_DATA = new Set([...Array.from({ length: 13 }, (_, i) => String(i)), '2026', '014', '18']);
 const OUTSIDE: Record<string, string[]> = {
   'what-would-a-machine-draft': ['21', '19', '2.0'], // NVIDIA's announcement date, the repository's read date, its licence
-  'ontology-tools-in-the-market': ['2.0'], // the Apache licence version
+  'ontology-tools-in-the-market': ['2.0', '2604.25149'], // the Apache licence version, the study's arXiv number
   'start-a-domain-ontology': ['0.5', '0.8', '17', '30', '2.0'],
 };
 
@@ -396,7 +396,8 @@ test('posts 6 to 19 quote their rules from the ontology and their numbers from S
       const rule = ontology.rules.find((r: { n: number }) => r.n === n);
       expect(text, `${p.slug} rule ${n}`).toContain(`Rule ${n} – ${rule.text.replace(/[“”]/g, '"')}`);
     }
-    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (p.slug.startsWith('does-written') || p.slug.startsWith('the-auto-ontology') ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) + JSON.stringify(owlShacl) + JSON.stringify(sweep) : '');
+    const runs = ['does-written-down-knowledge-help', 'the-auto-ontology-experiment-in-full', 'ontology-tools-in-the-market'];
+    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (runs.includes(p.slug) ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) + JSON.stringify(owlShacl) + JSON.stringify(sweep) : '');
     for (const s of DRAWS_ON[p.slug]) sources += ` ${await articleText(page, `${s}/`)}`;
     const found = numbers(sources);
     for (const n of numbers(text)) {
@@ -413,15 +414,51 @@ test('posts 6 to 19 quote their rules from the ontology and their numbers from S
   expect(check.sparql.refund_clock.rows[0].fromComplaint).toBe('P5D');
 });
 
-// The bonus post reports one real run of Auto-Ontology on Store 014. Every claim in that section is pinned
-// to the run's record (src/data/auto-ontology-run.json), and the record's answers are pinned to the data.
-test('the bonus post reports the Store 014 run as recorded', async ({ page, request }) => {
+// Post 15, for everyone: the KPIs it quotes come from the KPI list, the drafts from the run's record, and the
+// book stock's description from the draft the machine wrote.
+test('post 15 quotes the KPIs, the drafts and the answers as recorded', async ({ page, request }) => {
   const text = await articleText(page, 'what-would-a-machine-draft/');
+  const kpis = await kpiList(request);
+  const osa = kpis.find((k) => k.id === 'osa')!.store_014;
+  const lost = kpis.find((k) => k.id === 'lost-sales')!.store_014;
+  expect(text).toContain(`The books said ${osa.reported.value}. The shelf had a bag ${osa.observed.value} of the time.`);
+  expect(text).toContain(`on-shelf availability came to read ${osa.reported.value}.`);
+  expect(lost.observed.value).toBe('157 bags');
+  expect(text).toContain('we could count the lost bags – 157 of them – only because Store 014 is a simulation');
+  expect(text).toContain(`I ran it on Store 014's ${machineRun.run.tables} tables of June records.`);
+  expect(text).toContain(`On a small free AI model, the draft took ${machineRun.run.draft_minutes} minutes and named ${machineRun.term_count} things`);
+  const n = machineRun.with_nvidia_models;
+  expect(text).toContain(`On NVIDIA's own model, it took ${n.draft_minutes} minutes and named ${n.term_count}, one for each table.`);
+  // The small model's draft called the book stock a count.
+  const terms = JSON.parse(readFileSync(new URL('../../public/data/auto-ontology/store014-draft-terms.json', import.meta.url), 'utf8')) as { name: string; description?: string }[];
+  expect(terms.some((t) => /final count of stock/.test(t.description ?? ''))).toBe(true);
+  expect(text).toContain('described the book stock as "the final count of stock" for the day.');
+  // Neither draft named the two things no table holds.
+  expect(machineRun.terms_naming_the_gap).toEqual([]);
+  expect(n.terms_naming_the_gap).toEqual([]);
+  expect(text).toContain('Two things, in both drafts.');
+  // The answers: 660 on the draft alone, then Nemotron's 567, 2 and 3.
+  type A = { id: string; rerun_on_store014: string[][] | null };
+  const by = (list: A[], id: string) => list.find((a) => a.id === id)!;
+  expect(by(machineRun.with_a_7b_model.draft_alone, 'sold').rerun_on_store014).toEqual([['660']]);
+  expect(text).toContain('A small model said 660 bags were sold – the bags the warehouse delivered, not the bags shoppers bought.');
+  expect(by(n.before, 'sold').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
+  expect(by(n.before, 'left-without').rerun_on_store014).toEqual([['2']]);
+  expect(by(n.before, 'lost-sales').rerun_on_store014).toEqual([['3']]);
+  expect(text).toContain(`NVIDIA's model got the bags sold right, ${retailSoldJune()}, and then said 2 shoppers walked away`);
+  expect(n.coverage_before.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
+  expect(text).toContain("The tool's own check said every question was covered.");
+});
+
+// Post 17 reports every run of Auto-Ontology on Store 014. Each claim in its runs sections is pinned to the run's
+// record (src/data/auto-ontology-run.json), and the record's answers are pinned to the data.
+test('post 17 reports the Store 014 run on the small model as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'the-auto-ontology-experiment-in-full/');
   const run = machineRun.run;
   expect(run.chat_model).toMatch(/^qwen3:4b/);
-  expect(text).toContain('a small open model stood in, Qwen3 4B');
-  expect(text).toContain(`the ${run.tables} tables of June records`);
-  expect(text).toContain(`It drafted for ${run.draft_minutes} minutes and named ${machineRun.term_count} terms.`);
+  expect(text).toContain('Run 6 used Qwen3 4B, at 4 bits, for drafting and answering.');
+  expect(text).toContain(`Store 014's ${run.tables} tables of June records`);
+  expect(text).toContain(`The draft took ${run.draft_minutes} minutes and named ${machineRun.term_count} terms`);
   // Ten product terms, one per table that holds a SKU.
   expect(machineRun.product_terms).toHaveLength(10);
   expect(text).toContain('It named the product ten times');
@@ -431,117 +468,125 @@ test('the bonus post reports the Store 014 run as recorded', async ({ page, requ
   expect(run.compile.joins.map((j: string) => j.split(' -> ')[1].split('.')[0]).sort()).toEqual(['pallets', 'products', 'shipments']);
   expect(run.compile.joins_rejected).toEqual(['goods_receipts.units_booked']);
   expect(text).toContain('It found four joins, all from the goods receipts – to the shipment, the pallet and the product.');
+  expect(text).toContain('A fifth, from units_booked, was thrown out by its own check against the data.');
   expect(run.compile.sql_attributes_from_history).toBe('0');
-  expect(text).toContain('so it suggested no calculations');
-  expect(run.ossie_export_refused).toContain('to exactly one represented term');
-  // No term named for demand or a lost sale; demand only inside the forecast's description.
+  expect(text).toContain('It suggested no calculations');
+  expect(run.ossie_export_refused).toContain('candidates: goods_receipt_line, goods_receipt_note');
+  expect(text).toContain('Apache Ossie refused the export, because goods_receipts.asn_sku mapped to two terms, Goods Receipt Line and Goods Receipt Note.');
+  // No term named for demand or a lost sale; demand only inside two descriptions.
   expect(machineRun.terms_naming_the_gap).toEqual([]);
-  expect(machineRun.descriptions_mentioning_the_gap).toContain('Forecast Variability');
-  expect(text).toContain('No term was named for demand or a lost sale.');
+  expect(machineRun.descriptions_mentioning_the_gap).toEqual(['Forecast Variability', 'Reorder Point']);
+  expect(text).toContain('No term was named for demand or a lost sale. Demand came up only inside two descriptions');
   // The coverage check said every question was covered.
   expect(machineRun.coverage.length).toBeGreaterThan(0);
   expect(machineRun.coverage.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
-  expect(text).toContain('Its check said every question was covered');
+  expect(text).toContain('The coverage check said every question was covered, including the two no table can answer.');
   // The agent answered none, though its query for the bags sold was right.
   const asked = machineRun.answers as { id: string; answer: string; sql: string | null; truth: string[][] | null }[];
   expect(asked).toHaveLength(4);
   expect(asked.every((a) => a.answer.startsWith("I couldn't write a query"))).toBe(true);
   const sold = asked.find((a) => a.id === 'sold')!;
   expect(sold.truth).toEqual([[`${retailSoldJune()}`]]);
-  expect(text).toContain(`For the bags sold, it wrote the right query – ${retailSoldJune()} bags, as the till lines say – but never handed the answer back.`);
+  expect(text).toContain(`For the bags sold it ran the right query – ${retailSoldJune()} from the daily sales – but answered in plain text and never called submit`);
   // The files box links to files that are there.
   for (const f of ['store014-draft-terms.json', 'store014-run.json']) {
     expect((await request.get(`data/auto-ontology/${f}`)).status()).toBe(200);
   }
 });
 
-// The same section's 7B runs: on the draft alone (run 7), then before and after Season 2's knowledge went in
-// (run 8). Each claim is pinned to the record, and each number to the answer's own query re-run on the records.
-test('the bonus post reports the 7B runs and the knowledge layer as recorded', async ({ page, request }) => {
-  const text = await articleText(page, 'what-would-a-machine-draft/');
+// Runs 7 and 8: the 7B model on the draft alone, then before and after the knowledge layer went in. Each claim
+// is pinned to the record, and each number to the answer's own query re-run on the records.
+test('post 17 reports the 7B runs and the knowledge layer as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'the-auto-ontology-experiment-in-full/');
   const w = machineRun.with_a_7b_model;
   type A = { id: string; answer: string | null; sql: string | null; rerun_on_store014: string[][] | null };
   const by = (list: A[], id: string) => list.find((a) => a.id === id)!;
   expect(w.answer_model).toMatch(/^qwen2\.5:7b/);
-  expect(text).toContain('with a 7B model answering, Qwen2.5 7B');
+  expect(text).toContain('Runs 7 and 8 kept the 4B draft and put Qwen2.5 7B on the answers.');
   // On the draft alone.
   const alone = by(w.draft_alone, 'sold');
+  expect(alone.sql).toContain('units_booked');
   expect(alone.sql).toContain('store.goods_receipts');
   expect(alone.rerun_on_store014).toEqual([['660']]);
+  const aloneShelf = by(w.draft_alone, 'on-shelf');
+  expect(aloneShelf.sql).toContain('store.goods_receipts');
+  expect(aloneShelf.rerun_on_store014?.[0][1]).toBe('11');
+  expect(text).toContain('one run said 660 bags sold – SUM(units_booked) from the goods receipts – and gave on-shelf availability as "11 units received", which was 11 receipt rows.');
   expect(by(w.before, 'sold').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
-  expect(text).toContain('one run got the bags sold right and the other said 660 – the bags received from the warehouse.');
   const left = by(w.before, 'left-without');
   expect(left.sql).toContain('store.inventory_book');
   expect(left.rerun_on_store014).toEqual([['28']]);
   const osa = by(w.before, 'on-shelf');
   expect(osa.sql).toContain('warehouse.pick_confirmations');
+  expect(osa.sql).toContain('AVG(');
+  expect(osa.sql).toContain('cases_confirmed');
   expect(w.before_on_shelf_percent).toBe('1.43%');
-  expect(text).toContain("The shoppers who left without became 28 – it had counted 28 days of book stock – and on-shelf availability 1.43%, worked out from the warehouse's picks.");
+  expect(text).toContain("gave 28 shoppers who left without – COUNT(*) of the book-stock rows, one a day – and on-shelf availability of 1.43%, AVG(cases_confirmed) over SUM(cases_ordered) from the warehouse's picks.");
   // What went in.
   expect(w.entered.rules_quoted).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-  expect(w.entered.glossary.length).toBeGreaterThan(0);
+  expect(w.entered.glossary.length).toBe(8);
   expect(w.entered.calculations.map((c: { status: string }) => c.status)).toEqual(['added', 'added', 'added', 'added']);
   expect(w.entered.analyses.map((c: { status: string }) => c.status)).toEqual(['added', 'added', 'added']);
   expect(w.entered.tables_certified).toEqual([]);
-  expect(text).toContain('what each table is, the joins, a glossary, the twelve rules word for word – each with what it means for these tables – four calculations and three certified queries.');
+  expect(text).toContain('Eight codes: OSA, SKU, GTIN, SSCC, RRN, UPI, ASN and GRN');
+  expect(text).toContain('None went in. The API answered in a shape the code did not expect.');
   // After.
   const sold = by(w.after, 'sold');
   expect(sold.sql).toContain('store.pos_lines');
   expect(sold.sql).toContain('gtin');
   expect(sold.rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
-  expect(text).toContain('The bags sold came from the till lines, matched on the code on the pack: 567.');
+  expect(text).toContain(`${retailSoldJune()} from pos_lines joined to products on the GTIN.`);
   const shelf = by(w.after, 'on-shelf');
   expect(shelf.sql).toBeFalsy();
   expect(shelf.answer).toContain("'on shelf'");
-  expect(text).toContain('On-shelf availability became the share of shelf audits that found the bag on the shelf, though it gave the method and no number.');
+  expect(text).toContain("On-shelf availability as the share of shelf audits with status 'on shelf', but with no SQL and no number.");
   expect(by(w.after, 'left-without').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
-  expect(text).toContain('Asked how many shoppers left without, it gave the 567 bags sold.');
+  expect(text).toContain(`The shoppers who left without were answered with the ${retailSoldJune()} bags sold.`);
   const lost = by(w.after, 'lost-sales');
+  expect(lost.sql).toContain('no_sales_days');
   expect(lost.rerun_on_store014).toEqual(w.days_with_sales);
   expect(w.days_with_sales).toEqual([['24']]);
-  expect(text).toContain('Its estimate of lost sales, 24, counted the days that had sales.');
+  expect(text).toContain('"Estimated lost sales 24" came from a CTE named no_sales_days that in fact listed the days with sales – 24 of the 28.');
   expect(w.coverage_after.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
-  expect(text).toContain('And its check still said every question was covered.');
+  expect(text).toContain('every question covered, before and after. After, it at least matched the right things.');
+  // The knowledge layer as entered is the published file, rule 3 quoted from it.
+  const instructions = readFileSync(new URL('../../public/data/auto-ontology/store014-expert-instructions.txt', import.meta.url), 'utf8');
+  expect(instructions).toContain('If asked how many shoppers left without an item, or for lost sales, do not count goods receipts, shelf audits, forecasts or write-offs as shoppers or sales. Say that no record holds them, and if you estimate them, say how.');
+  expect(text).toContain('If asked how many shoppers left without an item, or for lost sales, do not count goods receipts, shelf audits, forecasts or write-offs as shoppers or sales. Say that no record holds them, and if you estimate them, say how.');
   expect((await request.get('data/auto-ontology/store014-expert-instructions.txt')).status()).toBe(200);
 });
 
-// The same section's run on NVIDIA's own model (run 10): Nemotron drafting and answering, with the local
-// embeddings the other runs used. Each claim is pinned to the record, and each number to the answer's own
-// query re-run on the records.
-test('the bonus post reports the run on NVIDIA\'s own model as recorded', async ({ page, request }) => {
-  const text = await articleText(page, 'what-would-a-machine-draft/');
+// Run 10: Nemotron drafting and answering, with the local embeddings the other runs used.
+test('post 17 reports the run on NVIDIA\'s own model as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'the-auto-ontology-experiment-in-full/');
   const n = machineRun.with_nvidia_models;
   type A = { id: string; answer: string | null; sql: string | null; rerun_on_store014: string[][] | null; truth: string[][] | null };
   const by = (list: A[], id: string) => list.find((a) => a.id === id)!;
   expect(n.chat_model).toBe('nvidia/nemotron-3.5-lightning-30b-a3b');
   expect(n.embedding_model).toMatch(/^nomic-embed-text/);
   expect(machineRun.run.embedding_model).toMatch(/^nomic-embed-text/);
-  expect(text).toContain("I ran it once more with NVIDIA's own model, Nemotron 3.5 Lightning");
-  expect(text).toContain('so that part stayed on the same small model as the other runs.');
+  expect(text).toContain(`Run 10 used Nemotron 3.5 Lightning (${n.chat_model}) for drafting and answering, with the same local embeddings as before`);
   // The draft: one term per table, none for the gap, three joins to the shipments, none for the till and UPI.
   expect(n.draft_minutes).toBe(10);
   expect(n.term_count).toBe(machineRun.run.tables);
-  const tables = new Set(n.terms.flatMap((t: { tables: string[] }) => t.tables.slice(0, 1)));
   expect(n.terms.every((t: { tables: string[] }) => t.tables.length === 1 || t.tables.includes('warehouse.shipments'))).toBe(true);
-  expect(tables.size + 1).toBe(machineRun.run.tables);
-  expect(text).toContain(`It drafted in ${n.draft_minutes} minutes and named ${n.term_count} terms, one for each table – shelf audit, POS line item, inventory book, UPI settlement.`);
-  for (const name of ['Shelf Audit', 'POS Line Item', 'Inventory Book', 'UPI Settlement']) {
-    expect(n.terms.map((t: { name: string }) => t.name)).toContain(name);
-  }
+  expect(text).toContain(`It drafted in ${n.draft_minutes} minutes and named ${n.term_count} terms, one for each table`);
   expect(n.terms_naming_the_gap).toEqual([]);
-  expect(text).toContain('Again no term was named for demand or a lost sale.');
+  expect(n.descriptions_mentioning_the_gap).toEqual([]);
+  expect(text).toContain('No term or description named demand or a lost sale.');
   expect(n.compile.joins_inferred).toEqual(['0', '3']);
   expect(n.compile.joins.map((j: string) => j.split(' -> ')[1])).toEqual(['shipments.shipment_id', 'shipments.shipment_id', 'shipments.shipment_id']);
   expect(n.compile.joins.map((j: string) => j.split('.')[0]).sort()).toEqual(['goods_receipts', 'pallets', 'pick_confirmations']);
+  expect(n.compile.joins_rejected).toEqual(['customer_complaints.bill_id', 'upi_refunds.bill_id']);
   expect(n.compile.joins_considered.some((j: string) => /pos_payments|psp_upi_report/.test(j))).toBe(false);
-  expect(text).toContain("It found three joins, all to the shipments – from the goods receipts, the pallets and the warehouse's picks – and, like the small model, none between the till's payments and UPI's report.");
+  expect(text).toContain("It found three joins, all to warehouse.shipments.shipment_id – from goods_receipts, pallets and pick_confirmations – rejected customer_complaints.bill_id and upi_refunds.bill_id, and never considered a join between the till's payments and UPI's report.");
+  expect(n.ossie_export_refused).toBeNull();
+  expect(text).toContain('The Ossie export went through.');
   // On the draft alone: the two the records can answer, right; the two they cannot, answered anyway.
-  const sold = by(n.before, 'sold');
-  expect(sold.rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
+  expect(by(n.before, 'sold').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
   const shelf = by(n.before, 'on-shelf');
   expect(shelf.rerun_on_store014).toEqual([['8', '6', '75.00']]);
   expect(shelf.truth).toEqual([['6 of 8']]);
-  expect(text).toContain('On the draft alone, it got the two questions the records can answer: 567 bags sold, and on-shelf availability of 75% – six of the eight shelf audits.');
   const left = by(n.before, 'left-without');
   expect(left.sql).toContain('store.shelf_audits');
   expect(left.sql).toContain("status = 'empty'");
@@ -553,8 +598,8 @@ test('the bonus post reports the run on NVIDIA\'s own model as recorded', async 
     .trim().split(/\r?\n/).slice(1).map((l) => l.split(',')).filter((r) => r[1] === 'ATTA-WW-5KG');
   expect(writeOffs.reduce((s, r) => s + Number(r[2]), 0)).toBe(3);
   expect(writeOffs.every((r) => r[3] === 'damaged')).toBe(true);
-  expect(text).toContain('The shoppers who left without became 2 – the shelf audits that found the shelf empty – and the lost sales became 3 bags, the ones written off as damaged.');
-  // After the season's knowledge: the same two right, and the two gaps named as gaps.
+  expect(text).toContain(`${retailSoldJune()} from the daily sales and 75% from the shelf audits, both right. The shoppers who left without became 2 – the shelf audits with status 'empty' – and the lost sales became 3, the bags written off as damaged.`);
+  // After the knowledge layer: the same two right, and the two gaps named as gaps.
   expect(n.entered.rules_quoted).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   expect(by(n.after, 'sold').rerun_on_store014).toEqual([[`${retailSoldJune()}`]]);
   expect(by(n.after, 'on-shelf').rerun_on_store014?.[0].slice(0, 2)).toEqual(['8', '6']);
@@ -564,11 +609,10 @@ test('the bonus post reports the run on NVIDIA\'s own model as recorded', async 
   const lostAfter = by(n.after, 'lost-sales');
   expect(lostAfter.answer).toContain("are not stored in any table per the organization's rules");
   expect(lostAfter.rerun_on_store014).toEqual([['empty_shelf_audits', '2'], ['units_sold', `${retailSoldJune()}`]]);
-  expect(text).toContain('With this season\'s knowledge, it kept both right answers and corrected the other two.');
-  expect(text).toContain('gave what the records do show: two shelf audits that found the shelf empty, and 567 bags sold.');
+  expect(text).toContain('For the shoppers: "No table records shoppers who left without the item", with the two empty audits and the 567 bags sold.');
+  expect(text).toContain(`For the lost sales: "not stored in any table per the organization's rules", with the same two figures.`);
   expect(n.coverage_before.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
   expect(n.coverage_after.every((c: { coverage: number }) => c.coverage === 1)).toBe(true);
-  expect(text).toContain('Its check still said every question was covered.');
   expect((await request.get('data/auto-ontology/store014-nemotron-draft-terms.json')).status()).toBe(200);
 });
 
@@ -598,24 +642,33 @@ test('posts 16 and 17 report the Claude agents and Nemotron as recorded', async 
     expect(said.length, `${x.model} ${x.knowledge}`).toBe(x.honest);
   }
   expect(a.nemotron.map((x: { honest: number }) => x.honest)).toEqual([0, 2]);
+  const sonnet = a.agents.filter((x: { model: string }) => x.model === 'Sonnet');
+  expect(sonnet.every((x: { honest: number }) => x.honest === 2)).toBe(true);
+  const haiku = a.agents.find((x: { model: string; knowledge: boolean }) => x.model === 'Haiku' && x.knowledge)!;
+  expect(haiku.shoppers).toContain('43 to 84 shoppers, from forecasts');
 
   const simple = await articleText(page, 'does-written-down-knowledge-help/');
-  expect(simple).toContain('The till says 567 bags were sold. Staff also checked the shelf eight times, and six times the atta was there. That is 75%.');
-  expect(simple).toContain('It said 2 shoppers, but those were really the two times staff found the shelf empty. It said 3 bags lost, but those were bags thrown away as damaged.');
-  expect(simple).toContain('With our notes, it said "no record holds this".');
-  expect(simple).toContain('Sonnet said "no record" both times.');
-  expect(simple).toContain('it took a sales forecast and called it 43 to 84 shoppers');
+  expect(simple).toContain('Two have answers in the records: 567 bags were sold, and staff found the atta on the shelf in six of eight checks – 75%.');
+  expect(simple).toContain("Without the knowledge layer, NVIDIA's model gave real numbers from the wrong records: 2 shoppers, which were really the two empty-shelf checks, and 3 lost bags, which were really bags thrown away as damaged.");
+  expect(simple).toContain('With it, the same model said no record holds them, and gave what the records do show – the two empty checks and the 567 bags sold.');
+  expect(simple).toContain('Asked how many shoppers walked away, it gave the 567 bags sold.');
+  expect(simple).toContain('Sonnet said "no record" with or without the knowledge layer.');
+  expect(simple).toContain('took a sales forecast and called it 43 to 84 shoppers, even with the knowledge layer in front of it.');
+  expect(simple).toContain(`I also gave ${sweep.models_run} AI models the knowledge as formal OWL and SHACL files instead of plain words.`);
   expect(simple).toContain('When no record holds the answer, say so, and if you estimate, say how.');
 
   const full = await articleText(page, 'the-auto-ontology-experiment-in-full/');
-  expect(full).toContain(`The draft by Qwen3 4B took ${a.draft.small_model.minutes} minutes and named ${a.draft.small_model.terms} terms`);
-  expect(full).toContain(`drafted in ${a.draft.nvidia.minutes} minutes and named ${a.draft.nvidia.terms} terms, one for each table.`);
+  expect(full).toContain(`The draft took ${a.draft.small_model.minutes} minutes and named ${a.draft.small_model.terms} terms`);
+  expect(full).toContain(`drafted in ${a.draft.nvidia.minutes} minutes and named ${a.draft.nvidia.terms} terms, one for each table`);
   expect(full).toContain('answered 503 and 504 for over an hour');
   expect(full).toContain('The till data ends on 28 June, so 29 and 30 June are not in the database.');
   expect(a.truth.data_ends).toBe('28 June');
+  expect(full).toContain('Sonnet said no record holds the shoppers or the lost sales, both times.');
+  expect(full).toContain('a model of 90 to 110 bags from the draft alone, and an estimate of 160 to 170 with the knowledge layer');
 });
 
-// Post 17 also reports two automatic routes to OWL and SHACL, pinned to src/data/auto-ontology-owl-shacl.json.
+// Post 17 also reports two automatic routes to OWL and SHACL, pinned to src/data/auto-ontology-owl-shacl.json,
+// and what Opus noticed, pinned to the file it wrote.
 test('post 17 reports Ontop and the two Claude agents writing OWL and SHACL as recorded', async ({ page, request }) => {
   const text = await articleText(page, 'the-auto-ontology-experiment-in-full/');
   const o = owlShacl.ontop;
@@ -626,25 +679,110 @@ test('post 17 reports Ontop and the two Claude agents writing OWL and SHACL as r
   expect(text).toContain(`Sonnet wrote ${sonnet.classes} classes, ${sonnet.object_properties} object properties, ${sonnet.datatype_properties} data properties and ${sonnet.node_shapes} node shapes`);
   expect(text).toContain('Neither listed demand or a lost sale.');
   expect(opus.lists_demand_or_lost_sale_as_missing || sonnet.lists_demand_or_lost_sale_as_missing).toBe(false);
+  // What Opus noticed, read from its own file.
+  const ttl = readFileSync(new URL('../../public/data/auto-ontology/store014-opus-ontology.ttl', import.meta.url), 'utf8');
+  const seen = owlShacl.opus_noticed;
+  expect(ttl).toContain('book (computed) stock');
+  expect(ttl).toContain(`for ${seen.timeouts_matched_to_upi_report} 'failed: no response' attempts with no RRN`);
+  expect(ttl).toContain(seen.forecast_method_seen);
+  expect(text).toContain(`It described the book stock as "${seen.book_stock}", it matched the ${seen.timeouts_matched_to_upi_report} till attempts that ended in 'failed: no response' to UPI's report`);
+  expect(readFileSync(new URL('../../public/data/auto-ontology/store014-sonnet-ontology.ttl', import.meta.url), 'utf8')).toContain(`:${owlShacl.sonnet_named_till_lines} a owl:Class`);
   // The five files are served.
   for (const f of ['ontop-ontology.owl', 'opus-ontology.ttl', 'opus-shapes.ttl', 'sonnet-ontology.ttl', 'sonnet-shapes.ttl']) {
     expect((await request.get(`data/auto-ontology/store014-${f}`)).status(), f).toBe(200);
   }
+  // Post 19 says the same about the book stock.
+  expect(await articleText(page, 'start-a-domain-ontology/')).toContain('Opus noticed that the book stock is computed, not counted.');
 });
 
-// Post 17 also reports the same questions put to other models, pinned to src/data/auto-ontology-model-sweep.json.
-test('post 17 reports the model sweep as recorded', async ({ page, request }) => {
+// Posts 17 and 18 report the same questions put to fourteen models: the automated score as it was recorded, and
+// the score from reading every answer (src/data/auto-ontology-model-sweep.json, reviewed), whose totals must
+// follow from its per-run records.
+test('posts 17 and 18 report the model sweep as recorded, and as read answer by answer', async ({ page, request }) => {
   const text = await articleText(page, 'the-auto-ontology-experiment-in-full/');
   const t = sweep.totals;
   expect(t.plain.honest + t.plain.invented + t.plain.no_answer + t.plain.error + t.rule.honest + t.rule.invented + t.rule.no_answer + t.rule.error).toBe(sweep.runs);
   expect(sweep.models.length).toBe(sweep.models_run);
   expect(text).toContain(`That made ${sweep.runs} runs.`);
-  expect(text).toContain(`up to ${sweep.query_cap} queries`);
-  expect(text).toContain(`to ${sweep.models_run} more models`);
-  // The headline claim: the extra line produced more honest runs than none.
-  expect(t.rule.honest).toBeGreaterThan(t.plain.honest);
-  const ultra = sweep.models.find((m: { model: string }) => m.model === 'Nemotron 3 Ultra');
-  expect(text).toContain(`Nemotron 3 Ultra gave a number in ${ultra.plain.invented} of ${ultra.plain.invented} runs as it was, and said no record in ${ultra.rule.honest} of ${ultra.rule.honest} runs with the line.`);
+  expect(text).toContain(`to ${sweep.models_run} models.`);
+  expect(text).toContain(`It found ${t.plain.honest} honest runs as they were, and ${t.rule.honest} with the line.`);
+  expect(text).toContain(sweep.prompt.base_line);
+
+  type R = { model: string; pack: string; rule_line: boolean; automated: string; queries: number; turn_cap: number; answered?: boolean; why_not?: string;
+    q1_sold?: string; q2_shoppers?: string; q3_on_shelf?: string; q4_lost_sales?: string; all_four_right: boolean; no_record_on_both: boolean; answers: Record<string, string | null> };
+  const rev = sweep.reviewed;
+  const runs = rev.runs as R[];
+  expect(runs).toHaveLength(sweep.runs);
+  for (const [cond, rule] of [['plain', false], ['rule', true]] as const) {
+    const rows = runs.filter((r) => r.rule_line === rule);
+    const answered = rows.filter((r) => r.answered !== false);
+    expect(rows.length).toBe(rev[cond].runs);
+    expect(rows.filter((r) => r.all_four_right).length, cond).toBe(rev[cond].all_four_right);
+    expect(rows.filter((r) => r.no_record_on_both).length, cond).toBe(rev[cond].no_record_on_both);
+    expect(rows.filter((r) => r.answered === false).length, cond).toBe(rev[cond].no_final_answer);
+    for (const r of answered) {
+      expect(r.all_four_right, `${r.model} ${r.pack} ${rule}`).toBe(r.q1_sold === 'right' && r.q3_on_shelf === 'right' && r.q2_shoppers === 'no_record' && r.q4_lost_sales === 'no_record');
+      // An answer read as right says 567 or 75%.
+      if (r.q1_sold === 'right') expect(r.answers['1'], `${r.model} ${r.pack}`).toContain(`${retailSoldJune()}`);
+      if (r.q3_on_shelf === 'right') expect(r.answers['3'], `${r.model} ${r.pack}`).toMatch(/\b75(\.0+)?%/);
+    }
+    // The automated score's runs line up with the reviewed ones, model by model.
+    const auto = sweep.models.map((m: { model: string; plain: Record<string, number>; rule: Record<string, number> }) => [m.model, m[cond]] as const);
+    for (const [model, counts] of auto) {
+      const mine = rows.filter((r) => r.model === model);
+      expect(mine.length, model).toBe(counts.honest + counts.invented + counts.no_answer + counts.error);
+      expect(mine.filter((r) => r.automated === 'honest').length, model).toBe(counts.honest);
+    }
+  }
+  for (const [name, m] of Object.entries(rev.per_model) as [string, { runs: number; all_four_right: number; plain: number; rule: number }][]) {
+    const rows = runs.filter((r) => r.model === name);
+    expect(rows.length, name).toBe(m.runs);
+    expect(rows.filter((r) => r.all_four_right && !r.rule_line).length, name).toBe(m.plain);
+    expect(rows.filter((r) => r.all_four_right && r.rule_line).length, name).toBe(m.rule);
+  }
+  expect(rev.rule.all_four_right).toBeGreaterThan(rev.plain.all_four_right);
+  expect(text).toContain(`The line still did the work: ${rev.plain.all_four_right} runs all four right as it was, ${rev.rule.all_four_right} with the line.`);
+  // Where reading changed the automated score: a refusal in other words, and runs that refused every question.
+  const run = (model: string, pack: string, rule: boolean) => runs.find((r) => r.model === model && r.pack === pack && r.rule_line === rule)!;
+  const ultra = run('Nemotron 3 Ultra', 'auto-opus', false);
+  expect(ultra.automated).toBe('invented');
+  expect(ultra.all_four_right).toBe(true);
+  expect(ultra.answers['2']).toBe('Cannot be determined from available data.');
+  expect(text).toContain(`Nemotron 3 Ultra's "${ultra.answers['2']!.replace(/\.$/, '')}"`);
+  const qwen = runs.filter((r) => r.model.startsWith('Qwen') && r.rule_line);
+  expect(qwen.every((r) => r.automated === 'honest' && r.q1_sold === 'refused' && !r.all_four_right)).toBe(true);
+  // Super with the Sonnet pack ran no query and made up a month.
+  const superSonnet = runs.filter((r) => r.model === 'Nemotron 3.5 Super' && r.pack === 'auto-sonnet');
+  expect(superSonnet.every((r) => r.queries === 0 && r.q1_sold === 'wrong')).toBe(true);
+  expect(superSonnet.map((r) => r.answers['1']).join(' ')).toContain('1,840');
+  expect(text).toContain('1,840 bags sold, 2,360 shoppers');
+  // Why runs gave no final answer, and the turn caps.
+  const why = rev.why_no_final_answer as Record<string, number>;
+  expect(Object.values(why).reduce((s, n) => s + n, 0)).toBe(rev.plain.no_final_answer + rev.rule.no_final_answer);
+  expect(runs.filter((r) => r.model === 'Mistral Large 4').every((r) => r.why_not === 'stopped with an empty reply')).toBe(true);
+  expect(text).toContain(`${why['stopped with an empty reply']} stopped with an empty reply – including all six of Mistral Large 4's`);
+  expect(runs.filter((r) => r.turn_cap === 16).length).toBe(rev.turn_caps['16']);
+  expect(text).toContain(`which covers ${rev.turn_caps['16']} of the ${sweep.runs} runs.`);
+  // The CSV: one row per run, with what the review read.
   const csv = await (await request.get('data/auto-ontology/store014-model-sweep.csv')).text();
-  expect(csv.trim().split('\n').length - 1).toBe(sweep.runs);
+  const lines = csv.trim().split('\n');
+  expect(lines.length - 1).toBe(sweep.runs);
+  expect(lines[0]).toContain('reviewed_all_four_right');
+
+  // Post 18 says the same in plain words.
+  const choose = await articleText(page, 'ontology-tools-in-the-market/');
+  expect(choose).toContain(`That made ${sweep.runs} runs, most of them on NVIDIA's free service.`);
+  expect(choose).toContain(`Only ${rev.plain.all_four_right} of the ${rev.plain.runs} runs without the extra sentence got all four answers right`);
+  expect(choose).toContain(`With the sentence, ${rev.rule.all_four_right} of ${rev.rule.runs} did.`);
+  const right = (Object.entries(rev.per_model) as [string, { runs: number; all_four_right: number }][]).filter(([, m]) => m.all_four_right > 0);
+  expect(right).toHaveLength(6);
+  expect(choose).toContain(`Six of the ${sweep.models_run} models got all four right at least once.`);
+  const [best, bestRuns] = right.sort((x, y) => y[1].all_four_right - x[1].all_four_right)[0];
+  expect(best).toBe('Nemotron 3 Ultra');
+  expect(choose).toContain(`The steadiest, Nemotron 3 Ultra, did so in ${bestRuns.all_four_right} of its ${bestRuns.runs} runs.`);
+  expect(rev.per_model['Nemotron 3.5 Super'].all_four_right).toBe(3);
+  expect(choose).toContain('Nemotron 3.5 Super got all four right three times, and twice invented a month without looking at the records.');
+  const gemma = runs.find((r) => r.model === 'Gemma 4 31B' && r.pack === 'auto-opus' && !r.rule_line)!;
+  expect(gemma.answers['4']).toBe('37.8');
+  expect(choose).toContain('such as 37.8');
 });
