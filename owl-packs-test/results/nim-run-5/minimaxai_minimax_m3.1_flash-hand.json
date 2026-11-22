@@ -1,0 +1,130 @@
+{
+  "model": "minimaxai/minimax-m3.1-flash",
+  "pack": "hand",
+  "rule_line": false,
+  "prompt_chars": 29257,
+  "seconds": 2595,
+  "sql_calls": [
+    {
+      "sql": "SELECT table_schema, table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse','payments')\nORDER BY table_schema, table_name, ordinal_position;",
+      "result": "payments|customer_complaints|complaint_ts|timestamp without time zone\npayments|customer_complaints|kind|text\npayments|customer_complaints|amount_inr|numeric\npayments|customer_complaints|bill_id|text\npayments|customer_complaints|rrn|text\npayments|customer_complaints|resolved_ts|timestamp without time zone\npayments|customer_complaints|resolution|text\npayments|pos_payments|bill_id|text\npayments|pos_payments|attempt|integer\npayments|pos_payments|ts|timestamp without time zone\npayments|pos_payments|tender|text\npayments|pos_payments|amount_inr|numeric\npayments|pos_payments|till_status|text\npayments|"
+    },
+    {
+      "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store','warehouse','payments')\nORDER BY table_schema, table_name;",
+      "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+      "sql": "SELECT table_schema, table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse')\n  AND table_name IN ('products','pos_lines','shelf_audits','stock_counts','inventory_book','write_offs','daily_sales','forecasts')\nORDER BY table_name, ordinal_position;",
+      "result": "store|daily_sales|date|date\nstore|daily_sales|sku|text\nstore|daily_sales|units_sold|integer\nstore|daily_sales|revenue_inr|numeric\nstore|forecasts|date|date\nstore|forecasts|sku|text\nstore|forecasts|forecast_units_per_day|numeric\nstore|forecasts|sigma|numeric\nstore|forecasts|reorder_point|integer\nstore|forecasts|order_up_to|integer\nstore|forecasts|book_on_hand|integer\nstore|forecasts|on_order|integer\nstore|forecasts|ordered_units|integer\nstore|forecasts|method|text\nstore|inventory_book|date|date\nstore|inventory_book|sku|text\nstore|inventory_book|book_on_hand_close|integer\nstore|pos_lines|bill_id"
+    },
+    {
+      "sql": "SELECT * FROM store.products ORDER BY sku;",
+      "result": "ATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nBREAD-WHITE-400G|2900001003018|White bread 400 g|400 g|12||DSD||45.0|39.0\nCURD-500G|2900001002110|Curd 500 g pouch|500 g|24||DSD||32.0|29.5\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0\nMILK-FC-500ML|2900001002028|Full cream milk 500 ml pouch|500 ml|24||DSD||34.0|32.3\nMILK-TONED-500ML|2900001002011|Toned milk 500 ml "
+    },
+    {
+      "sql": "SELECT 'pos_lines' AS src, bill_ts::text AS ts, bill_id::text AS id, sku_scanned AS sku, qty::text AS qty, unit_price::text AS extra\nFROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\nUNION ALL\nSELECT 'daily_sales', date::text, NULL, sku, units_sold::text, revenue_inr::text\nFROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01'\nORDER BY 1,2;",
+      "result": "daily_sales|2026-06-01||ATTA-WW-5KG|30|7950.0\ndaily_sales|2026-06-02||ATTA-WW-5KG|36|9540.0\ndaily_sales|2026-06-03||ATTA-WW-5KG|22|5830.0\ndaily_sales|2026-06-04||ATTA-WW-5KG|28|7420.0\ndaily_sales|2026-06-05||ATTA-WW-5KG|32|8480.0\ndaily_sales|2026-06-06||ATTA-WW-5KG|25|6625.0\ndaily_sales|2026-06-07||ATTA-WW-5KG|44|11660.0\ndaily_sales|2026-06-08||ATTA-WW-5KG|9|2385.0\ndaily_sales|2026-06-09||ATTA-WW-5KG|11|2915.0\ndaily_sales|2026-06-10||ATTA-WW-5KG|22|5830.0\ndaily_sales|2026-06-11||ATTA-WW-5KG|1|265.0\ndaily_sales|2026-06-12||ATTA-WW-5KG|0|0.0\ndaily_sales|2026-06-13||ATTA-WW-5KG|22|5830.0\ndaily_sa"
+    },
+    {
+      "sql": "SELECT 'pos_lines' AS src, COUNT(*) AS lines, SUM(qty) AS units, COUNT(DISTINCT bill_id) AS bills\nFROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\nUNION ALL\nSELECT 'daily_sales', COUNT(*), SUM(units_sold), NULL FROM store.daily_sales\nWHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01'\nUNION ALL\nSELECT 'pos_lines_all_sku', COUNT(*), SUM(qty), COUNT(DISTINCT bill_id) FROM store.pos_lines\nWHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01';",
+      "result": "daily_sales|28|567|\npos_lines|560|567|560\npos_lines_all_sku|17509|19265|13851"
+    },
+    {
+      "sql": "SELECT 'daily_sales' AS t, MIN(date)::text, MAX(date)::text, COUNT(*) FROM store.daily_sales\nUNION ALL SELECT 'pos_lines', MIN(bill_ts)::text, MAX(bill_ts)::text, COUNT(*) FROM store.pos_lines\nUNION ALL SELECT 'shelf_audits', MIN(audit_ts)::text, MAX(audit_ts)::text, COUNT(*) FROM store.shelf_audits\nUNION ALL SELECT 'stock_counts', MIN(count_ts)::text, MAX(count_ts)::text, COUNT(*) FROM store.stock_counts\nUNION ALL SELECT 'inventory_book', MIN(date)::text, MAX(date)::text, COUNT(*) FROM store.inventory_book\nUNION ALL SELECT 'forecasts', MIN(date)::text, MAX(date)::text, COUNT(*) FROM store.forecasts;",
+      "result": "daily_sales|2026-06-01|2026-06-28|308\npos_lines|2026-05-04 07:00:00|2026-06-28 21:55:00|35485\nshelf_audits|2026-06-02 11:00:00|2026-06-26 11:00:00|88\nstock_counts|2026-06-01 05:45:00|2026-06-28 22:30:00|25\ninventory_book|2026-06-01|2026-06-28|308\nforecasts|2026-06-01|2026-06-28|196"
+    },
+    {
+      "sql": "SELECT * FROM store.shelf_audits WHERE sku='ATTA-WW-5KG' ORDER BY audit_ts;",
+      "result": "2026-06-02 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-05 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-09 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-12 11:00:00|ATTA-WW-5KG|empty\n2026-06-16 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-19 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-23 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-26 11:00:00|ATTA-WW-5KG|empty"
+    },
+    {
+      "sql": "SELECT * FROM store.stock_counts WHERE sku='ATTA-WW-5KG' ORDER BY count_ts;",
+      "result": "2026-06-01 05:45:00|ATTA-WW-5KG|36|36|0|scheduled full count\n2026-06-26 09:00:00|ATTA-WW-5KG|63|0|-63|manager request after complaints\n2026-06-28 22:30:00|ATTA-WW-5KG|63|62|-1|scheduled full count"
+    },
+    {
+      "sql": "SELECT * FROM store.inventory_book WHERE sku='ATTA-WW-5KG' ORDER BY date;",
+      "result": "2026-06-01|ATTA-WW-5KG|58\n2026-06-02|ATTA-WW-5KG|22\n2026-06-03|ATTA-WW-5KG|64\n2026-06-04|ATTA-WW-5KG|36\n2026-06-05|ATTA-WW-5KG|52\n2026-06-06|ATTA-WW-5KG|27\n2026-06-07|ATTA-WW-5KG|43\n2026-06-08|ATTA-WW-5KG|34\n2026-06-09|ATTA-WW-5KG|78\n2026-06-10|ATTA-WW-5KG|56\n2026-06-11|ATTA-WW-5KG|55\n2026-06-12|ATTA-WW-5KG|55\n2026-06-13|ATTA-WW-5KG|33\n2026-06-14|ATTA-WW-5KG|66\n2026-06-15|ATTA-WW-5KG|44\n2026-06-16|ATTA-WW-5KG|27\n2026-06-17|ATTA-WW-5KG|76\n2026-06-18|ATTA-WW-5KG|45\n2026-06-19|ATTA-WW-5KG|17\n2026-06-20|ATTA-WW-5KG|68\n2026-06-21|ATTA-WW-5KG|25\n2026-06-22|ATTA-WW-5KG|68\n2026-06-23|ATTA-WW-5KG|63\n20"
+    },
+    {
+      "sql": "SELECT * FROM store.forecasts WHERE sku='ATTA-WW-5KG' ORDER BY date;",
+      "result": "2026-06-01|ATTA-WW-5KG|22.54|9.79|39|85|58|0|0|28-day mean of recorded sales\n2026-06-02|ATTA-WW-5KG|22.82|10.05|40|86|22|0|64|28-day mean of recorded sales\n2026-06-03|ATTA-WW-5KG|21.96|9.01|37|81|64|0|0|28-day mean of recorded sales\n2026-06-04|ATTA-WW-5KG|22.39|9.0|38|83|36|0|48|28-day mean of recorded sales\n2026-06-05|ATTA-WW-5KG|23.54|8.07|37|85|52|0|0|28-day mean of recorded sales\n2026-06-06|ATTA-WW-5KG|24.43|6.68|36|85|27|0|60|28-day mean of recorded sales\n2026-06-07|ATTA-WW-5KG|25.29|7.54|38|89|43|0|0|28-day mean of recorded sales\n2026-06-08|ATTA-WW-5KG|24.89|8.07|39|89|34|0|56|28-day mea"
+    },
+    {
+      "sql": "SELECT table_schema, table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse')\n  AND table_name IN ('store_orders','write_offs','fresh_deliveries','goods_receipts','pallets','pick_confirmations','shipments','shipping_notice_lines','stock_adjustments')\nORDER BY table_name, ordinal_position;",
+      "result": "store|fresh_deliveries|delivery_ts|timestamp without time zone\nstore|fresh_deliveries|route|text\nstore|fresh_deliveries|sku|text\nstore|fresh_deliveries|units|integer\nstore|fresh_deliveries|crates|integer\nstore|fresh_deliveries|use_by|date\nstore|goods_receipts|grn_id|text\nstore|goods_receipts|shipment_id|text\nstore|goods_receipts|sscc|text\nstore|goods_receipts|line|integer\nstore|goods_receipts|received_ts|timestamp without time zone\nstore|goods_receipts|asn_sku|text\nstore|goods_receipts|asn_units|integer\nstore|goods_receipts|sku_booked|text\nstore|goods_receipts|units_booked|integer\nstore|goods_"
+    },
+    {
+      "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_name ILIKE '%lost%' OR table_name ILIKE '%demand%' OR table_name ILIKE '%stock%' OR table_name ILIKE '%avail%'\nORDER BY 1,2;",
+      "result": "pg_catalog|pg_available_extension_versions\npg_catalog|pg_available_extensions\nstore|stock_counts\nwarehouse|stock_adjustments"
+    },
+    {
+      "sql": "SELECT 'shelf_audit_status' AS k, status AS v, COUNT(*)::text AS n FROM store.shelf_audits GROUP BY status\nUNION ALL SELECT 'write_offs_sku', sku, SUM(units)::text FROM store.write_offs GROUP BY sku\nUNION ALL SELECT 'stock_adj_sku', sku, SUM(units)::text FROM warehouse.stock_adjustments GROUP BY sku\nUNION ALL SELECT 'stock_adj_reason', reason, COUNT(*)::text FROM warehouse.stock_adjustments GROUP BY reason\nUNION ALL SELECT 'stock_counts_trigger', trigger, COUNT(*)::text FROM store.stock_counts GROUP BY trigger\nORDER BY 1,2;",
+      "result": "shelf_audit_status|empty|3\nshelf_audit_status|on shelf|85\nstock_adj_reason|cycle count variance|1\nstock_adj_reason|short pick: slot count variance|1\nstock_adj_sku|ATTA-WW-1KG|-160\nstock_adj_sku|ATTA-WW-5KG|64\nstock_counts_trigger|manager request after complaints|3\nstock_counts_trigger|scheduled full count|22\nwrite_offs_sku|ATTA-WW-5KG|3\nwrite_offs_sku|CURD-500G|3\nwrite_offs_sku|DAL-TOOR-1KG|1\nwrite_offs_sku|MILK-FC-500ML|198\nwrite_offs_sku|MILK-TONED-500ML|296\nwrite_offs_sku|RICE-SM-5KG|2\nwrite_offs_sku|SUGAR-1KG|1"
+    },
+    {
+      "sql": "SELECT * FROM store.shelf_audits WHERE status='empty' ORDER BY audit_ts;",
+      "result": "2026-06-05 11:00:00|SUGAR-1KG|empty\n2026-06-12 11:00:00|ATTA-WW-5KG|empty\n2026-06-26 11:00:00|ATTA-WW-5KG|empty"
+    },
+    {
+      "sql": "SELECT date, sku, units_sold FROM store.daily_sales\nWHERE date IN ('2026-06-12','2026-06-24','2026-06-25','2026-06-26')\nORDER BY date, sku;",
+      "result": "2026-06-12|ATTA-WW-10KG|16\n2026-06-12|ATTA-WW-1KG|24\n2026-06-12|ATTA-WW-5KG|0\n2026-06-12|BREAD-WHITE-400G|74\n2026-06-12|CURD-500G|53\n2026-06-12|DAL-TOOR-1KG|22\n2026-06-12|MILK-FC-500ML|109\n2026-06-12|MILK-TONED-500ML|222\n2026-06-12|OIL-SUN-1L|27\n2026-06-12|RICE-SM-5KG|24\n2026-06-12|SUGAR-1KG|36\n2026-06-24|ATTA-WW-10KG|15\n2026-06-24|ATTA-WW-1KG|28\n2026-06-24|ATTA-WW-5KG|0\n2026-06-24|BREAD-WHITE-400G|48\n2026-06-24|CURD-500G|48\n2026-06-24|DAL-TOOR-1KG|14\n2026-06-24|MILK-FC-500ML|61\n2026-06-24|MILK-TONED-500ML|381\n2026-06-24|OIL-SUN-1L|34\n2026-06-24|RICE-SM-5KG|29\n2026-06-24|SUGAR-1KG|14\n2026-06-2"
+    },
+    {
+      "sql": "SELECT * FROM store.shelf_audits ORDER BY audit_ts;",
+      "result": "2026-06-02 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-02 11:00:00|ATTA-WW-1KG|on shelf\n2026-06-02 11:00:00|ATTA-WW-10KG|on shelf\n2026-06-02 11:00:00|RICE-SM-5KG|on shelf\n2026-06-02 11:00:00|DAL-TOOR-1KG|on shelf\n2026-06-02 11:00:00|OIL-SUN-1L|on shelf\n2026-06-02 11:00:00|SUGAR-1KG|on shelf\n2026-06-02 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-02 11:00:00|MILK-FC-500ML|on shelf\n2026-06-02 11:00:00|CURD-500G|on shelf\n2026-06-02 11:00:00|BREAD-WHITE-400G|on shelf\n2026-06-05 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-05 11:00:00|ATTA-WW-1KG|on shelf\n2026-06-05 11:00:00|ATTA-WW-10KG|on shelf\n2026-06-05 11:00"
+    },
+    {
+      "sql": "SELECT n.nspname AS schema, c.relname AS name, c.relkind\nFROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace\nWHERE n.nspname NOT IN ('pg_catalog','information_schema','pg_toast')\nORDER BY 1,2;",
+      "result": "payments|customer_complaints|r\npayments|pos_payments|r\npayments|pos_payments_pkey|i\npayments|psp_upi_report|r\npayments|psp_upi_report_pkey|i\npayments|upi_refunds|r\npayments|upi_refunds_pkey|i\npayments|upi_settlements|r\npayments|upi_settlements_pkey|i\nstore|daily_sales|r\nstore|daily_sales_pkey|i\nstore|forecasts|r\nstore|forecasts_pkey|i\nstore|fresh_deliveries|r\nstore|fresh_deliveries_pkey|i\nstore|goods_receipts|r\nstore|goods_receipts_pkey|i\nstore|inventory_book|r\nstore|inventory_book_pkey|i\nstore|pos_lines|r\nstore|pos_lines_pkey|i\nstore|products|r\nstore|products_pkey|i\nstore|shelf_audits|r\nstore"
+    },
+    {
+      "sql": "SELECT 'orders' AS t, order_id, sku, units, cases, created_ts::text, reason FROM store.store_orders WHERE sku='ATTA-WW-5KG' ORDER BY created_ts;",
+      "result": "orders|SO-260602|ATTA-WW-5KG|64|16|2026-06-02 22:00:00|auto\norders|SO-260604|ATTA-WW-5KG|48|12|2026-06-04 22:00:00|auto\norders|SO-260606|ATTA-WW-5KG|60|15|2026-06-06 22:00:00|auto\norders|SO-260608|ATTA-WW-5KG|56|14|2026-06-08 22:00:00|auto\norders|SO-260613|ATTA-WW-5KG|56|14|2026-06-13 22:00:00|auto\norders|SO-260616|ATTA-WW-5KG|60|15|2026-06-16 22:00:00|auto\norders|SO-260619|ATTA-WW-5KG|72|18|2026-06-19 22:00:00|auto\norders|SO-260621|ATTA-WW-5KG|64|16|2026-06-21 22:00:00|auto\norders|SO-260626|ATTA-WW-5KG|84|21|2026-06-26 22:00:00|auto\norders|SO-260627|ATTA-WW-5KG|44|11|2026-06-27 22:00:00|auto"
+    },
+    {
+      "sql": "SELECT * FROM store.goods_receipts WHERE asn_sku='ATTA-WW-5KG' OR sku_booked='ATTA-WW-5KG' ORDER BY received_ts;",
+      "result": "GRN-260601|SHP-260601|029000010000010320|1|2026-06-01 06:20:00|ATTA-WW-5KG|52|ATTA-WW-5KG|52|pallet label (SSCC) scan against the shipping notice\nGRN-260603|SHP-260603|029000010000010344|1|2026-06-03 06:16:00|ATTA-WW-5KG|64|ATTA-WW-5KG|64|pallet label (SSCC) scan against the shipping notice\nGRN-260605|SHP-260605|029000010000010375|1|2026-06-05 06:21:00|ATTA-WW-5KG|48|ATTA-WW-5KG|48|pallet label (SSCC) scan against the shipping notice\nGRN-260607|SHP-260607|029000010000010405|1|2026-06-07 06:10:00|ATTA-WW-5KG|60|ATTA-WW-5KG|60|pallet label (SSCC) scan against the shipping notice\nGRN-260609|SHP-2"
+    },
+    {
+      "sql": "SELECT * FROM payments.customer_complaints ORDER BY complaint_ts;",
+      "result": "2026-06-04 10:00:00|debited but the till said failed|73.65|B260603-090023|615416001875|2026-06-06 11:00:00|customer's bank returned the money\n2026-06-05 12:00:00|charged twice|143.11|B260604-140026|615521002766|2026-06-10 12:00:00|refunded after the store matched the credit by hand\n2026-06-06 13:00:00|charged twice|224.51|B260605-120088|615619003319|2026-06-08 13:00:00|refunded after the store matched the credit by hand\n2026-06-10 10:00:00|charged twice|532.71|B260609-040018|616011005544|2026-06-14 10:00:00|refunded after the store matched the credit by hand\n2026-06-11 10:00:00|debited but the"
+    },
+    {
+      "sql": "SELECT * FROM store.stock_counts ORDER BY count_ts;",
+      "result": "2026-06-01 05:45:00|ATTA-WW-5KG|36|36|0|scheduled full count\n2026-06-01 05:45:00|ATTA-WW-1KG|92|87|-5|scheduled full count\n2026-06-01 05:45:00|ATTA-WW-10KG|28|29|1|scheduled full count\n2026-06-01 05:45:00|RICE-SM-5KG|66|64|-2|scheduled full count\n2026-06-01 05:45:00|DAL-TOOR-1KG|15|13|-2|scheduled full count\n2026-06-01 05:45:00|OIL-SUN-1L|82|77|-5|scheduled full count\n2026-06-01 05:45:00|SUGAR-1KG|46|44|-2|scheduled full count\n2026-06-01 05:45:00|MILK-TONED-500ML|377|351|-26|scheduled full count\n2026-06-01 05:45:00|MILK-FC-500ML|94|109|15|scheduled full count\n2026-06-01 05:45:00|CURD-500G|115|"
+    },
+    {
+      "sql": "SELECT p.sku AS product_sku, p.gtin, l.sku_scanned, COUNT(*) AS lines, SUM(l.qty) AS units\nFROM store.pos_lines l\nJOIN store.products p ON p.gtin = l.gtin_scanned\nWHERE l.bill_ts >= '2026-06-01' AND l.bill_ts < '2026-07-01'\n  AND (p.sku='ATTA-WW-5KG' OR l.sku_scanned='ATTA-WW-5KG' OR p.sku <> l.sku_scanned)\nGROUP BY 1,2,3\nORDER BY 1,3;",
+      "result": "ATTA-WW-5KG|2900001001014|ATTA-WW-5KG|560|567"
+    },
+    {
+      "sql": "SELECT 'write_offs' AS src, date::text AS d, sku, units::text AS v, reason FROM store.write_offs WHERE sku='ATTA-WW-5KG'\nUNION ALL\nSELECT 'stock_adj', adjusted_ts::text, sku, units::text, reason FROM warehouse.stock_adjustments WHERE sku='ATTA-WW-5KG'\nUNION ALL\nSELECT 'pos_lines_on_stockout_days', bill_ts::date::text, sku_scanned, COUNT(*)::text, SUM(qty)::text FROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts::date IN ('2026-06-12','2026-06-24','2026-06-25','2026-06-26') GROUP BY 1,2,3\nORDER BY 1,2;",
+      "result": "stock_adj|2026-06-25 10:00:00|ATTA-WW-5KG|64|cycle count variance\nwrite_offs|2026-06-09|ATTA-WW-5KG|1|damaged\nwrite_offs|2026-06-19|ATTA-WW-5KG|1|damaged\nwrite_offs|2026-06-22|ATTA-WW-5KG|1|damaged"
+    },
+    {
+      "sql": "SELECT * FROM warehouse.stock_adjustments ORDER BY adjusted_ts;",
+      "result": "2026-06-23 14:20:00|ATTA-WW-1KG|A-07-04|-16|-160|-7920.0|short pick: slot count variance\n2026-06-25 10:00:00|ATTA-WW-5KG|A-07-03|16|64|14592.0|cycle count variance"
+    },
+    {
+      "sql": "SELECT 'pos_lines_units' AS metric, SUM(qty)::text AS value\nFROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\nUNION ALL SELECT 'pos_lines_bills', COUNT(DISTINCT bill_id)::text\nFROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\nUNION ALL SELECT 'pos_lines_lines_with_qty_gt_1', COUNT(*)::text\nFROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01' AND qty > 1\nUNION ALL SELECT 'daily_sales_units', SUM(units_sold)::text\nFROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01'\nUNION ALL SELECT 'pos_lines_first_day', MIN(bill_ts)::date::text\nFROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\nUNION ALL SELECT 'pos_lines_last_day', MAX(bill_ts)::date::text\nFROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\nUNION ALL SELECT 'daily_sales_first_day', MIN(date)::text\nFROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01'\nUNION ALL SELECT 'daily_sales_last_day', MAX(date)::text\nFROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01';",
+      "result": "daily_sales_last_day|2026-06-28\ndaily_sales_first_day|2026-06-01\ndaily_sales_units|567\npos_lines_units|567\npos_lines_last_day|2026-06-28\npos_lines_lines_with_qty_gt_1|7\npos_lines_first_day|2026-06-01\npos_lines_bills|560"
+    },
+    {
+      "sql": "SELECT bill_ts::date AS d, COUNT(*) AS lines, COUNT(DISTINCT bill_id) AS bills, SUM(qty) AS units\nFROM store.pos_lines\nWHERE bill_ts::date BETWEEN '2026-06-10' AND '2026-06-28'\nGROUP BY 1 ORDER BY 1;",
+      "result": "2026-06-10|648|519|691\n2026-06-11|625|474|675\n2026-06-12|573|440|607\n2026-06-13|678|515|747\n2026-06-14|622|518|660\n2026-06-15|555|439|614\n2026-06-16|586|481|643\n2026-06-17|609|473|685\n2026-06-18|551|457|583\n2026-06-19|667|557|727\n2026-06-20|794|597|908\n2026-06-21|684|553|756\n2026-06-22|597|489|649\n2026-06-23|536|430|585\n2026-06-24|594|488|672\n2026-06-25|473|397|505\n2026-06-26|487|418|508\n2026-06-27|681|496|770\n2026-06-28|822|654|944"
+    },
+    {
+      "sql": "SELECT date, sku, units_sold FROM store.daily_sales WHERE date IN ('2026-06-11','2026-06-23','2026-06-10','2026-06-24') ORDER BY date, sku;",
+      "result": "2026-06-10|ATTA-WW-10KG|7\n2026-06-10|ATTA-WW-1KG|41\n2026-06-10|ATTA-WW-5KG|22\n2026-06-10|BREAD-WHITE-400G|73\n2026-06-10|CURD-500G|74\n2026-06-10|DAL-TOOR-1KG|29\n2026-06-10|MILK-FC-500ML|87\n2026-06-10|MILK-TONED-500ML|280\n2026-06-10|OIL-SUN-1L|38\n2026-06-10|RICE-SM-5KG|20\n2026-06-10|SUGAR-1KG|20\n2026-06-11|ATTA-WW-10KG|6\n2026-06-11|ATTA-WW-1KG|31\n2026-06-11|ATTA-WW-5KG|1\n2026-06-11|BREAD-WHITE-400G|68\n2026-06-11|CURD-500G|66\n2026-06-11|DAL-TOOR-1KG|19\n2026-06-11|MILK-FC-500ML|142\n2026-06-11|MILK-TONED-500ML|274\n2026-06-11|OIL-SUN-1L|30\n2026-06-11|RICE-SM-5KG|22\n2026-06-11|SUGAR-1KG|16\n2026-06-23"
+    },
+    {
+      "sql": "SELECT date, sku, units_sold FROM store.daily_sales\nWHERE (sku='SUGAR-1KG' AND date BETWEEN '2026-06-03' AND '2026-06-07')\n   OR (sku='ATTA-WW-5KG' AND date BETWEEN '2026-06-09' AND '2026-06-17')\nORDER BY date, sku;",
+      "result": "2026-06-03|SUGAR-1KG|21\n2026-06-04|SUGAR-1KG|31\n2026-06-05|SUGAR-1KG|19\n2026-06-06|SUGAR-1KG|25\n2026-06-07|SUGAR-1KG|30\n2026-06-09|ATTA-WW-5KG|11\n2026-06-10|ATTA-WW-5KG|22\n2026-06-11|ATTA-WW-5KG|1\n2026-06-12|ATTA-WW-5KG|0\n2026-06-13|ATTA-WW-5KG|22\n2026-06-14|ATTA-WW-5KG|23\n2026-06-15|ATTA-WW-5KG|22\n2026-06-16|ATTA-WW-5KG|17\n2026-06-17|ATTA-WW-5KG|11"
+    },
+    {
+      "sql": "SELECT bill_ts::date AS d, MIN(bill_ts)::time AS first_sale, MAX(bill_ts)::time AS last_sale, COUNT(*) AS lines, SUM(qty) AS units\nFROM store.pos_lines\nWHERE sku_scanned='ATTA-WW-5KG' AND bill_ts::date BETWEEN '2026-06-09' AND '2026-06-28'\nGROUP BY 1 ORDER BY 1;",
+      "result": "2026-06-09|10:04:00|20:55:00|11|11\n2026-06-10|08:26:00|15:53:00|21|22\n2026-06-11|09:30:00|09:30:00|1|1\n2026-06-13|10:43:00|21:28:00|22|22\n2026-06-14|08:07:00|21:57:00|23|23\n2026-06-15|11:05:00|21:51:00|21|22\n2026-06-16|08:59:00|20:38:00|16|17\n2026-06-17|10:20:00|21:54:00|11|11\n2026-06-18|07:37:00|21:34:00|30|31\n2026-06-19|09:30:00|21:53:00|27|27\n2026-06-20|08:02:00|21:21:00|21|21\n2026-06-21|07:56:00|21:55:00|42|43\n2026-06-22|08:18:00|21:23:00|20|20\n2026-06-23|07:35:00|15:10:00|5|5\n2026-06-27|07:22:00|21:59:00|43|44\n2026-06-28|07:52:00|21:42:00|21|21"
+    }
+  ],
+  "final": "(no final answer in 30 turns) ```sql\nSELECT bill_ts::date AS d, MIN(bill_ts)::time AS first_sale, MAX(bill_ts)::time AS last_sale, COUNT(*) AS lines, SUM(qty) AS units\nFROM store.pos_lines\nWHERE sku_scanned='ATTA-WW-5KG' AND bill_ts::date BETWEEN '2026-06-09' AND '2026-06-28'\nGROUP BY 1 ORDER BY 1;\n```"
+}
