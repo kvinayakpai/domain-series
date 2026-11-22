@@ -23,11 +23,21 @@ jobs:
     strategy:
       fail-fast: false
       max-parallel: 10
+      # Retry of the runs that failed for reasons outside the model: Kimi was cut off by the time limit
+      # (and had one 504), GLM had two 504s, Gemma 3 answered 404 on 21 November. One job per run, so
+      # each has the whole time limit.
       matrix:
-        model: ["meta/muse-glimmer-30b", "minimaxai/minimax-m3.1-flash", "mistralai/mistral-large-4-1t-a52b", "moonshotai/kimi-k3.1-pro", "z-ai/glm-5.3-flash", "stepfun-ai/step-5-preview", "poolside/laguna-xs-2.1", "nvidia/nemotron-3.5-bolt-e4b", "nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3.5-lightning-30b-a3b"]
+        include:
+          - {model: "moonshotai/kimi-k3.1-pro", only: "auto-opus"}
+          - {model: "moonshotai/kimi-k3.1-pro", only: "auto-opus-rule"}
+          - {model: "moonshotai/kimi-k3.1-pro", only: "auto-sonnet"}
+          - {model: "z-ai/glm-5.3-flash", only: "auto-opus,auto-opus-rule"}
+          - {model: "google/gemma-3-12b-it", only: ""}
+          - {model: "google/gemma-3-4b-it", only: ""}
     env:
       RESULTS: owl-packs-test/results/nim-run-${{ github.run_number }}
       NIM_MODEL: ${{ matrix.model }}
+      ONLY_RUNS: ${{ matrix.only }}
       PGHOST: localhost
       PGUSER: postgres
       PGPASSWORD: postgres

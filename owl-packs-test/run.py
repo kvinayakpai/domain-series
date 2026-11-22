@@ -136,8 +136,11 @@ def run_one(model: str, pack: str, rule: bool) -> dict:
 def main() -> None:
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     only = set(sys.argv[2:])
+    only_runs = {x for x in os.environ.get("ONLY_RUNS", "").split(",") if x}  # e.g. auto-opus,auto-opus-rule: rerun just these
     for run in json.loads((HERE / "matrix.json").read_text()):
         if only and run["model"] not in only:
+            continue
+        if only_runs and f"{run['pack']}{'-rule' if run['rule'] else ''}" not in only_runs:
             continue
         tag = re.sub(r"[^a-z0-9.]+", "_", MODELS[run["model"]]["name"].lower()) if run["model"] == "nim" else run["model"]
         name = f"{tag}-{run['pack']}{'-rule' if run['rule'] else ''}"
