@@ -325,23 +325,24 @@ function experiment() {
     '• [b]Instructions[/b], nearly 1,000 words: 12 rules, each with a “Here:” line tying it to a table',
     '• [b]Glossary[/b]: 8 codes',
     '• [b]Calculations[/b]: 4 · [b]certified queries[/b]: 3',
-    '• [b]Table descriptions[/b]: [o]0 – did not go in[/o]',
+    '• [b]Table descriptions[/b]: 20 of 21 (first try: [o]0[/o])',
   ].join('\n'), { size: 42, lh: 1.22 });
   b.text(X + 30, y + 410, CW - 60, 64, '[g][b]→ NVIDIA’s model: from guesses to “no record”[/b][/g]', { size: 44 });
   y = b.down(y + 500, 'both, put to three tests');
   // Three tests.
   const [best, bestRuns] = MODELS_RIGHT.slice().sort((p, q) => q[1].all_four_right - p[1].all_four_right)[0];
   const tests = [
-    ['Auto-Ontology’s own agent', `Nemotron: 2 shoppers, 3 bags [o]✗[/o] → with the layer, “no record” [g]✓[/g]\n7B: right tables, wrong logic [o]✗[/o]\nIts check: every question “covered”`],
+    ['Auto-Ontology’s own agent', `Nemotron: 2 shoppers, 3 bags [o]✗[/o] → with the layer, “no record” [g]✓[/g]\nRerun with table descriptions: shoppers “no record” [g]✓[/g], lost sales “142” [o]✗[/o]\n7B: right tables, wrong logic [o]✗[/o]\nIts check: every question “covered”`],
     [`${AGENTS.agents.length} fresh Claude agents`, `All: ${AGENTS.truth.sold} and ${AGENTS.truth.availability_pct}% [g]✓[/g]\nSonnet: “no record”, both times [g]✓[/g]\nOpus: lost sales as a labelled estimate\nHaiku: forecast → 43–84 shoppers [o]✗[/o]`],
     [`${SWEEP.models_run} models, ${SWEEP.runs} tries`, `3 OWL + SHACL packs × with and without one line\nAll 4 right: [b]${REV.plain.all_four_right} → ${REV.rule.all_four_right}[/b] of ${REV.rule.runs}\n[gr]a script had said ${SWEEP.totals.plain.honest} → ${SWEEP.totals.rule.honest} “honest”[/gr]\nBest: ${best}, ${bestRuns.all_four_right} of ${bestRuns.runs} tries`],
   ];
   tests.forEach(([head, body], i) => {
-    b.rect(X, y, CW, 360, { stroke: 'ink', fill: i === 2 ? 'noteY' : 'paper', sw: 5, rot: i === 1 ? 0.5 : -0.5 });
+    const h = i === 0 ? 480 : 360;
+    b.rect(X, y, CW, h, { stroke: 'ink', fill: i === 2 ? 'noteY' : 'paper', sw: 5, rot: i === 1 ? 0.5 : -0.5 });
     b.num(X + 30, y + 12, i + 1, { d: 76, size: 48 });
     b.text(X + 80, y + 20, CW - 110, 66, `[b]${head}[/b]`, { size: 48 });
-    b.text(X + 40, y + 96, CW - 80, 250, body, { size: 44, lh: 1.22 });
-    y += 384;
+    b.text(X + 40, y + 96, CW - 80, h - 110, body, { size: 44, lh: 1.22 });
+    y += h + 24;
   });
   y += 20;
   b.text(X, y, CW, 150, '[hl]Machines draft what the tables hold.[/hl]\n[hl]People write what they don’t.[/hl]', { size: 56, weight: 700, align: 'center', valign: 'middle', lh: 1.22 });
