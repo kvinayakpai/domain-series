@@ -100,7 +100,7 @@ def run_one(model: str, pack: str, rule: bool) -> dict:
     prompt = (TEXT_INTRO if text else INTRO) + "Here is an ontology of the business and the database, as OWL and SHACL files. Use it as you see fit:\n\n" + pack_text(pack) + (RULE if rule else "") + QUESTIONS
     messages = [{"role": "user", "content": prompt}]
     calls, final, started = [], "", time.time()
-    for _ in range(16):
+    for _ in range(30):
         msg = chat(cfg, messages)
         if text:
             import re
@@ -128,7 +128,7 @@ def run_one(model: str, pack: str, rule: bool) -> dict:
             calls.append({"sql": q, "result": res[:600]})
             messages.append({"role": "tool", "tool_call_id": tc["id"], "content": res})
     if not final and text:
-        final = "(no final answer in 16 turns) " + next((m["content"] for m in reversed(messages) if m["role"] == "assistant"), "")
+        final = "(no final answer in 30 turns) " + next((m["content"] for m in reversed(messages) if m["role"] == "assistant"), "")
     return {"model": cfg["name"], "pack": pack, "rule_line": rule, "prompt_chars": len(prompt),
             "seconds": round(time.time() - started), "sql_calls": calls, "final": final}
 
