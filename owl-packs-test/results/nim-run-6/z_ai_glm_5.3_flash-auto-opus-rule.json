@@ -1,0 +1,86 @@
+{
+  "model": "z-ai/glm-5.3-flash",
+  "pack": "auto-opus",
+  "rule_line": true,
+  "prompt_chars": 90111,
+  "seconds": 2198,
+  "sql_calls": [
+    {
+      "sql": "SELECT sku, product_name, pack_size, flow_type, selling_price_inr, units_per_case\nFROM store.products\nORDER BY sku;",
+      "result": "ERROR: column \"product_name\" does not exist\nLINE 1: SELECT sku, product_name, pack_size, flow_type, selling_pric...\n                    ^\n"
+    },
+    {
+      "sql": "SELECT table_schema, table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse','payments')\nORDER BY table_schema, table_name, ordinal_position;",
+      "result": "payments|customer_complaints|complaint_ts|timestamp without time zone\npayments|customer_complaints|kind|text\npayments|customer_complaints|amount_inr|numeric\npayments|customer_complaints|bill_id|text\npayments|customer_complaints|rrn|text\npayments|customer_complaints|resolved_ts|timestamp without time zone\npayments|customer_complaints|resolution|text\npayments|pos_payments|bill_id|text\npayments|pos_payments|attempt|integer\npayments|pos_payments|ts|timestamp without time zone\npayments|pos_payments|tender|text\npayments|pos_payments|amount_inr|numeric\npayments|pos_payments|till_status|text\npayments|"
+    },
+    {
+      "sql": "SELECT table_schema, table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse')\n  AND table_name IN ('products','pos_lines','shelf_audits','inventory_book','stock_counts','write_offs','store_orders','store_order_lines')\nORDER BY table_schema, table_name, ordinal_position;",
+      "result": "store|inventory_book|date|date\nstore|inventory_book|sku|text\nstore|inventory_book|book_on_hand_close|integer\nstore|pos_lines|bill_id|text\nstore|pos_lines|bill_ts|timestamp without time zone\nstore|pos_lines|line|integer\nstore|pos_lines|gtin_scanned|text\nstore|pos_lines|sku_scanned|text\nstore|pos_lines|qty|integer\nstore|pos_lines|unit_price|numeric\nstore|pos_lines|line_amount|numeric\nstore|products|sku|text\nstore|products|gtin|text\nstore|products|name|text\nstore|products|pack|text\nstore|products|case_units|integer\nstore|products|case_kg|numeric\nstore|products|flow|text\nstore|products|dc_slot|tex"
+    },
+    {
+      "sql": "SELECT sku, name, pack, flow, price_inr, cost_inr, case_units\nFROM store.products\nWHERE name ILIKE '%atta%' OR sku ILIKE '%ATTA%';",
+      "result": "ATTA-WW-5KG|Whole wheat atta 5 kg|5 kg|DC|265.0|228.0|4\nATTA-WW-1KG|Whole wheat atta 1 kg|1 kg|DC|58.0|49.5|10\nATTA-WW-10KG|Whole wheat atta 10 kg|10 kg|DC|499.0|431.0|2"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) AS bags_sold, SUM(revenue_inr) AS revenue\nFROM store.daily_sales\nWHERE sku = 'ATTA-WW-5KG'\n  AND date >= DATE '2026-06-01' AND date < DATE '2026-07-01';",
+      "result": "567|150255.0"
+    },
+    {
+      "sql": "SELECT audit_ts, status\nFROM store.shelf_audits\nWHERE sku = 'ATTA-WW-5KG'\n  AND audit_ts >= TIMESTAMP '2026-06-01' AND audit_ts < TIMESTAMP '2026-07-01'\nORDER BY audit_ts;",
+      "result": "2026-06-02 11:00:00|on shelf\n2026-06-05 11:00:00|on shelf\n2026-06-09 11:00:00|on shelf\n2026-06-12 11:00:00|empty\n2026-06-16 11:00:00|on shelf\n2026-06-19 11:00:00|on shelf\n2026-06-23 11:00:00|on shelf\n2026-06-26 11:00:00|empty"
+    },
+    {
+      "sql": "SELECT f.date, f.forecast_units_per_day, f.book_on_hand,\n       COALESCE(d.units_sold, 0) AS units_sold\nFROM store.forecasts f\nLEFT JOIN store.daily_sales d\n  ON d.sku = f.sku AND d.date = f.date\nWHERE f.sku = 'ATTA-WW-5KG'\n  AND f.date IN (DATE '2026-06-12', DATE '2026-06-26')\nORDER BY f.date;",
+      "result": "2026-06-12|22.96|55|0\n2026-06-26|19.64|0|0"
+    },
+    {
+      "sql": "SELECT d::date AS day, COALESCE(s.units_sold, 0) AS units_sold\nFROM generate_series(DATE '2026-06-01', DATE '2026-06-30', INTERVAL '1 day') d\nLEFT JOIN store.daily_sales s\n  ON s.sku = 'ATTA-WW-5KG' AND s.date = d::date\nWHERE COALESCE(s.units_sold, 0) = 0\nORDER BY day;",
+      "result": "2026-06-12|0\n2026-06-24|0\n2026-06-25|0\n2026-06-26|0\n2026-06-29|0\n2026-06-30|0"
+    },
+    {
+      "sql": "SELECT f.date, f.forecast_units_per_day, f.book_on_hand, f.ordered_units,\n       b.book_on_hand_close\nFROM store.forecasts f\nLEFT JOIN store.inventory_book b\n  ON b.sku = f.sku AND b.date = f.date\nWHERE f.sku = 'ATTA-WW-5KG'\n  AND f.date IN (DATE '2026-06-12', DATE '2026-06-24', DATE '2026-06-25',\n                 DATE '2026-06-26', DATE '2026-06-29', DATE '2026-06-30')\nORDER BY f.date;",
+      "result": "2026-06-12|22.96|55|0|55\n2026-06-24|20.96|63|0|63\n2026-06-25|20.14|63|0|63\n2026-06-26|19.64|0|84|0"
+    },
+    {
+      "sql": "SELECT f.date, f.book_on_hand, f.forecast_units_per_day\nFROM store.forecasts f\nWHERE f.sku = 'ATTA-WW-5KG'\n  AND f.date IN (DATE '2026-06-29', DATE '2026-06-30')\nORDER BY f.date;",
+      "result": "(no rows)"
+    },
+    {
+      "sql": "SELECT 'daily_sales' AS src, date::text AS day, units_sold::text AS val\nFROM store.daily_sales\nWHERE sku = 'ATTA-WW-5KG' AND date >= DATE '2026-06-20' AND date <= DATE '2026-06-30'\nUNION ALL\nSELECT 'inventory_book', date::text, book_on_hand_close::text\nFROM store.inventory_book\nWHERE sku = 'ATTA-WW-5KG' AND date >= DATE '2026-06-20' AND date <= DATE '2026-06-30'\nUNION ALL\nSELECT 'forecasts', date::text, book_on_hand::text\nFROM store.forecasts\nWHERE sku = 'ATTA-WW-5KG' AND date >= DATE '2026-06-20' AND date <= DATE '2026-06-30'\nORDER BY day, src;",
+      "result": "daily_sales|2026-06-20|21\nforecasts|2026-06-20|68\ninventory_book|2026-06-20|68\ndaily_sales|2026-06-21|43\nforecasts|2026-06-21|25\ninventory_book|2026-06-21|25\ndaily_sales|2026-06-22|20\nforecasts|2026-06-22|68\ninventory_book|2026-06-22|68\ndaily_sales|2026-06-23|5\nforecasts|2026-06-23|63\ninventory_book|2026-06-23|63\ndaily_sales|2026-06-24|0\nforecasts|2026-06-24|63\ninventory_book|2026-06-24|63\ndaily_sales|2026-06-25|0\nforecasts|2026-06-25|63\ninventory_book|2026-06-25|63\ndaily_sales|2026-06-26|0\nforecasts|2026-06-26|0\ninventory_book|2026-06-26|0\ndaily_sales|2026-06-27|44\nforecasts|2026-06-27|40\ninv"
+    },
+    {
+      "sql": "SELECT date, SUM(units_sold) AS all_sku_units, COUNT(*) AS sku_rows\nFROM store.daily_sales\nWHERE date >= DATE '2026-06-01' AND date < DATE '2026-07-01'\nGROUP BY date\nORDER BY date;",
+      "result": "2026-06-01|685|11\n2026-06-02|768|11\n2026-06-03|666|11\n2026-06-04|587|11\n2026-06-05|672|11\n2026-06-06|846|11\n2026-06-07|744|11\n2026-06-08|605|11\n2026-06-09|763|11\n2026-06-10|691|11\n2026-06-11|675|11\n2026-06-12|607|11\n2026-06-13|747|11\n2026-06-14|660|11\n2026-06-15|614|11\n2026-06-16|643|11\n2026-06-17|685|11\n2026-06-18|583|11\n2026-06-19|727|11\n2026-06-20|908|11\n2026-06-21|756|11\n2026-06-22|649|11\n2026-06-23|585|11\n2026-06-24|672|11\n2026-06-25|505|11\n2026-06-26|508|11\n2026-06-27|770|11\n2026-06-28|944|11"
+    },
+    {
+      "sql": "SELECT count_ts, book_before, counted, adjustment, trigger\nFROM store.stock_counts\nWHERE sku = 'ATTA-WW-5KG'\n  AND count_ts >= TIMESTAMP '2026-06-01' AND count_ts < TIMESTAMP '2026-07-01'\nORDER BY count_ts;",
+      "result": "2026-06-01 05:45:00|36|36|0|scheduled full count\n2026-06-26 09:00:00|63|0|-63|manager request after complaints\n2026-06-28 22:30:00|63|62|-1|scheduled full count"
+    },
+    {
+      "sql": "SELECT d::date AS day,\n       COALESCE(s.units_sold, 0) AS units_sold,\n       f.forecast_units_per_day,\n       f.book_on_hand\nFROM generate_series(DATE '2026-06-01', DATE '2026-06-28', INTERVAL '1 day') d\nLEFT JOIN store.daily_sales s\n  ON s.sku = 'ATTA-WW-5KG' AND s.date = d::date\nLEFT JOIN store.forecasts f\n  ON f.sku = 'ATTA-WW-5KG' AND f.date = d::date\nORDER BY day;",
+      "result": "2026-06-01|30|22.54|58\n2026-06-02|36|22.82|22\n2026-06-03|22|21.96|64\n2026-06-04|28|22.39|36\n2026-06-05|32|23.54|52\n2026-06-06|25|24.43|27\n2026-06-07|44|25.29|43\n2026-06-08|9|24.89|34\n2026-06-09|11|24.29|78\n2026-06-10|22|24.57|56\n2026-06-11|1|23.82|55\n2026-06-12|0|22.96|55\n2026-06-13|22|23.36|33\n2026-06-14|23|23.57|66\n2026-06-15|22|23.54|44\n2026-06-16|17|23.32|27\n2026-06-17|11|22.82|76\n2026-06-18|31|22.93|45\n2026-06-19|27|22.61|17\n2026-06-20|21|22.54|68\n2026-06-21|43|23.07|25\n2026-06-22|20|23.07|68\n2026-06-23|5|21.79|63\n2026-06-24|0|20.96|63\n2026-06-25|0|20.14|63\n2026-06-26|0|19.64|0\n2026-06-27"
+    },
+    {
+      "sql": "SELECT bill_ts::date AS day, SUM(qty) AS units, SUM(line_amount) AS revenue\nFROM store.pos_lines\nWHERE sku_scanned = 'ATTA-WW-5KG'\n  AND bill_ts >= TIMESTAMP '2026-06-01' AND bill_ts < TIMESTAMP '2026-07-01'\nGROUP BY 1\nORDER BY 1;",
+      "result": "2026-06-01|30|7950.0\n2026-06-02|36|9540.0\n2026-06-03|22|5830.0\n2026-06-04|28|7420.0\n2026-06-05|32|8480.0\n2026-06-06|25|6625.0\n2026-06-07|44|11660.0\n2026-06-08|9|2385.0\n2026-06-09|11|2915.0\n2026-06-10|22|5830.0\n2026-06-11|1|265.0\n2026-06-13|22|5830.0\n2026-06-14|23|6095.0\n2026-06-15|22|5830.0\n2026-06-16|17|4505.0\n2026-06-17|11|2915.0\n2026-06-18|31|8215.0\n2026-06-19|27|7155.0\n2026-06-20|21|5565.0\n2026-06-21|43|11395.0\n2026-06-22|20|5300.0\n2026-06-23|5|1325.0\n2026-06-27|44|11660.0\n2026-06-28|21|5565.0"
+    },
+    {
+      "sql": "SELECT date, sku, units, reason\nFROM store.write_offs\nWHERE sku = 'ATTA-WW-5KG'\n  AND date >= DATE '2026-06-01' AND date < DATE '2026-07-01'\nORDER BY date;",
+      "result": "2026-06-09|ATTA-WW-5KG|1|damaged\n2026-06-19|ATTA-WW-5KG|1|damaged\n2026-06-22|ATTA-WW-5KG|1|damaged"
+    },
+    {
+      "sql": "SELECT grn_id, shipment_id, line, asn_sku, sku, asn_units, units, sscc, received_ts\nFROM store.goods_receipts\nWHERE sku = 'ATTA-WW-5KG'\n  AND received_ts >= TIMESTAMP '2026-06-01' AND received_ts < TIMESTAMP '2026-07-01'\nORDER BY received_ts;",
+      "result": "ERROR: column \"sku\" does not exist\nLINE 1: SELECT grn_id, shipment_id, line, asn_sku, sku, asn_units, u...\n                                                   ^\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'goods_receipts'\nORDER BY ordinal_position;",
+      "result": "grn_id|text\nshipment_id|text\nsscc|text\nline|integer\nreceived_ts|timestamp without time zone\nasn_sku|text\nasn_units|integer\nsku_booked|text\nunits_booked|integer\nreceipt_method|text"
+    },
+    {
+      "sql": "SELECT grn_id, shipment_id, line, asn_sku, sku_booked, asn_units, units_booked, received_ts\nFROM store.goods_receipts\nWHERE sku_booked = 'ATTA-WW-5KG'\n  AND received_ts >= TIMESTAMP '2026-06-01' AND received_ts < TIMESTAMP '2026-07-01'\nORDER BY received_ts;",
+      "result": "GRN-260601|SHP-260601|1|ATTA-WW-5KG|ATTA-WW-5KG|52|52|2026-06-01 06:20:00\nGRN-260603|SHP-260603|1|ATTA-WW-5KG|ATTA-WW-5KG|64|64|2026-06-03 06:16:00\nGRN-260605|SHP-260605|1|ATTA-WW-5KG|ATTA-WW-5KG|48|48|2026-06-05 06:21:00\nGRN-260607|SHP-260607|1|ATTA-WW-5KG|ATTA-WW-5KG|60|60|2026-06-07 06:10:00\nGRN-260609|SHP-260609|1|ATTA-WW-5KG|ATTA-WW-5KG|56|56|2026-06-09 06:17:00\nGRN-260614|SHP-260614|1|ATTA-WW-5KG|ATTA-WW-5KG|56|56|2026-06-14 06:16:00\nGRN-260617|SHP-260617|1|ATTA-WW-5KG|ATTA-WW-5KG|60|60|2026-06-17 06:03:00\nGRN-260620|SHP-260620|1|ATTA-WW-5KG|ATTA-WW-5KG|72|72|2026-06-20 06:22:00\nGRN-2606"
+    }
+  ],
+  "final": "All queries done. Here are the results.\n\n**Setup:** The 5 kg atta is SKU `ATTA-WW-5KG` (price \u20b9265.00, DC flow). Item-level data (daily_sales, pos_lines, forecasts, inventory_book) runs through **2026-06-28**; June 29\u201330 have no records for this product.\n\n**Key facts found:**\n- June sales: **567 bags**, \u20b9150,255 (daily_sales; pos_lines agrees exactly, day by day).\n- Zero-sales days in June: **June 12, 24, 25, 26**.\n- Shelf audits (8 in June, 11:00 each): empty on **June 12** and **June 26**; on shelf the other 6 times.\n- June 12: book stock 55 units in store, shelf empty, 0 sold \u2192 shelf-replenishment failure.\n- June 24\u201325: book says 63 units, 0 sold both days; the **June 26 count (trigger \"manager request after complaints\") found 0 on hand** (adjustment \u221263) \u2192 stock was actually gone; emergency order of 84 units arrived June 27 and sales resumed (44 bags).\n- Store's own demand forecast on the four stockout days: 22.96 + 20.96 + 20.14 + 19.64 = **83.7 bags**.\n\n---\n\n**1. Bags of 5 kg atta sold in June 2026**\n- SQL: `SELECT SUM(units_sold) FROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01' AND date < '2026-07-01';`\n- **Answer: 567 bags** (\u20b9150,255 revenue).\n- Certainty: High \u2014 daily_sales and the bill-level pos_lines sum to exactly the same 567.\n\n**2. Shoppers who left without 5 kg atta in June 2026**\n- SQL: forecasts query for the zero-sales days (2026-06-12, 24, 25, 26).\n- **Answer: no record** \u2014 the database has no shopper/footfall counts. The closest defensible estimate is the store's own demand forecast summed over the 4 stockout days: **\u2248 84 shoppers (83.7)**.\n- Certainty: Low as a count of people \u2014 it is a model-based proxy (forecast demand), not an observed number; I state it as an estimate, not a fact.\n\n**3. On-shelf availability for 5 kg atta in June 2026**\n- SQL: `SELECT status, COUNT(*) FROM store.shelf_audits WHERE sku='ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01' GROUP BY status;`\n- **Answer: 75%** (6 of 8 shelf audits found the product on shelf; empty on June 12 and June 26). On a day-count basis, in-stock on 24 of 28 trading days \u2248 86%.\n- Certainty: High for the audit-based figure (direct measurement, small sample of 8 audits); the day-based figure is a secondary view.\n\n**4. Lost sales of 5 kg atta in June 2026**\n- SQL: forecasts joined to zero-sales days (values above).\n- **Answer: \u2248 84 bags \u2248 \u20b922,180** (83.7 forecast bags \u00d7 \u20b9265 = \u20b922,180.50), lost on June 12, 24, 25, 26.\n- Certainty: Medium \u2014 this is an estimate using the store's own 28-day-mean forecast as the demand proxy during stockouts; actual unmet demand could differ, and June 29\u201330 have no data.\n\n```json\n{\"answers\":[\n{\"id\":1,\"sql\":\"SELECT SUM(units_sold) AS bags_sold, SUM(revenue_inr) AS revenue FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= DATE '2026-06-01' AND date < DATE '2026-07-01';\",\"answer\":\"567 bags (\u20b9150,255 revenue)\",\"basis\":\"High confidence: store.daily_sales total, exactly confirmed by summing store.pos_lines per day.\"},\n{\"id\":2,\"sql\":\"SELECT f.date, f.forecast_units_per_day FROM store.forecasts f WHERE f.sku='ATTA-WW-5KG' AND f.date IN ('2026-06-12','2026-06-24','2026-06-25','2026-06-26');\",\"answer\":\"no record (no shopper counts exist); estimated \u2248 84 shoppers (sum of forecast demand 83.7 on the 4 stockout days)\",\"basis\":\"Low confidence: database records no footfall; figure is a proxy from the store's own demand forecast on zero-sales days June 12/24/25/26.\"},\n{\"id\":3,\"sql\":\"SELECT status, COUNT(*) FROM store.shelf_audits WHERE sku='ATTA-WW-5KG' AND audit_ts >= TIMESTAMP '2026-06-01' AND audit_ts < TIMESTAMP '2026-07-01' GROUP BY status;\",\"answer\":\"75% on shelf (6 of 8 audits; empty June 12 and June 26); ~86% of trading days in stock (24/28)\",\"basis\":\"High confidence for audit-based OSA: direct shelf audits; day-based figure secondary. Item data ends June 28.\"},\n{\"id\":4,\"sql\":\"SELECT f.date, f.forecast_units_per_day FROM store.forecasts f WHERE f.sku='ATTA-WW-5KG' AND f.date IN ('2026-06-12','2026-06-24','2026-06-25','2026-06-26');\",\"answer\":\"\u2248 84 bags \u2248 \u20b922,180 lost (83.7 forecast units \u00d7 \u20b9265 = \u20b922,180.50)\",\"basis\":\"Medium confidence: estimate = store's 28-day-mean forecast demand on the 4 stockout days (June 12 shelf empty with 55 units in backroom; June 24-26 stock actually gone, confirmed by June 26 count of 0 vs book 63).\"}\n]}\n```"
+}
