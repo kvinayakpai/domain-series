@@ -58,11 +58,6 @@ h1 { font-weight: 700; font-size: 124px; line-height: 1.02; letter-spacing: -0.0
 .foot { margin-top: auto; display: flex; justify-content: space-between; align-items: baseline; gap: 48px; font-size: 52px; color: ${C.muted}; }
 .foot b { color: ${C.ink}; font-weight: 700; }
 .chart { margin-top: 28px; flex: 1; position: relative; }
-.layers { margin-top: 44px; display: grid; grid-template-columns: 330px 1fr 1fr; column-gap: 44px; row-gap: 0; }
-.layers > div { padding: 22px 0 24px; border-top: 4px solid ${C.rule}; font-size: 44px; line-height: 1.2; }
-.layers > .h { border-top: none; padding-top: 0; font-size: 38px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: ${C.muted}; }
-.layers > .name { font-weight: 700; font-size: 50px; }
-.layers > .does { color: ${C.real}; font-weight: 600; }
 .legend { display: flex; gap: 64px; font-size: 54px; color: ${C.muted}; margin-top: 30px; align-items: center; }
 .key { display: inline-block; width: 48px; height: 48px; border-radius: 8px; vertical-align: -6px; margin-right: 16px; }
 `;
@@ -100,17 +95,6 @@ function chartCard(c) {
     ${ch.note ? `<div class="foot" style="margin-top:16px;font-size:50px;color:${C.ink}"><span>${esc(ch.note)}</span></div>` : ''}`);
 }
 
-/** Summary card for a list rather than a chart: each row's name, an example and what an AI does with it. */
-function layersCard(c) {
-  const l = c.layers;
-  const cells = l.rows.map((r) => `<div class="name">${esc(r.name)}</div><div>${esc(r.example)}</div><div class="does">${esc(r.does)}</div>`).join('');
-  return page(`${eyebrow(c)}
-    <h1 style="font-size:${fit(l.title, [[40, 104], [56, 88], [999, 80]])}px">${esc(l.title)}</h1>
-    <div class="sub" style="font-size:56px;margin-top:18px">${esc(l.sub)}</div>
-    <div class="layers"><div class="h">Part</div><div class="h">For Store 014</div><div class="h">What the AI does</div>${cells}</div>
-    ${l.note ? `<div class="foot" style="margin-top:auto;font-size:48px;color:${C.ink}"><span>${esc(l.note)}</span></div>` : ''}`);
-}
-
 /** Closing card: the lesson, the rule to give an AI agent, and three checks to run on your own data. */
 function ruleCard(c) {
   const ruleSize = fit(c.rule, [[90, 92], [130, 80], [999, 68]]);
@@ -136,14 +120,14 @@ for (const c of cards) {
   const dir = path.join(root, 'public', 'images', c.slug);
   mkdirSync(dir, { recursive: true });
   // A card renders all three pictures unless it names the ones it needs (Season 2's `only`).
-  for (const [name, make] of [['open', openCard], ['summary', c.layers ? layersCard : chartCard], ['close', ruleCard]].filter(([n]) => !c.only || c.only.includes(n))) {
+  for (const [name, make] of [['open', openCard], ['summary', chartCard], ['close', ruleCard]].filter(([n]) => !c.only || c.only.includes(n))) {
     await tab.setContent(make(c), { waitUntil: 'load' });
     await tab.evaluate(() => document.fonts.ready);
     const problems = await tab.evaluate(() => {
       const out = [];
       if (document.documentElement.scrollHeight > window.innerHeight || document.documentElement.scrollWidth > window.innerWidth) out.push('content overflows the card');
       // Text blocks must not run into each other.
-      const boxes = [...document.querySelectorAll('h1, .sub, .pair, .chips, .line, .quote, .checks, .foot, .legend, .chart, .layers')].map((e) => [e.className || e.tagName, e.getBoundingClientRect()]);
+      const boxes = [...document.querySelectorAll('h1, .sub, .pair, .chips, .line, .quote, .checks, .foot, .legend, .chart')].map((e) => [e.className || e.tagName, e.getBoundingClientRect()]);
       for (let i = 1; i < boxes.length; i++) if (boxes[i][1].top < boxes[i - 1][1].bottom - 2) out.push(`${boxes[i][0]} overlaps ${boxes[i - 1][0]}`);
       for (const e of document.querySelectorAll('svg text')) { const r = e.getBoundingClientRect(); const box = e.ownerSVGElement.getBoundingClientRect(); if (r.left < box.left - 1 || r.right > box.right + 1 || r.top < box.top - 1 || r.bottom > box.bottom + 1) out.push(`chart text cut: ${e.textContent}`); }
       for (const e of document.querySelectorAll('.big, .cap, .chip, h1')) if (e.scrollWidth > e.clientWidth + 2) out.push(`text too wide: ${e.textContent.slice(0, 40)}`);
