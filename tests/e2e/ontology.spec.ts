@@ -18,6 +18,7 @@ const machineRun = json('auto-ontology-run.json');
 // Six fresh Claude agents and NVIDIA's Nemotron on the same questions, scored against the records.
 const claudeAgents = json('auto-ontology-claude-agents.json');
 const owlShacl = json('auto-ontology-owl-shacl.json');
+const sweep = json('auto-ontology-model-sweep.json');
 const story = retail.story;
 const ep = story.episode;
 
@@ -395,7 +396,7 @@ test('posts 6 to 19 quote their rules from the ontology and their numbers from S
       const rule = ontology.rules.find((r: { n: number }) => r.n === n);
       expect(text, `${p.slug} rule ${n}`).toContain(`Rule ${n} – ${rule.text.replace(/[“”]/g, '"')}`);
     }
-    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (p.slug.startsWith('does-written') || p.slug.startsWith('the-auto-ontology') ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) + JSON.stringify(owlShacl) : '');
+    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (p.slug.startsWith('does-written') || p.slug.startsWith('the-auto-ontology') ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) + JSON.stringify(owlShacl) + JSON.stringify(sweep) : '');
     for (const s of DRAWS_ON[p.slug]) sources += ` ${await articleText(page, `${s}/`)}`;
     const found = numbers(sources);
     for (const n of numbers(text)) {
@@ -629,4 +630,21 @@ test('post 17 reports Ontop and the two Claude agents writing OWL and SHACL as r
   for (const f of ['ontop-ontology.owl', 'opus-ontology.ttl', 'opus-shapes.ttl', 'sonnet-ontology.ttl', 'sonnet-shapes.ttl']) {
     expect((await request.get(`data/auto-ontology/store014-${f}`)).status(), f).toBe(200);
   }
+});
+
+// Post 17 also reports the same questions put to other models, pinned to src/data/auto-ontology-model-sweep.json.
+test('post 17 reports the model sweep as recorded', async ({ page, request }) => {
+  const text = await articleText(page, 'the-auto-ontology-experiment-in-full/');
+  const t = sweep.totals;
+  expect(t.plain.honest + t.plain.invented + t.plain.no_answer + t.plain.error + t.rule.honest + t.rule.invented + t.rule.no_answer + t.rule.error).toBe(sweep.runs);
+  expect(sweep.models.length).toBe(sweep.models_run);
+  expect(text).toContain(`That made ${sweep.runs} runs.`);
+  expect(text).toContain(`up to ${sweep.query_cap} queries`);
+  expect(text).toContain(`to ${sweep.models_run} more models`);
+  // The headline claim: the extra line produced more honest runs than none.
+  expect(t.rule.honest).toBeGreaterThan(t.plain.honest);
+  const ultra = sweep.models.find((m: { model: string }) => m.model === 'Nemotron 3 Ultra');
+  expect(text).toContain(`Nemotron 3 Ultra gave a number in ${ultra.plain.invented} of ${ultra.plain.invented} runs as it was, and said no record in ${ultra.rule.honest} of ${ultra.rule.honest} runs with the line.`);
+  const csv = await (await request.get('data/auto-ontology/store014-model-sweep.csv')).text();
+  expect(csv.trim().split('\n').length - 1).toBe(sweep.runs);
 });

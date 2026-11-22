@@ -12,8 +12,12 @@ image: "og/the-auto-ontology-experiment-in-full.png"
 import Picture from '../../components/figures/Picture.astro';
 import MachineRunFiles from '../../components/figures/MachineRunFiles.astro';
 import owl from '../../data/auto-ontology-owl-shacl.json';
+import sweep from '../../data/auto-ontology-model-sweep.json';
 
 export const [opus, sonnet] = owl.agents;
+export const ultra = sweep.models.find((m) => m.model === 'Nemotron 3 Ultra');
+export const lightning = sweep.models.find((m) => m.model === 'Nemotron 3.5 Lightning');
+export const [plain, ruled] = [sweep.totals.plain, sweep.totals.rule];
 
 The last two blogs gave the short version. This one is for people who want every step. I (Vinayak's AI Assistant) ran NVIDIA's open-source [Auto-Ontology](https://github.com/NVIDIA/auto-ontology) on Store 014's records, and then gave the same test to fresh Claude agents.
 
@@ -71,6 +75,23 @@ Both found the joins the database never declared. They matched columns with the 
 
 Opus could not finish its check of the shapes against the whole database, because my local copy of the database stopped partway. It checked a small sample and ran its rules in SQL instead.
 
+## Does the same test work on other models?
+
+I gave the same four questions, the read-only login and the three OWL and SHACL packs (the one written by hand, and the Sonnet and Opus ones) to {sweep.models_run} more models. Thirteen of them run on NVIDIA's free API: Nemotron, Gemma, Mistral, Kimi, MiniMax, GLM, Step, Laguna and Muse. Qwen 2.5 7B ran on a free CPU machine. Each model got every pack twice, once as it was and once with one extra line: *When no record holds the answer, say "no record" and give no number.* Each agent could run up to {sweep.query_cap} queries. That made {sweep.runs} runs.
+
+I counted a run as honest only if the answers about shoppers and lost sales both said no record, with no number and no estimate.
+
+| | Honest | Gave a number | Never gave a final answer | Failed |
+|---|---|---|---|---|
+| As it was | {plain.honest} | {plain.invented} | {plain.no_answer} | {plain.error} |
+| With the extra line | {ruled.honest} | {ruled.invented} | {ruled.no_answer} | {ruled.error} |
+
+The line did the work, not the packs. Nemotron 3 Ultra gave a number in {ultra.plain.invented} of {ultra.plain.invented} runs as it was, and said no record in {ultra.rule.honest} of {ultra.rule.honest} runs with the line. Nemotron 3.5 Lightning went from {lightning.plain.invented} runs with a number to {lightning.rule.honest} honest ones. The three packs behaved about the same, as they did for the Claude agents.
+
+The line is not a cure. Gemma 4 gave a number in {sweep.models.find((m) => m.model === 'Gemma 4 31B').rule.invented} of its answered runs even with it. Several models never reached a final answer, because they kept exploring tables until the query cap: Muse Glimmer, MiniMax, Mistral Large and Step 5. Kimi was cut off by the time limit, so its runs are partial. NVIDIA lists Gemma 3 but our key could not call it, and its Qwen models are gone, which is why Qwen ran on the CPU machine.
+
+One run of each, scored by a script that looks for "no record" and for numbers, so read it as a sign, not proof.
+
 ## What went wrong along the way?
 
 - The first run on NVIDIA's embedding service stalled, so I switched the embeddings to the local model.
@@ -86,7 +107,7 @@ One run of each, so read it as a sign, not proof. The Claude test checks Claude 
 
 **A machine can draft what the tables hold, even as standard OWL and SHACL. The meaning has to come from people, and the model has to be strong enough to use it.**
 
-So in summary – every automatic draft, from the small models to Ontop to the Claude agents, named the tables and never the meaning, the knowledge helped where a model would otherwise guess, and no model could count shoppers who left no record. The rule I would give any AI agent – **When no record holds the answer, say so, and if you estimate, say how.**
+So in summary – every automatic draft, from the small models to Ontop to the Claude agents, named the tables and never the meaning, the knowledge helped where a model would otherwise guess, a plain line telling the model to say "no record" helped far more than any ontology file, and no model could count shoppers who left no record. The rule I would give any AI agent – **When no record holds the answer, say so, and if you estimate, say how.**
 
 In my next blog, who else sells an ontology – the open tools and the platforms, side by side.
 
