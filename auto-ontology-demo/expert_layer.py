@@ -168,6 +168,18 @@ def _err(error: Exception) -> str:
     return f"{type(error).__name__}: {error}{body}"
 
 
+def _items(got, *keys) -> list[dict]:
+    """The list of objects in an API answer, whether it is a bare list or a dict with the list under a key."""
+    if isinstance(got, dict):
+        for k in keys:
+            if isinstance(got.get(k), list):
+                got = got[k]
+                break
+        else:
+            got = next((v for v in got.values() if isinstance(v, list)), [])
+    return [x for x in got or [] if isinstance(x, dict)]
+
+
 def _main_term(terms_by_table: dict[str, list[dict]], table: str, prefer: list[str]) -> dict | None:
     candidates = terms_by_table.get(table) or []
     for word in prefer:
@@ -195,20 +207,24 @@ def apply(call, terms: list[dict], details: dict) -> dict:
         except Exception as error:
             record.setdefault("glossary_errors", {})[name] = _err(error)
 
-    # Table descriptions, certified.
+    # Table descriptions, certified. Run 10 showed the schema list comes back as
+    # {"schemas_count": 3, "schemas": [{"id", "schema_name", ...}]}, not a bare list, so run 10 found no tables.
     try:
-        dbs = (call("GET", "/api/datasources/dbs") or {}).get("data") or []
-        db = next(d for d in dbs if d.get("name") == "store014")
+        dbs = _items(call("GET", "/api/datasources/dbs"), "data", "dbs", "databases")
+        db = next(d for d in dbs if d.get("name") == "store014" or d.get("db_name") == "store014")
         schemas = [s for s in db.get("schemas") or [] if isinstance(s, dict) and s.get("id")]
-        if not schemas:  # run 8 got schema names here, not objects: ask for the schemas themselves
+        if not schemas:
             got = call("GET", f"/api/schemas/{db['id']}")
-            listed = got.get("data", got) if isinstance(got, dict) else got
-            schemas = [s for s in listed or [] if isinstance(s, dict) and s.get("id")]
-            record["schemas_seen"] = str(listed)[:300]
+            schemas = [s for s in _items(got, "schemas", "data") if s.get("id")]
+            record["schemas_seen"] = str(got)[:300]
         for schema in schemas:
-            tables = (call("GET", f"/api/tables/{schema['id']}") or {}).get("data") or []
+            sname = schema.get("schema_name") or schema.get("name")
+            got = call("GET", f"/api/tables/{schema['id']}")
+            tables = _items(got, "tables", "data")
+            record.setdefault("tables_seen", {})[sname] = {"count": len(tables), "keys": sorted(tables[0])[:12] if tables else str(got)[:200]}
             for table in tables:
-                key = f"{table.get('schema_name') or schema.get('name')}.{table.get('name')}"
+                tname = table.get("table_name") or table.get("name")
+                key = f"{table.get('schema_name') or sname}.{tname}"
                 if key in TABLES:
                     try:
                         call("PATCH", f"/api/nodes/{table['id']}", {"description": TABLES[key], "description_certified": True})
