@@ -4,14 +4,12 @@
 // Every result is scored against the answer key.
 import data from '../data/retail.json';
 import ai from '../data/retail-ai.json';
+import { assistantView, type Assistant } from './assistant-view';
 import { barChart, lineChart, tableView, type Tooltip } from './charts';
-import { bands, day, h, inr, num, pct, recordBlock, says, signed, smallTable, tiles, time, when, wireTabs } from './demo-kit';
+import { bands, day, h, inr, num, pct, recordBlock, recordsTable, says, signed, smallTable, tiles, time, when, wireTabs } from './demo-kit';
 
 type Scn = (typeof data)['scenarios'][number];
 type Episode = Scn['episodes'][number];
-type Question = (typeof ai)['assistant']['questions'][number];
-type Answer = Question['naive'];
-type Step = { sql: string; result: Record<string, unknown>[] };
 interface Run {
   first: number; alert: number; last: number; expected_at_alert: number; expected_total: number;
   recorded: number; book_at_alert: number; resumed: string | null; real: boolean;
@@ -35,7 +33,7 @@ const NAMES: Record<string, string> = {
   'MILK-TONED-500ML': 'toned milk', 'CURD-500G': 'curd', 'BREAD-WHITE-400G': 'bread',
 };
 const ALPHAS = ['0.01', '0.001', '0.0001'];
-const QUESTIONS = ai.assistant.questions as Question[];
+const QUESTION_IDS = ai.assistant.questions.map((q) => q.id);
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 const pad2 = (n: number) => String(n).padStart(2, '0');
@@ -77,7 +75,6 @@ const state = {
 const scn = () => data.scenarios.find((s) => s.key === `${state.detect}|${state.routine}`) as Scn;
 const asIs = data.scenarios.find((s) => s.key === 'off|today') as Scn;
 const rerun = () => state.detect !== 'off' || state.routine !== 'today';
-let root: HTMLElement;
 
 const ev = (s: Scn, kind: string, after = '2026-06-01') => s.events.find((e) => e.kind === kind && e.sku === HERO && e.ts >= after);
 
@@ -98,7 +95,7 @@ function context(host: HTMLElement, on: 'records' | 'world', extra = '') {
 }
 
 // ---------- outcome strip ----------
-function renderOutcome() {
+function renderOutcome(root: HTMLElement) {
   const s = scn();
   const me = ai.forecast.by_sku['ATTA-WW-5KG'].month_end;
   const sc = ai.assistant.score;
@@ -299,134 +296,14 @@ const forecastPanel: Panel = (host, s) => {
 };
 
 // ---------- the assistant ----------
-const fmtCell = (v: unknown) => {
-  if (v == null) return '–';
-  if (typeof v === 'number') return Number.isInteger(v) ? v.toLocaleString('en-IN') : String(Math.round(v * 1000) / 1000);
-  const t = String(v);
-  return /^\d{4}-\d\d-\d\dT/.test(t) ? t.slice(0, 16).replace('T', ' ') : t;
-};
-
-function resultTable(rows: Record<string, unknown>[]) {
-  const wrap = h('div', 'res');
-  const t = h('table');
-  const thead = h('thead');
-  const tr = h('tr');
-  for (const c of Object.keys(rows[0])) { const th = h('th', '', c); th.scope = 'col'; tr.append(th); }
-  thead.append(tr);
-  const tb = h('tbody');
-  for (const r of rows.slice(0, 4)) {
-    const row = h('tr');
-    for (const v of Object.values(r)) row.append(h('td', '', fmtCell(v)));
-    tb.append(row);
-  }
-  t.append(thead, tb);
-  wrap.append(t);
-  return wrap;
-}
-
-const sideOf = (q: Question): Answer => (state.grounding === 'domain' ? q.domain : q.naive) as Answer;
-
-function renderRun(box: HTMLElement) {
-  const q = QUESTIONS.find((x) => x.id === state.q) ?? QUESTIONS[0];
-  const side = sideOf(q);
-  const plan = side.plan as Step[];
-  box.className = `run ${state.grounding}`;
-  box.replaceChildren(
-    h('p', 'who', state.grounding === 'domain' ? 'AI assistant, given the schema and the domain layer' : 'AI assistant, given the schema'),
-    h('p', 'asked', q.question),
-    h('p', 'steps-head', `It ran ${plan.length === 1 ? 'one query' : `${plan.length} queries`}:`),
-  );
-  const ol = h('ol', 'steps');
-  for (const step of plan) {
-    const li = h('li');
-    li.append(h('code', 'sql', step.sql));
-    if (step.result.length) li.append(resultTable(step.result));
-    ol.append(li);
-  }
-  const answer = h('blockquote', 'answer-text');
-  answer.append(h('p', '', side.answer));
-  const verdict = h('p', 'verdict');
-  verdict.append(h('strong', side.right ? 'ok' : 'no', side.right ? 'Right.' : 'Wrong.'), document.createTextNode(` Answer key: ${q.gold.short}. ${q.gold.why}`));
-  box.append(ol, answer, verdict, h('p', 'rule', `Scoring rule: ${q.check}.`));
-}
-
-function domainLayerYaml() {
-  const d = ai.assistant.domain_layer;
-  const quote = (s: string) => `"${s.replace(/"/g, '\\"')}"`;
-  return [
-    '# Given to the assistant with the warehouse schema',
-    'definitions:',
-    ...Object.entries(d.definitions).map(([k, v]) => `  ${k.replace(/ /g, '_')}: ${quote(String(v))}`),
-    'rules:',
-    ...d.rules.map((r) => `  - ${quote(r)}`),
-    'views:',
-    ...Object.entries(d.views).map(([k, v]) => `  ${k}: ${quote(String(v))}`),
-    `tables_added: [${d.tables_added.join(', ')}]`,
-  ].join('\n');
-}
-
+// The same view the logistics and payments demos use (assistant-view.ts).
 const assistantPanel: Panel = (host) => {
-  host.append(h('p', 'context', `Asked at the Monday review on 15 June, of the records to Sunday night${rerun() ? ', as they happened' : ''}.`));
-  const ask = h('div', 'ask');
-  const list = h('div', 'questions');
-  list.setAttribute('role', 'group');
-  list.setAttribute('aria-label', 'Questions at the Monday review');
-  const run = h('div', 'run');
-  run.setAttribute('aria-live', 'polite');
-  for (const q of QUESTIONS) {
-    const right = sideOf(q).right;
-    const b = h('button');
-    b.type = 'button';
-    b.dataset.q = q.id;
-    b.setAttribute('aria-pressed', String(q.id === state.q));
-    b.append(h('span', 'q', q.question), h('span', `mark ${right ? 'ok' : 'no'}`, right ? 'Right' : 'Wrong'));
-    b.addEventListener('click', () => {
-      state.q = q.id;
-      list.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      renderRun(run);
-    });
-    list.append(b);
-  }
-  ask.append(list, run);
-  host.append(ask);
-  renderRun(run);
-
-  const sc = ai.assistant.score;
-  const wrap = h('div', 'table-wrap');
-  const table = h('table', 'ledger scores');
-  table.append(h('caption', '', `Seven questions: ${sc.naive} of ${sc.of} right with the schema only, ${sc.domain} of ${sc.of} with the domain layer`));
-  const thead = h('thead');
-  const hr = h('tr');
-  ['Question', 'Schema only', 'With the domain layer', 'Answer key'].forEach((c, i) => {
-    const th = h('th', i === 1 && state.grounding === 'schema' ? 'on' : i === 2 && state.grounding === 'domain' ? 'on' : '', c);
-    th.scope = 'col';
-    hr.append(th);
+  const data: Assistant = ai.assistant;
+  assistantView(host, data, {
+    grounding: state.grounding === 'domain' ? 'domain' : 'schema', q: state.q, onAsk: (id) => { state.q = id; },
+    context: `Asked at the Monday review on 15 June, of the records to Sunday night${rerun() ? ', as they happened' : ''}.`,
+    schema: 'warehouse', listLabel: 'Questions at the Monday review',
   });
-  thead.append(hr);
-  const tb = h('tbody');
-  for (const q of QUESTIONS) {
-    const tr = h('tr');
-    const th = h('th', '', q.question);
-    th.scope = 'row';
-    tr.append(th);
-    for (const [side, on] of [[q.naive, state.grounding === 'schema'], [q.domain, state.grounding === 'domain']] as [Answer, boolean][]) {
-      const td = h('td', on ? 'on' : '');
-      td.append(h('span', side.right ? 'ok' : 'no', side.right ? 'Right' : 'Wrong'), document.createTextNode(` ${side.short}`));
-      tr.append(td);
-    }
-    tr.append(h('td', 'key', q.gold.short));
-    tb.append(tr);
-  }
-  table.append(thead, tb);
-  wrap.append(table);
-  host.append(wrap);
-
-  const det = h('details', 'layer');
-  det.append(h('summary', '', 'What the domain layer adds to the schema'));
-  const pre = h('pre', 'yaml');
-  pre.textContent = domainLayerYaml();
-  det.append(pre, h('p', 'note', `The schema alone has ${ai.assistant.schema_only_tables.join(', ')}. The assistant is scripted so the run can be repeated: for each question it runs the queries the question calls for, with what it was given, and composes the answer from what they return.`));
-  host.append(det);
 };
 
 // ---------- the gap detector ----------
@@ -691,7 +568,7 @@ const PANELS: Record<string, Panel> = {
   dashboard, tests: testsPanel, forecast: forecastPanel, assistant: assistantPanel, detector: detectorPanel, truth,
 };
 
-function renderPersona() {
+function renderPersona(root: HTMLElement) {
   const host = root.querySelector('[data-panel]') as HTMLElement;
   host.replaceChildren();
   PANELS[state.persona](host, scn());
@@ -699,7 +576,7 @@ function renderPersona() {
 }
 
 // ---------- milk ----------
-function renderMilk() {
+function renderMilk(root: HTMLElement) {
   const m = data.milk[state.milk];
   const out = root.querySelector('[data-milk-out]') as HTMLElement;
   const std = data.milk_product.standing_order as { weekday: number; weekend: number };
@@ -743,7 +620,7 @@ const onNone = (d: number, money = false) =>
   d === 0 ? 'the same as with no agent'
     : `${money ? '₹' : ''}${num(Math.abs(d))} ${d < 0 ? (money ? 'less' : 'fewer') : 'more'} than with no agent`;
 
-function renderAgent() {
+function renderAgent(root: HTMLElement) {
   const k = state.agent;
   const a = data.agents;
   const run = a.runs[k];
@@ -805,7 +682,7 @@ function renderAgent() {
 }
 
 // ---------- records drawer ----------
-function renderRecords(which: string, reveal: boolean) {
+function renderRecords(root: HTMLElement, which: string, reveal: boolean) {
   const host = root.querySelector('[data-records]') as HTMLElement;
   host.replaceChildren();
   const r = data.records;
@@ -828,31 +705,11 @@ function renderRecords(which: string, reveal: boolean) {
     head = ['Received', 'Pallet (SSCC)', 'Booked as', 'Bags', 'How'];
     rows = r.receipts.map((x) => ({ cells: [when(x.received_ts), x.sscc, x.sku_booked, x.units_booked, x.receipt_method.startsWith('pallet') ? 'pallet label' : 'case scan'] }));
   }
-  const wrap = h('div', 'table-wrap tall');
-  const table = h('table', 'records-table');
-  const thead = h('thead');
-  const tr = h('tr');
-  for (const c of [...head, ...(reveal ? ['What really happened'] : [])]) { const th = h('th', '', c); th.scope = 'col'; tr.append(th); }
-  thead.append(tr);
-  const tbody = h('tbody');
-  for (const row of rows) {
-    const t = h('tr');
-    row.cells.forEach((c, i) => t.append(h('td', i === 0 ? 'rec' : '', String(c))));
-    if (reveal) {
-      const cell = h('td');
-      if (row.flag) cell.append(h('span', 'gap', row.flag));
-      t.append(cell);
-    }
-    tbody.append(t);
-  }
-  table.append(thead, tbody);
-  wrap.append(table);
-  host.append(wrap);
+  host.append(recordsTable(head, rows, reveal));
 }
 
 // ---------- wiring ----------
-export function mountRetailDemo(el: HTMLElement) {
-  root = el;
+export function mountRetailDemo(root: HTMLElement) {
   // Deep links: /demo/?persona=forecast&forecast=unconstrained&grounding=domain&detect=gap&routine=scanned&q=why#retail
   const q = new URLSearchParams(location.search);
   for (const [name, values] of Object.entries(LEVERS) as [Lever, string[]][]) {
@@ -860,7 +717,7 @@ export function mountRetailDemo(el: HTMLElement) {
     if (v && values.includes(v)) state[name] = v;
   }
   const qid = q.get('q');
-  if (qid && QUESTIONS.some((x) => x.id === qid)) state.q = qid;
+  if (qid && QUESTION_IDS.includes(qid)) state.q = qid;
   const item = q.get('item');
   if (item && ITEMS.includes(item)) state.item = item;
   const alpha = q.get('alpha');
@@ -872,26 +729,26 @@ export function mountRetailDemo(el: HTMLElement) {
     inp.addEventListener('change', () => {
       if (!inp.checked) return;
       state[inp.name as Lever] = inp.value;
-      renderOutcome();
-      renderPersona();
+      renderOutcome(root);
+      renderPersona(root);
     });
   }
-  const select = wireTabs(root, (p) => { state.persona = p; renderPersona(); });
-  renderOutcome();
+  const select = wireTabs(root, (p) => { state.persona = p; renderPersona(root); });
+  renderOutcome(root);
   const persona = q.get('persona');
   select(persona && PANELS[persona] ? persona : 'dashboard');
 
   const agent = q.get('agent');
   if (agent && (AGENT_KEYS as string[]).includes(agent)) state.agent = agent as AgentKey;
   root.querySelectorAll<HTMLButtonElement>('[data-agent]').forEach((b) => {
-    b.addEventListener('click', () => { state.agent = b.dataset.agent as AgentKey; renderAgent(); });
+    b.addEventListener('click', () => { state.agent = b.dataset.agent as AgentKey; renderAgent(root); });
   });
-  renderAgent();
+  renderAgent(root);
 
   const slider = root.querySelector<HTMLInputElement>('input[name="milk"]');
   if (slider) slider.value = String(state.milk);
-  slider?.addEventListener('input', () => { state.milk = Number(slider.value); renderMilk(); });
-  renderMilk();
+  slider?.addEventListener('input', () => { state.milk = Number(slider.value); renderMilk(root); });
+  renderMilk(root);
 
   let recTab = 'till';
   const reveal = root.querySelector<HTMLInputElement>('input[name="reveal"]');
@@ -899,11 +756,11 @@ export function mountRetailDemo(el: HTMLElement) {
     b.addEventListener('click', () => {
       recTab = b.dataset.rec as string;
       root.querySelectorAll('[data-rec]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      renderRecords(recTab, !!reveal?.checked);
+      renderRecords(root, recTab, !!reveal?.checked);
     });
   });
-  reveal?.addEventListener('change', () => renderRecords(recTab, reveal.checked));
-  renderRecords(recTab, false);
+  reveal?.addEventListener('change', () => renderRecords(root, recTab, reveal.checked));
+  renderRecords(root, recTab, false);
 
   root.dataset.ready = 'true';
   const click = (sel: string) => root.querySelector<HTMLElement>(sel)?.click();
