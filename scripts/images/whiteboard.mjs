@@ -197,7 +197,7 @@ const page = (board) => `<!doctype html><html><head><meta charset="utf-8"><style
 
 const wanted = process.argv.slice(2);
 const boards = wanted.length ? BOARDS.filter((b) => wanted.includes(b.slug)) : BOARDS;
-if (wanted.length && boards.length !== wanted.length) throw new Error(`no board for: ${wanted.filter((w) => !BOARDS.some((b) => b.slug === w)).join(', ')}`);
+if (wanted.length && wanted.some((w) => !BOARDS.some((b) => b.slug === w))) throw new Error(`no board for: ${wanted.filter((w) => !BOARDS.some((b) => b.slug === w)).join(', ')}`);
 const executablePath = process.env.CHROME ?? (existsSync('/usr/bin/google-chrome') ? '/usr/bin/google-chrome' : undefined);
 let browser;
 try {
@@ -237,7 +237,7 @@ for (const b of boards) {
   if (problems.length) console.warn(`${b.slug}: ${problems.join('\n  ')}`);
   const dir = path.join(root, 'public', 'images', b.slug);
   mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, 'board.png');
+  const file = path.join(dir, `${b.name ?? 'board'}.png`);
   await tab.screenshot({ path: file, clip: { x: 0, y: 0, width: b.w ?? W, height: b.h ?? H } });
   console.log('wrote', path.relative(root, file));
   await tab.close();

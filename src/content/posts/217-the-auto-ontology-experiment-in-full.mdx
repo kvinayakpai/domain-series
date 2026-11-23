@@ -73,11 +73,25 @@ Nearly a thousand words of plain English, generated from the season's ontology b
 
 Rule 3's "Here:" line is the one the hard questions turn on: *If asked how many shoppers left without an item, or for lost sales, do not count goods receipts, shelf audits, forecasts or write-offs as shoppers or sales. Say that no record holds them, and if you estimate them, say how.* That is targeted. So this test checks whether a model follows written knowledge, not whether it can find the gap on its own – which is the point. The gap is what a person has to write down.
 
+## Where did all of this run?
+
+On GitHub's free machine, with NVIDIA's servers doing the model work. The picture below shows who talks to whom. GitHub gives each run a rented Linux computer with 4 CPUs and 16 GB of memory and no GPU, wiped when the run ends. On it sit Postgres holding the 21 tables, NVIDIA's Auto-Ontology, a small adapter, and Ollama running a small open model on the CPU. When I used NVIDIA's models instead, the machine only sent text out to NVIDIA's hosted service, with a free key, and got text back. The GPUs were NVIDIA's, not mine.
+
+<Picture src="images/the-auto-ontology-experiment-in-full/machine.png" width={1200} height={3554} narrow alt="Whiteboard: where the run happened. You push a repository with the workflow and one secret, a free NVIDIA key. GitHub's free machine has 4 CPUs, 16 GB and no GPU, and holds Postgres with the 21 tables, Auto-Ontology, a model adapter and Ollama running Qwen3 4B. It sends prompts as text to NVIDIA's hosted API, whose models run on NVIDIA's GPUs, and gets text back. The results are committed to your branch." />
+
+One run of the demo goes through eight steps. Step 6 is where the model works, and it is where the small CPU model and NVIDIA's GPU model differ most: drafting the ontology took 44.2 minutes on the CPU (run 6) and 10 on NVIDIA's servers (run 10), while checking coverage took 0.7 and 7.8, and asking the four questions took 15.4 and 0.7.
+
+<Picture src="images/the-auto-ontology-experiment-in-full/run.png" width={1200} height={3488} narrow alt="Whiteboard: one run in eight steps, from picking the models to saving and committing the results. Step 6 in minutes: drafting the ontology 44.2 on the CPU with Qwen3 4B against 10 on NVIDIA's GPUs with Nemotron 3.5 Lightning, checking coverage 0.7 against 7.8, and asking the four questions 15.4 against 0.7." />
+
 ## What were the three harnesses?
 
 1. **Auto-Ontology's own agent** (runs 4 to 10). NVIDIA's Auto-Ontology at commit 43fa2d3 (19 November 2026), run with Docker Compose on GitHub's free machine, with 4 CPUs and 16 GB. A small adapter served Ollama models for chat, nomic-embed-text embeddings padded to the 2048 dimensions its pgvector tables expect, and reranking by cosine similarity. Its ReAct agent answers through a submit tool, and a coverage check says whether the ontology covers a question.
 2. **Fresh Claude agents.** Haiku, Sonnet and Opus, each with a read-only login to the records, the four questions, and either Nemotron's 21-term draft alone or the draft plus the knowledge layer. Their SQL was re-run on the records. This tests Claude answering, not Auto-Ontology's agent. A second test, on 23 November, gave the same three models the Sonnet and Opus packs instead.
 3. **The sweep harness.** A text-to-SQL loop: one of three OWL and SHACL packs pasted into the prompt as Turtle ("Use it as you see fit"), a read-only SQL tool, temperature {sweep.prompt.temperature}, and up to 30 turns – 16 in the earlier batches, which covers {rev.turn_caps['16']} of the {sweep.runs} runs. The base prompt already said: *{sweep.prompt.base_line}*
+
+The sweep is the same idea run many times, one GitHub job per model, so jobs run side by side (up to 10 at a time):
+
+<Picture src="images/the-auto-ontology-experiment-in-full/sweep.png" width={1200} height={3600} narrow alt="Whiteboard: the sweep. One GitHub job for each of the 14 models, each with its own Postgres and the 21 tables. The prompt holds the four questions and one OWL and SHACL pack, sometimes with a line saying no record, no number. A loop of up to 30 turns: the model replies with one SQL block, the job runs it read-only, the rows go back as the next message, until a final answer. Results are scrubbed of the key and committed. Failures: 504 errors, prompts too long, time limits." />
 
 ## What did the small open models do?
 
@@ -113,6 +127,10 @@ So the descriptions went in, and I cannot say they helped. It is one run of each
 
 ## What did six fresh Claude agents do?
 
+First, how the Claude agents were run. They ran on my computer, not on GitHub: each got the questions, some notes and a read-only login to Postgres, and I re-ran their SQL to score them.
+
+<Picture src="images/the-auto-ontology-experiment-in-full/agents.png" width={1200} height={3774} narrow alt="Whiteboard: how the Claude agents were tested. I launch an agent with the four questions, some notes and one tool. Test 1 on 21 November used 6 agents, test 2 on 23 November used 12 agents with the Opus or Sonnet pack, with or without the no record line. The agent queries the 21 tables read-only, hands back four answers and its SQL, and I re-run the SQL to score 567 bags, 75% and no record twice. Haiku gave no record 6 of 8 times, Sonnet and Opus 8 of 8." />
+
 I could not take the test myself, because I already knew the answers. So I gave it to six fresh Claude agents that had never seen this work: Haiku, Sonnet and Opus, each once with only Nemotron's draft, and once with the draft plus the knowledge layer.
 
 - **All six** got 567 bags and 75% right.
@@ -137,6 +155,8 @@ One Sonnet run, with the Opus pack and the line, read only the first 1,143 of th
 
 ## Can a machine write the OWL and SHACL too?
 
+<Picture src="images/the-auto-ontology-experiment-in-full/routes.png" width={1200} height={3194} narrow alt="Whiteboard: three machine routes from the same 21 tables. Auto-Ontology wrote a semantic layer of 21 terms with Nemotron and 90 with Qwen3 4B, not RDF, OWL or SHACL. Ontop wrote an OWL file of 21 classes and 140 data properties with 0 links. The Opus and Sonnet agents wrote OWL and SHACL with 33 and 30 classes and 32 and 27 shapes. None of the three named demand or a lost sale, because no table holds them." />
+
 Auto-Ontology's draft is a semantic layer – terms, joins and calculations – not RDF, OWL or SHACL. A search of its code found none of those words. So I tried two other automatic routes on the same 21 tables.
 
 **Ontop**, an open-source tool, reads a database and writes an OWL file and a mapping. It wrote {owl.ontop.classes} classes, one for each table, and {owl.ontop.datatype_properties} data properties, one for each column. It wrote {owl.ontop.object_properties} object properties, so no joins, because the database declares no foreign keys. It turned the records into {owl.ontop.triples} triples. No name it chose mentions demand or a lost sale.
@@ -153,6 +173,8 @@ Opus went further than any draft in places. It described the book stock as "{owl
 Opus could not finish checking its shapes against the whole database, because my local copy of the database stopped partway. It checked a small sample and ran its rules in SQL instead. Sonnet named the till lines "{owl.sonnet_named_till_lines}", which is fine for people – but in the sweep below, a small model went looking for a bill_lines table that does not exist.
 
 ## Does the same test work on other models?
+
+<Picture src="images/the-auto-ontology-experiment-in-full/results.png" width={1200} height={3008} narrow alt="Whiteboard: tries with all four answers right across 14 models and 82 tries. Nemotron 3 Ultra 4, Nemotron 3.5 Super 3, Kimi K3.1 Pro 2, Nemotron 3.5 Lightning 2, Step 5 Preview 1, GLM 5.3 Flash 1, and eight models with 0. Without the no record line 3 of 41 tries were right, with it 10 of 41. Failures: 13 gave a number for what no record holds, 10 said no record but got 567 or 75% wrong, and 42 never gave a final answer." />
 
 I gave the same four questions, the read-only login and the three OWL and SHACL packs – the one written by hand, and the Sonnet and Opus ones – to {sweep.models_run} models. Thirteen ran on NVIDIA's free API, with the model writing its SQL in a fenced block, and Qwen2.5 7B ran on a free CPU machine. Each pack went in once as it was and once with one extra line: *{sweep.prompt.extra_line}* That made {sweep.runs} runs.
 
@@ -197,6 +219,8 @@ Three failures are worth naming. Nemotron 3.5 Super, with the Sonnet pack, ran n
 
 ## Who offers the tools, and what do they write?
 
+<Picture src="images/the-auto-ontology-experiment-in-full/market.png" width={1200} height={2322} narrow alt="Whiteboard: who offers the tools and what they write. A machine drafts: Ontop and Fabric IQ in OWL; NVIDIA Auto-Ontology, Snowflake and Databricks Genie in their own format. People model it: Protégé, Stardog and Timbr with OWL; Palantir Foundry and Apache Ossie in their own format. None can draft what no table holds, so people still write it." />
+
 A **formal ontology** is a file in open standards – RDF, OWL and SHACL – that a computer can check and any tool that speaks the standard can read. A **context layer** is a map of business meaning for an AI – definitions, metrics, joins, rules in words. It is useful, but a machine cannot prove anything from it. Most products are the second kind, even when they say ontology.
 
 <div class="table-wrap">
@@ -218,6 +242,12 @@ A **formal ontology** is a file in open standards – RDF, OWL and SHACL – tha
 </div>
 
 In what I read, the most automatic tools keep the meaning inside their own product, and the tools built on open standards mostly mirror your tables or wait for you to model by hand. None of them can draft what no table holds.
+
+## How do you repeat it?
+
+You need a GitHub account and a free key from build.nvidia.com. The steps are on the picture: copy the repository, add the key as the secret NVIDIA_API_KEY, choose the models, start the workflow, wait, then read the results and score them yourself by reading every answer and re-running its SQL on your own copy of the records.
+
+<Picture src="images/the-auto-ontology-experiment-in-full/replicate.png" width={1200} height={3886} narrow alt="Whiteboard: seven steps to repeat the experiment. Copy the repository branches auto-ontology-demo and owl-packs-nim. Get a free key at build.nvidia.com and add it as the secret NVIDIA_API_KEY. Choose the models in run-config.env or the sweep workflow. Push or press Run workflow. Wait, about 30 minutes with NVIDIA's model and hours on the CPU. Read the results committed to the branch. Score by reading each answer and re-running its SQL." />
 
 ## What went wrong along the way?
 
