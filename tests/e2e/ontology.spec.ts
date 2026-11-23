@@ -813,4 +813,18 @@ test('post 19 reports the gaps in the records as listed', async ({ page }) => {
   expect(text).toContain('What will your records never tell you?');
   expect(text).toContain(`I listed ${gaps.questions_listed} business questions that its 21 tables cannot answer. ${gaps.no_answer_at_all} have no answer at all, and ${gaps.only_a_proxy} have only a rough stand-in.`);
   for (const k of ['Who.', 'What did not happen.', 'Why.', 'What else.', 'How long.']) expect(text).toContain(k);
+  // The full list is on the page, every row, and its counts agree with the data.
+  const all = gaps.list.flatMap((g: { items: { n: number; question: string; kind: string; test: boolean }[] }) => g.items);
+  expect(all).toHaveLength(gaps.questions_listed);
+  expect(gaps.list).toHaveLength(gaps.groups);
+  expect(all.filter((q) => q.kind === 'P')).toHaveLength(gaps.only_a_proxy);
+  expect(all.filter((q) => q.kind === 'N')).toHaveLength(gaps.no_answer_at_all);
+  expect(all.filter((q) => q.test).map((q) => q.n)).toEqual([1, 2]);
+  expect(all.map((q) => q.n)).toEqual(Array.from({ length: all.length }, (_, i) => i + 1));
+  expect(text).toContain(`All ${gaps.questions_listed} questions Store 014 cannot answer`);
+  // The groups are folded shut, so read the list's own text rather than what is showing.
+  const listText = ((await page.locator('.gaps-list').textContent()) ?? '').replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
+  for (const q of all) expect(listText, `question ${q.n}`).toContain(q.question.replace(/[’‘]/g, "'").replace(/[“”]/g, '"'));
+  expect(await page.locator('.gaps-list details').count()).toBe(gaps.groups);
+  expect(await page.locator('.gaps-list tbody tr').count()).toBe(gaps.questions_listed);
 });
