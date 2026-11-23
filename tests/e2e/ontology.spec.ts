@@ -529,7 +529,9 @@ test('post 17 reports the 7B runs and the knowledge layer as recorded', async ({
   expect(w.entered.analyses.map((c: { status: string }) => c.status)).toEqual(['added', 'added', 'added']);
   expect(w.entered.tables_certified).toEqual([]);
   expect(text).toContain('Eight codes: OSA, SKU, GTIN, SSCC, RRN, UPI, ASN and GRN');
-  expect(text).toContain('None went in. The API answered in a shape the code did not expect.');
+  expect(text).toContain('None went in on the earlier runs. The API answered in a shape the code did not expect.');
+  expect(machineRun.table_descriptions_rerun.certified).toBe(20);
+  expect(text).toContain('After the fix, 20 of the 21 tables went in on run 13');
   // After.
   const sold = by(w.after, 'sold');
   expect(sold.sql).toContain('store.pos_lines');
