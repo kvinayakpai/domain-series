@@ -298,7 +298,8 @@ const recon: Panel = (host) => {
 };
 
 const assistant: Panel = (host) => {
-  assistantView(host, pai.assistant as unknown as Assistant, {
+  const data: Assistant = pai.assistant;
+  assistantView(host, data, {
     grounding: state.ground, q: state.q, onAsk: (id) => { state.q = id; },
     context: `Asked at the month-end review on Monday 29 June, of June’s records${rerun() ? ', as they happened' : ''}.`,
     schema: 'till’s payment', listLabel: 'Questions at the month-end review',

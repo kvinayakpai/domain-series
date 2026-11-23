@@ -4,7 +4,7 @@
 import { h } from './demo-kit';
 
 export interface Step { sql: string; result: Record<string, unknown>[] }
-export interface Answer { answer: string; right: boolean; short: string; plan: Step[] }
+export interface Answer { answer: string; right: boolean; short: string; plan: Step[]; /** What a schema-only answer computed, where the question asks for a figure: a number, null, or a breakdown by label. */ value?: unknown }
 export interface Question {
   id: string; question: string; check: string;
   naive: Answer; domain: Answer; gold: { short: string; why: string };
@@ -16,6 +16,9 @@ export interface Assistant {
   schema_only_tables: string[];
   domain_layer: { definitions: Record<string, string>; rules: string[]; views: Record<string, string>; tables_added: string[] };
 }
+/** The `assistant` block every domain's analysis exports (retail-ai.json, logistics-ai.json, payments-ai.json). */
+export type AssistantData = Assistant;
+export type AssistantDomain = 'retail' | 'logistics' | 'payments';
 export interface AssistantOptions {
   grounding: 'schema' | 'domain';
   q: string;

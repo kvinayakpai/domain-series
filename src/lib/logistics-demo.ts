@@ -384,7 +384,8 @@ const corrections: Panel = (host) => {
 };
 
 const assistant: Panel = (host) => {
-  assistantView(host, lai.assistant as unknown as Assistant, {
+  const data: Assistant = lai.assistant;
+  assistantView(host, data, {
     grounding: state.ground, q: state.q, onAsk: (id) => { state.q = id; },
     context: `Asked at the supplier review on Monday 29 June, of June’s records${rerun() ? ', as they happened' : ''}.`,
     schema: 'shipping', listLabel: 'Questions at the supplier review',
