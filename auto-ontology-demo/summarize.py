@@ -88,7 +88,15 @@ def log_facts(folder: Path) -> dict:
 def rerun(sql: str, conn: str | None) -> object:
     if not conn or not sql:
         return None
-    result = subprocess.run(["psql", conn, "-At", "-F", "\t", "-c", sql], capture_output=True, text=True, timeout=120)
+    # The SQL was written by a model, so it runs read-only: the session defaults to read-only and the
+    # statement sits in a READ ONLY transaction that is always rolled back. A write fails instead of
+    # changing the seeded database.
+    env = {**os.environ, "PGOPTIONS": "-c default_transaction_read_only=on -c statement_timeout=60000"}
+    result = subprocess.run(
+        ["psql", conn, "-q", "-At", "-F", "\t", "-v", "ON_ERROR_STOP=1",
+         "-c", "BEGIN READ ONLY", "-c", sql, "-c", "ROLLBACK"],
+        capture_output=True, text=True, timeout=120, env=env,
+    )
     if result.returncode:
         return {"error": result.stderr.strip()[:500]}
     return [line.split("\t") for line in result.stdout.strip().splitlines()]

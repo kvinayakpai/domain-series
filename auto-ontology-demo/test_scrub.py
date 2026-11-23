@@ -34,6 +34,16 @@ class ScrubTest(unittest.TestCase):
             del os.environ["SCRUB"]
         self.assertEqual(scrub.clean("token: short"), "token: short")
 
+    def test_non_utf8_file_is_still_scrubbed_and_other_bytes_kept(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            log, blob = Path(d, "run.log"), Path(d, "x.zip")
+            log.write_bytes(b"caf\xe9 Authorization: Bearer abc.DEF-123 ok")
+            blob.write_bytes(b"PK\x00\x01Bearer abc.DEF-123")
+            self.assertEqual(scrub.clean_tree(d), 1)
+            self.assertEqual(log.read_bytes(), b"caf\xe9 Authorization: Bearer [redacted] ok")
+            self.assertEqual(blob.read_bytes(), b"PK\x00\x01Bearer abc.DEF-123")
+
 
 if __name__ == "__main__":
     unittest.main()
