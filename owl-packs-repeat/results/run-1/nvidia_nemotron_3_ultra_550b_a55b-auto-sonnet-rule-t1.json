@@ -1,0 +1,51 @@
+{
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "pack": "auto-sonnet",
+  "rule_line": true,
+  "prompt_chars": 44200,
+  "seconds": 70,
+  "sql_calls": [
+    {
+      "sql": "SELECT sku, product_name, pack_size, flow FROM store.products WHERE product_name ILIKE '%atta%' AND pack_size ILIKE '%5 kg%';",
+      "result": "ERROR: column \"product_name\" does not exist\nLINE 1: SELECT sku, product_name, pack_size, flow FROM store.product...\n                    ^\n"
+    },
+    {
+      "sql": "SELECT column_name FROM information_schema.columns WHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT sku, name, pack, flow FROM store.products WHERE name ILIKE '%atta%' AND pack ILIKE '%5 kg%';",
+      "result": "ATTA-WW-5KG|Whole wheat atta 5 kg|5 kg|DC"
+    },
+    {
+      "sql": "SELECT record_date, units_sold, revenue_inr FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND record_date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY record_date;",
+      "result": "ERROR: column \"record_date\" does not exist\nLINE 1: SELECT record_date, units_sold, revenue_inr FROM store.daily...\n               ^\n"
+    },
+    {
+      "sql": "SELECT column_name FROM information_schema.columns WHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT date, units_sold, revenue_inr FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY date;",
+      "result": "2026-06-01|30|7950.0\n2026-06-02|36|9540.0\n2026-06-03|22|5830.0\n2026-06-04|28|7420.0\n2026-06-05|32|8480.0\n2026-06-06|25|6625.0\n2026-06-07|44|11660.0\n2026-06-08|9|2385.0\n2026-06-09|11|2915.0\n2026-06-10|22|5830.0\n2026-06-11|1|265.0\n2026-06-12|0|0.0\n2026-06-13|22|5830.0\n2026-06-14|23|6095.0\n2026-06-15|22|5830.0\n2026-06-16|17|4505.0\n2026-06-17|11|2915.0\n2026-06-18|31|8215.0\n2026-06-19|27|7155.0\n2026-06-20|21|5565.0\n2026-06-21|43|11395.0\n2026-06-22|20|5300.0\n2026-06-23|5|1325.0\n2026-06-24|0|0.0\n2026-06-25|0|0.0\n2026-06-26|0|0.0\n2026-06-27|44|11660.0\n2026-06-28|21|5565.0"
+    },
+    {
+      "sql": "SELECT column_name FROM information_schema.columns WHERE table_schema = 'store' AND table_name = 'shelf_audit';",
+      "result": "(no rows)"
+    },
+    {
+      "sql": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'store';",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs"
+    },
+    {
+      "sql": "SELECT column_name FROM information_schema.columns WHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT audit_ts, sku, status FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts BETWEEN '2026-06-01' AND '2026-06-30 23:59:59' ORDER BY audit_ts;",
+      "result": "2026-06-02 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-05 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-09 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-12 11:00:00|ATTA-WW-5KG|empty\n2026-06-16 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-19 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-23 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-26 11:00:00|ATTA-WW-5KG|empty"
+    }
+  ],
+  "final": "{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(units_sold) FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date BETWEEN '2026-06-01' AND '2026-06-30';\",\"answer\":\"567 bags\",\"basis\":\"Sum of units_sold from daily_sales for SKU ATTA-WW-5KG across all 28 days in June 2026 (June 1-28).\"},{\"id\":2,\"sql\":\"SELECT audit_ts, status FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts BETWEEN '2026-06-01' AND '2026-06-30 23:59:59' ORDER BY audit_ts;\",\"answer\":\"~94 shoppers (estimated)\",\"basis\":\"Shelf audits show product was 'empty' on June 12 and June 26. Daily sales show 0 units on June 12, 24, 25, 26 (4 days). Average daily sales on in-stock days = 567 units / 24 days \u2248 23.6 units/day. Estimated lost sales = 4 days \u00d7 23.6 \u2248 94 units. Assuming 1 bag per shopper, ~94 shoppers left without. This is an estimate; the database does not directly record shoppers who left without purchasing.\"},{\"id\":3,\"sql\":\"SELECT audit_ts, status FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts BETWEEN '2026-06-01' AND '2026-06-30 23:59:59' ORDER BY audit_ts;\",\"answer\":\"75%\",\"basis\":\"8 shelf audits conducted in June 2026 for ATTA-WW-5KG: 6 showed 'on shelf', 2 showed 'empty'. On-shelf availability = 6/8 = 75%.\"},{\"id\":4,\"sql\":\"SELECT SUM(units_sold) FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date BETWEEN '2026-06-01' AND '2026-06-30';\",\"answer\":\"~94 units (\u2248 \u20b924,910)\",\"basis\":\"Estimated lost sales in units: 4 out-of-stock days (June 12, 24, 25, 26) \u00d7 average daily sales of 23.6 units = ~94 units. At \u20b9265/unit (from daily_sales: 7950/30), lost revenue \u2248 \u20b924,910. This is an estimate based on shelf audit snapshots and sales patterns; the database does not have a direct lost-sales measure.\"}]}",
+  "try": 1
+}
