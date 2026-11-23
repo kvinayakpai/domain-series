@@ -692,4 +692,37 @@ function techRepeat() {
   return b.end(y);
 }
 
-export const BOARDS = [recordsAndReality(), knowledgeLayer(), experiment(), theExam(), fiveSteps(), techMachine(), techRun(), techSweep(), techAgents(), techRoutes(), techResults(), techReplicate(), techMarket(), techRepeat()];
+
+// Post 19: the five kinds of gap in the records.
+const GAPS = json('store014-gaps.json');
+function gapsBoard() {
+  const b = board('start-a-domain-ontology', 'gaps');
+  let y = b.title('Five things your records [hl]can never tell you[/hl]', 2, `${GAPS.questions_listed} business questions Store 014’s data cannot answer`);
+  const kinds = [
+    ['shopper', 'WHO', 'No customer identity.\nWho are the best customers? Who comes back? Who was charged twice?'],
+    ['eye', 'WHAT DID NOT HAPPEN', 'The shopper who looked and left. The empty shelf between two audits. A basket dropped at the till.'],
+    ['notebook', 'WHY', 'A record says the shelf was empty. Not whether the truck was late or the cases sat in the wrong bay.'],
+    ['table', 'WHAT ELSE', 'Competitor prices, promotions, weather, festivals, staff, rent. Anything beyond the till and the stock.'],
+    ['chart', 'HOW LONG', 'One store and under two months of till lines. No seasons, no Diwali, no trend.'],
+  ];
+  kinds.forEach(([icon, t, body], i) => {
+    panel(b, { y, h: 340, color: 'orange', icon, n: i + 1, title: t, body, tsize: 50, bsize: 42 });
+    y += 340 + 22;
+  });
+  y += 20;
+  b.text(X, y, CW, 70, `[b]Of the ${GAPS.questions_listed} questions[/b]`, { size: 52 });
+  y += 90;
+  b.text(X, y, 360, 60, 'No answer at all', { size: 42, weight: 700 });
+  b.bar(X + 380, y + 8, 520, 50, GAPS.no_answer_at_all / GAPS.questions_listed, 'orange');
+  b.text(X + 920, y, 140, 60, `${GAPS.no_answer_at_all}`, { size: 50, weight: 700, color: 'orange' });
+  y += 90;
+  b.text(X, y, 360, 60, 'Only a rough proxy', { size: 42, weight: 700 });
+  b.bar(X + 380, y + 8, 520, 50, GAPS.only_a_proxy / GAPS.questions_listed, 'grey');
+  b.text(X + 920, y, 140, 60, `${GAPS.only_a_proxy}`, { size: 50, weight: 700, color: 'grey' });
+  y += 130;
+  b.text(X, y, CW, 190, '[hl]A model fills a gap with a guess.[/hl]\n[hl]Your people write “no record”.[/hl]', { size: 54, weight: 700, align: 'center', valign: 'middle', lh: 1.25 });
+  y = b.legend(y + 190 + 70, [['orange', 'a gap no record can fill'], ['grey', 'a rough proxy only']]);
+  return b.end(y);
+}
+
+export const BOARDS = [recordsAndReality(), knowledgeLayer(), experiment(), theExam(), fiveSteps(), techMachine(), techRun(), techSweep(), techAgents(), techRoutes(), techResults(), techReplicate(), techMarket(), techRepeat(), gapsBoard()];
