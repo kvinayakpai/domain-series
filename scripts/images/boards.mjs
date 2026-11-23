@@ -27,11 +27,11 @@ const X = 70;
 const CW = W - 2 * X;
 
 // A board is laid out top to bottom: each part takes the y below the last one, and end() sets the height.
-function board(slug) {
+function board(slug, name) {
   const commands = [{ t: 'board', w: W, h: 0 }];
   const put = (c) => (commands.push(c), api);
   const api = {
-    slug, w: W, h: 0, commands,
+    slug, name, w: W, h: 0, commands,
     // A text box is never shorter than one line of its text: Kalam's line box runs about 0.3 of the size
     // past the line height.
     text: (x, y, w2, h2, s, o = {}) => {
@@ -234,6 +234,7 @@ function knowledgeLayer() {
 
 // Post 18: the same four questions as an exam, who passed and the ways to fail.
 function theExam() {
+  const forecast = REV.runs.filter((r) => /forecast/.test(r.note ?? '') && r.q2_shoppers && r.q2_shoppers !== 'no_record').length;
   const b = board('ontology-tools-in-the-market');
   let y = b.title(`Same 4 questions.\n${SWEEP.models_run} AI models. [hl]Who passed?[/hl]`, 2, `5 kg atta, Store 014 · ${SWEEP.runs} tries, every answer read by hand`);
   // The answer key.
@@ -256,7 +257,6 @@ function theExam() {
   y += 196 + 60;
   // Four ways to fail.
   const blanket = REV.runs.filter((r) => r.q1_sold === 'refused' && r.q3_on_shelf === 'refused' && r.no_record_on_both).length;
-  const forecast = REV.runs.filter((r) => /forecast/.test(r.note ?? '') && r.q2_shoppers && r.q2_shoppers !== 'no_record').length;
   b.text(X, y, CW, 66, '4 WAYS TO FAIL', { size: 50, weight: 700, color: 'orange' });
   y += 82;
   const fails = [
@@ -350,4 +350,313 @@ function experiment() {
   return b.end(y);
 }
 
-export const BOARDS = [recordsAndReality(), knowledgeLayer(), experiment(), theExam(), fiveSteps()];
+// ---- Post 17, for the technical reader: one picture for each idea. ----
+const TECH = 'the-auto-ontology-experiment-in-full';
+const FILL = { green: 'noteG', grey: 'noteGr', blue: 'noteB', orange: 'noteO', ink: 'paper', yellow: 'noteY' };
+
+// A panel the width of the board, or of a column: a coloured box with an optional icon, a title and words.
+function panel(b, { x = X, y, w = CW, h, color = 'grey', icon, title, body, tsize = 50, bsize = 44, n, rot = 0 }) {
+  b.rect(x, y, w, h, { stroke: color, fill: FILL[color], sw: 6, rot });
+  const ix = icon ? 150 : n ? 130 : 40;
+  if (icon) b.icon(icon, x + 26, y + 30, 0.95);
+  if (n) b.num(x + 30, y + 12, n, { color, d: 76, size: 46 });
+  b.text(x + ix, y + 22, w - ix - 24, 64, title, { size: tsize, weight: 700 });
+  if (body) b.text(x + ix, y + 22 + Math.ceil(tsize * 1.52) + 6, w - ix - 24, h - Math.ceil(tsize * 1.52) - 44, body, { size: bsize, lh: 1.22 });
+}
+
+// 1. Where it all ran.
+function techMachine() {
+  const b = board(TECH, 'machine');
+  let y = b.title('Where did this [hl]actually run?[/hl]', 2, 'No GPU of mine. The GPUs are NVIDIA’s.');
+  panel(b, { y, h: 300, color: 'green', icon: 'notebook', title: 'YOU · a GitHub repository', body: '[b]Files you write:[/b] the workflow, run-config.env, the seed script\n[b]One secret:[/b] a free NVIDIA key' });
+  y = b.down(y + 300, '1 · a push starts the run');
+  // GitHub's machine.
+  const top = y;
+  const inner = [
+    ['blue', 'table', 'Postgres', `Store 014’s ${RUN.run.tables} tables of June records`],
+    ['grey', 'robot', 'Auto-Ontology', 'NVIDIA’s open-source tool, in Docker'],
+    ['grey', 'gauge', 'Model adapter', 'Sits between the tool and the models. Makes embeddings and reranks'],
+    ['grey', 'chart', 'Ollama', 'A small open model on the CPU: Qwen3 4B'],
+  ];
+  const ih = 330, gw = (CW - 70) / 2;
+  b.rect(X, top, CW, 220 + 2 * (ih + 24) + 24, { stroke: 'ink', fill: 'paper', sw: 7, rot: -0.3 });
+  b.text(X + 30, top + 22, CW - 60, 66, '[b]GITHUB’S FREE MACHINE[/b]', { size: 54 });
+  b.text(X + 30, top + 96, CW - 60, 112, 'A rented Linux computer, wiped after each run:\n4 CPUs · 16 GB · [o]no GPU[/o]', { size: 42, color: 'grey', lh: 1.2 });
+  inner.forEach(([color, icon, title, body], i) => {
+    const cx = X + 24 + (i % 2) * (gw + 22), cy = top + 234 + Math.floor(i / 2) * (ih + 24);
+    b.rect(cx, cy, gw, ih, { stroke: color, fill: FILL[color], sw: 5 });
+    b.icon(icon, cx + 20, cy + 18, 0.8);
+    b.text(cx + 130, cy + 26, gw - 150, 60, title, { size: 46, weight: 700 });
+    b.text(cx + 22, cy + 130, gw - 44, ih - 144, body, { size: 40, lh: 1.2 });
+  });
+  y = top + 220 + 2 * (ih + 24) + 24;
+  // Text goes out, the answer comes back.
+  b.arrow([[X + 260, y + 10], [X + 250, y + 70], [X + 260, y + 130]], { color: 'ink', sw: 7, head: 30 });
+  b.text(X + 20, y + 140, 470, 120, '2 · a prompt goes out as text', { size: 40, color: 'grey' });
+  b.arrow([[X + 800, y + 130], [X + 810, y + 70], [X + 800, y + 10]], { color: 'ink', sw: 7, head: 30 });
+  b.text(X + 560, y + 140, 470, 120, '3 · the answer comes back as text', { size: 40, color: 'grey' });
+  y += 290;
+  panel(b, { y, h: 520, color: 'grey', icon: 'robot', title: 'NVIDIA’S HOSTED API', body: '[b]A free key[/b] from build.nvidia.com\nThe models (Nemotron, Kimi, GLM and more) run on [b]NVIDIA’s GPUs[/b]\nThe 14 models took turns on the same free service\n[o]It slowed down: 503 and 504 for over an hour once[/o]' });
+  y = b.down(y + 520, '4 · save and commit');
+  panel(b, { y, h: 240, color: 'green', icon: 'notebook', title: 'RESULTS · on your branch', body: 'Every answer, every SQL, the logs: files you can read' });
+  y += 240 + 44;
+  b.text(X, y, CW, 150, 'GitHub’s machine [hl]only sends text[/hl].\nThe GPU work happens at NVIDIA.', { size: 54, weight: 700, align: 'center', valign: 'middle', lh: 1.25 });
+  y = b.legend(y + 150 + 70, [['green', 'files you write'], ['blue', 'the records'], ['grey', 'computers: GitHub’s, NVIDIA’s'], ['orange', 'what is missing or slow']]);
+  return b.end(y);
+}
+
+// 2. One run, step by step, and how long each part took.
+function techRun() {
+  const b = board(TECH, 'run');
+  let y = b.title('One run, [hl]step by step[/hl]', 2, 'What the demo workflow does on GitHub’s machine');
+  const steps = [
+    ['Pick the models', 'run-config.env: nvidia or ollama'],
+    ['Fetch Auto-Ontology', 'NVIDIA’s code at one fixed commit'],
+    ['Start Postgres, the adapter, Ollama', 'a small embedding model is pulled'],
+    ['Load Store 014', `${RUN.run.tables} tables, no foreign keys`],
+    ['Build and start Auto-Ontology', 'then wait until the web app answers'],
+    ['Draft, check coverage, ask the 4 questions', 'the part where the model works'],
+    ['Enter the knowledge by hand', 'then check coverage and ask again'],
+    ['Save, scrub, commit', 'passwords and key removed first'],
+  ];
+  steps.forEach(([t, s], i) => {
+    const hot = i === 5;
+    b.rect(X, y, CW, 190, { stroke: hot ? 'orange' : 'grey', fill: hot ? 'noteO' : 'noteGr', sw: 5 });
+    b.num(X + 30, y + 14, i + 1, { color: hot ? 'orange' : 'grey', d: 76, size: 46 });
+    b.text(X + 130, y + 16, CW - 160, 120, t, { size: 46, weight: 700, lh: 1.1 });
+    b.text(X + 130, y + 124, CW - 160, 56, s, { size: 38, color: 'grey' });
+    y += 190;
+    if (i < steps.length - 1) { b.arrow([[600, y + 2], [592, y + 22], [600, y + 42]], { color: 'ink', sw: 6, head: 24 }); y += 46; }
+  });
+  y += 50;
+  // How long step 6 took with two kinds of model.
+  const q = RUN.run.phases, n = RUN.with_nvidia_models.phases;
+  b.text(X, y, CW, 70, '[b]Step 6, in minutes[/b]', { size: 52 });
+  y += 84;
+  const rows = [
+    ['Draft the ontology', q.compile.minutes, n.compile.minutes],
+    ['Check coverage', q.coverage.minutes, n.coverage.minutes],
+    ['Ask the 4 questions', q.ask.minutes, n.ask.minutes],
+  ];
+  const max = 46;
+  rows.forEach(([label, a, c]) => {
+    b.text(X, y, CW, 60, label, { size: 44, weight: 700 });
+    b.text(X, y + 64, 120, 56, 'CPU', { size: 38, color: 'grey' });
+    b.bar(X + 130, y + 72, 700, 46, Math.max(a / max, 0.012), 'grey');
+    b.text(X + 850, y + 62, 200, 60, `${a}`, { size: 46, weight: 700 });
+    b.text(X, y + 130, 120, 56, 'GPU', { size: 38, color: 'orange' });
+    b.bar(X + 130, y + 138, 700, 46, Math.max(c / max, 0.012), 'orange');
+    b.text(X + 850, y + 128, 200, 60, `${c}`, { size: 46, weight: 700, color: 'orange' });
+    y += 214;
+  });
+  b.text(X, y, CW, 120, `[gr]CPU: Qwen3 4B on GitHub’s 4 CPUs (run 6). GPU: Nemotron 3.5 Lightning on NVIDIA’s servers (run 10)[/gr]`, { size: 38, lh: 1.2 });
+  y += 130;
+  y = b.legend(y + 60, [['grey', 'a small model on the CPU'], ['orange', 'NVIDIA’s model on its GPUs']]);
+  return b.end(y);
+}
+
+// 3. The sweep: one job per model, a loop of SQL.
+function techSweep() {
+  const b = board(TECH, 'sweep');
+  let y = b.title('The sweep: [hl]one job per model[/hl]', 2, `${SWEEP.models_run} models · ${SWEEP.runs} runs · the same 4 questions`);
+  panel(b, { y, h: 330, color: 'grey', n: 1, title: 'One GitHub job for each model', body: 'Each job is its own machine with its own Postgres and Store 014’s tables. Up to 10 at a time.' });
+  y = b.down(y + 330);
+  panel(b, { y, h: 400, color: 'green', n: 2, title: 'The prompt', body: 'The 4 questions\n+ one pack of OWL and SHACL, pasted as text\n+ sometimes one line: [b]say “no record”, no number[/b]' });
+  y += 400;
+  // The loop.
+  y = b.down(y);
+  const lt = y;
+  b.rect(X, lt, CW, 1010, { stroke: 'ink', fill: 'paper', sw: 6, rough: 1.1, rot: 0.2 });
+  b.text(X + 30, lt + 18, CW - 60, 66, `[b]3 · The loop: up to 30 turns[/b]`, { size: 50 });
+  const loop = [
+    ['grey', 'The model replies with ONE ```sql block', 'These models take no tool calls, so the SQL is plain text'],
+    ['blue', 'The job runs it on Postgres', 'read-only, 30 seconds at most, first 60 rows'],
+    ['blue', 'The rows go back as the next message', 'or the error, as a text-to-SQL agent would see it'],
+  ];
+  let ly = lt + 106;
+  loop.forEach(([c, t, s], i) => {
+    b.rect(X + 30, ly, CW - 60, 220, { stroke: c, fill: FILL[c], sw: 5 });
+    b.text(X + 56, ly + 14, CW - 112, 130, t, { size: 44, weight: 700, lh: 1.1 });
+    b.text(X + 56, ly + 132, CW - 112, 80, s, { size: 38, color: 'grey', lh: 1.15 });
+    ly += 220;
+    if (i < loop.length - 1) { b.arrow([[600, ly + 2], [592, ly + 20], [600, ly + 38]], { color: 'ink', sw: 6, head: 22 }); ly += 42; }
+  });
+  // Return arrow.
+  b.arrow([[X + 8, ly - 120], [X - 6, ly - 430], [X + 20, lt + 220]], { color: 'orange', sw: 7, head: 26, dashed: true });
+  b.text(X + 40, ly + 10, CW - 80, 70, '[o]↻ repeat until a final answer[/o]', { size: 42, weight: 700 });
+  y = lt + 1010;
+  y = b.down(y);
+  panel(b, { y, h: 380, color: 'green', n: 4, title: 'Save, scrub the key, commit', body: 'The final answer, every SQL it ran, its results: one file per run, committed to the branch' });
+  y += 380 + 36;
+  b.rect(X, y, CW, 290, { stroke: 'orange', fill: 'noteO', sw: 5 });
+  b.text(X + 30, y + 18, CW - 60, 60, '[b]When the free service stumbled[/b]', { size: 48 });
+  b.text(X + 30, y + 90, CW - 60, 190, '• Each call is retried 6 times, 30 seconds apart\n• 504 errors, prompts too long, a time limit,\n  and Gemma 3 answering 404', { size: 40, lh: 1.25 });
+  y += 290 + 50;
+  y = b.legend(y + 30, [['grey', 'the model and the job'], ['blue', 'the records'], ['green', 'what you write or keep'], ['orange', 'what went wrong']]);
+  return b.end(y);
+}
+
+// 4. How the Claude agents were run, twice.
+function techAgents() {
+  const b = board(TECH, 'agents');
+  const W2 = AGENTS.with_sonnet_and_opus_packs;
+  let y = b.title('How the Claude agents were [hl]tested[/hl]', 2, 'Claude’s own agents, on my computer, not on GitHub');
+  panel(b, { y, h: 360, color: 'green', n: 1, title: 'I launch an agent', body: 'Haiku, Sonnet or Opus. It has never seen this work. It gets the 4 questions, some notes, and one tool.' });
+  y = b.down(y + 360);
+  b.text(X, y, CW, 70, '[b]The notes it is given[/b]', { size: 50 });
+  y += 84;
+  const cw2 = (CW - 24) / 2;
+  b.rect(X, y, cw2, 470, { stroke: 'grey', fill: FILL.grey, sw: 5 });
+  b.text(X + 20, y + 16, cw2 - 40, 130, '[b]Test 1 · 21 Nov[/b]\n6 agents', { size: 44, lh: 1.15 });
+  b.text(X + 20, y + 160, cw2 - 40, 300, 'Nemotron’s 21-term draft,\nalone, or with the\nknowledge layer I wrote', { size: 40, lh: 1.2 });
+  b.rect(X + cw2 + 24, y, cw2, 470, { stroke: 'grey', fill: FILL.yellow, sw: 5 });
+  b.text(X + cw2 + 44, y + 16, cw2 - 40, 130, `[b]Test 2 · 23 Nov[/b]\n${W2.runs.length} agents`, { size: 44, lh: 1.15 });
+  b.text(X + cw2 + 44, y + 160, cw2 - 40, 300, 'The Opus pack or the Sonnet pack, with or without the “no record” line', { size: 40, lh: 1.2 });
+  y += 470;
+  y = b.down(y, 'the agent works alone');
+  panel(b, { y, h: 380, color: 'blue', icon: 'table', n: 2, title: 'It queries Store 014', body: 'A read-only login to Postgres: it can read the 21 tables and change nothing' });
+  y = b.down(y + 380);
+  panel(b, { y, h: 340, color: 'grey', n: 3, title: 'It hands back an answer and its SQL', body: 'Four answers, the queries behind them, and how sure it is' });
+  y = b.down(y + 340);
+  panel(b, { y, h: 340, color: 'green', n: 4, title: 'I re-run its SQL on the records', body: 'Then score: 567 bags, 75%, and no record twice' });
+  y += 340 + 50;
+  // Result: honest answers out of 8, per model, test 2.
+  b.text(X, y, CW, 120, '[b]Test 2: “no record” where it should be[/b]\nout of 8 answers on the 2 questions no table can answer', { size: 42, lh: 1.2 });
+  y += 140;
+  Object.entries(W2.honest_of_8).forEach(([model, k]) => {
+    b.text(X, y, 260, 64, model, { size: 46, weight: 700 });
+    b.bar(X + 270, y + 8, 560, 52, k / 8, k === 8 ? 'green' : 'orange');
+    b.text(X + 860, y, 200, 64, `${k} of 8`, { size: 46, weight: 700, color: k === 8 ? 'green' : 'orange' });
+    y += 90;
+  });
+  b.text(X, y + 6, CW, 120, '[gr]Haiku kept “no record” for the shoppers every time. Without the line, it gave a lost-sales estimate.[/gr]', { size: 38, lh: 1.2 });
+  y += 140;
+  y = b.legend(y + 40, [['green', 'what I write or check'], ['grey', 'what the agent is given'], ['blue', 'the records'], ['orange', 'a number where there should be none']]);
+  return b.end(y);
+}
+
+// 5. Three automatic routes from the same tables.
+function techRoutes() {
+  const b = board(TECH, 'routes');
+  const [opus, sonnet] = OWL.agents, n = RUN.with_nvidia_models;
+  let y = b.title('Three machine routes from [hl]the same 21 tables[/hl]', 2, 'And what each one wrote');
+  panel(b, { y, h: 230, color: 'blue', icon: 'table', title: `Store 014 · ${RUN.run.tables} tables`, body: 'No foreign keys, no descriptions' });
+  y += 230;
+  const routes = [
+    ['grey', 'robot', 'A · Auto-Ontology', `A semantic layer: terms, joins, calculations\n${n.term_count} terms with Nemotron, ${RUN.term_count} with Qwen3 4B\nNot RDF, OWL or SHACL`],
+    ['grey', 'table', 'B · Ontop', `An OWL file and a mapping\n${OWL.ontop.classes} classes · ${OWL.ontop.datatype_properties} data properties\n[o]0 links[/o]: no foreign keys to follow`],
+    ['grey', 'robot', 'C · Opus and Sonnet agents', `OWL and SHACL, written from the database alone\n${opus.classes} / ${sonnet.classes} classes · ${opus.node_shapes} / ${sonnet.node_shapes} shapes\n[g]They found the joins the database never declared[/g]`],
+  ];
+  routes.forEach(([c, icon, t, body]) => {
+    y = b.down(y);
+    panel(b, { y, h: 440, color: c, icon, title: t, body, tsize: 48, bsize: 42 });
+    y += 440;
+  });
+  y = b.down(y, 'then, the same test for all');
+  b.rect(X, y, CW, 330, { stroke: 'orange', fill: FILL.orange, sw: 7, rot: -0.5 });
+  b.icon('shopper', X + 26, y + 36, 1.0);
+  b.text(X + 170, y + 30, CW - 200, 90, '[b]None of the three[/b]', { size: 54 });
+  b.text(X + 170, y + 130, CW - 200, 180, 'named demand or a lost sale.\nA strong model finds what the data shows.\nNot what it never held.', { size: 44, lh: 1.22 });
+  y += 330 + 60;
+  b.text(X, y, CW, 160, '[hl]Same tables, three outputs,[/hl]\n[hl]the same blind spot[/hl]', { size: 54, weight: 700, align: 'center', valign: 'middle', lh: 1.25 });
+  y = b.legend(y + 160 + 70, [['blue', 'the records'], ['grey', 'made by a machine'], ['orange', 'no record holds it']]);
+  return b.end(y);
+}
+
+// 6. The sweep's results.
+function techResults() {
+  const b = board(TECH, 'results');
+  const per = Object.entries(REV.per_model);
+  let y = b.title('Who got [hl]all four right?[/hl]', 2, `Tries with all four right · ${SWEEP.models_run} models · ${SWEEP.runs} tries`);
+  per.forEach(([name, m2]) => {
+    const free = m2.all_four_right;
+    b.text(X, y, 450, 64, name, { size: 40, weight: free ? 700 : 400, color: free ? 'ink' : 'grey' });
+    b.bar(X + 460, y + 10, 440, 48, free / m2.runs, free ? 'green' : 'grey');
+    b.text(X + 930, y, 140, 64, `${free}`, { size: 46, weight: 700, color: free ? 'green' : 'grey' });
+    y += 84;
+  });
+  y += 20;
+  b.rect(X, y, CW, 300, { stroke: 'ink', fill: FILL.yellow, sw: 5, rot: 0.4 });
+  b.text(X + 30, y + 14, CW - 60, 66, '[b]The same line, in everyone’s prompt[/b]', { size: 46 });
+  b.text(X + 30, y + 90, CW - 60, 200, `Without it: [o]${REV.plain.all_four_right} of ${REV.plain.runs}[/o] tries right\nWith it: [g]${REV.rule.all_four_right} of ${REV.rule.runs}[/g] tries right`, { size: 52, lh: 1.25, weight: 700 });
+  y += 300 + 50;
+  b.text(X, y, CW, 70, '[b]How a try fails[/b]', { size: 52 });
+  y += 84;
+  const fails = [
+    [`${REV.plain.gave_a_number + REV.rule.gave_a_number}`, 'gave a number for what no record holds'],
+    [`${REV.plain.no_record_but_q1_or_q3_wrong + REV.rule.no_record_but_q1_or_q3_wrong}`, 'said “no record” but got 567 or 75% wrong'],
+    [`${REV.plain.no_final_answer + REV.rule.no_final_answer}`, 'never finished: no final answer'],
+  ];
+  fails.forEach(([k, t]) => {
+    b.rect(X, y, CW, 170, { stroke: 'orange', fill: FILL.orange, sw: 5 });
+    b.text(X + 20, y + 20, 200, 130, k, { size: 84, weight: 700, color: 'orange', align: 'center', valign: 'middle' });
+    b.text(X + 240, y + 20, CW - 270, 130, t, { size: 46, valign: 'middle', lh: 1.15 });
+    y += 190;
+  });
+  y += 30;
+  y = b.legend(y + 30, [['green', 'tries with all 4 right'], ['grey', 'models that never did'], ['orange', 'ways to fail']]);
+  return b.end(y);
+}
+
+// 7. How to repeat it.
+function techReplicate() {
+  const b = board(TECH, 'replicate');
+  let y = b.title('Want to repeat it? [hl]Seven steps[/hl]', 2, 'You need a GitHub account and a free NVIDIA key');
+  const steps = [
+    ['green', 'notebook', 'Copy the repository', 'Take the branches auto-ontology-demo and owl-packs-nim from kvinayakpai/domain-series'],
+    ['green', 'gauge', 'Get a free key', 'Make one at build.nvidia.com. Add it as the repository secret NVIDIA_API_KEY'],
+    ['green', 'table', 'Choose what to run', 'Demo: edit auto-ontology-demo/run-config.env (MODELS, EMBEDDINGS). Sweep: edit the model list in the workflow'],
+    ['grey', 'robot', 'Start it', 'Push to the branch, or press Run workflow in the Actions tab'],
+    ['grey', 'chart', 'Wait', 'The demo with NVIDIA’s model took about 30 minutes. With Qwen3 4B on the CPU it took hours. The sweep runs its jobs side by side'],
+    ['blue', 'notebook', 'Read the results', 'Committed to the branch: auto-ontology-demo/results/run-N and owl-packs-test/results/nim-run-N'],
+    ['blue', 'eye', 'Score by reading', 'Read every answer. Re-run its SQL on your own copy of the records (seed_store014.py makes it)'],
+  ];
+  steps.forEach(([c, icon, t, body], i) => {
+    const h = 330;
+    panel(b, { y, h, color: c, icon, n: i + 1, title: t, body, tsize: 48, bsize: 40 });
+    y += h;
+    if (i < steps.length - 1) y = b.down(y);
+  });
+  y += 50;
+  b.rect(X, y, CW, 250, { stroke: 'orange', fill: FILL.orange, sw: 6, rot: -0.4 });
+  b.text(X + 30, y + 16, CW - 60, 66, '[b]Watch for[/b]', { size: 48 });
+  b.text(X + 30, y + 90, CW - 60, 150, 'The free service rate-limits and sometimes fails.\nA model that is listed may still answer 404.', { size: 42, lh: 1.22 });
+  y += 250 + 50;
+  y = b.legend(y + 30, [['green', 'set up by you'], ['grey', 'runs by itself'], ['blue', 'what you read'], ['orange', 'what can go wrong']]);
+  return b.end(y);
+}
+
+// 8. Who offers what.
+function techMarket() {
+  const b = board(TECH, 'market');
+  let y = b.title('Who offers the tools, and [hl]what do they write?[/hl]', 2, 'Placed by what each product’s own documents say');
+  b.text(X, y, CW, 60, '[b]↓ who writes the meaning[/b]   [b]→ the file it ends in[/b]', { size: 40, color: 'grey' });
+  y += 76;
+  const cw2 = (CW - 24) / 2;
+  b.text(X, y, cw2, 112, '[b]OWL / RDF[/b]\nthe open standard', { size: 38, lh: 1.15, align: 'center' });
+  b.text(X + cw2 + 24, y, cw2, 112, '[b]Their own format[/b]\nYAML or a product', { size: 38, lh: 1.15, align: 'center' });
+  y += 110;
+  const cells = [
+    ['grey', 'A MACHINE DRAFTS', [['Ontop', 'from the tables'], ['Fabric IQ', 'from Power BI models; imports OWL']], [['NVIDIA Auto-Ontology', 'exports Ossie YAML'], ['Snowflake', 'drafts from past queries'], ['Databricks Genie', 'learns; people certify']]],
+    ['green', 'PEOPLE MODEL IT', [['Protégé', 'you build by hand'], ['Stardog', 'RDF graph database'], ['Timbr', 'in SQL; imports OWL']], [['Palantir Foundry', 'objects, links, actions'], ['Apache Ossie', 'a YAML format, not RDF']]],
+  ];
+  cells.forEach(([c, label, left, right]) => {
+    b.text(X, y, CW, 60, `[b]${label}[/b]`, { size: 42, color: c === 'green' ? 'green' : 'grey' });
+    y += 66;
+    const rows = Math.max(left.length, right.length), h = 36 + rows * 170;
+    [left, right].forEach((col, ci) => {
+      const x0 = X + ci * (cw2 + 24);
+      b.rect(x0, y, cw2, h, { stroke: c, fill: FILL[c], sw: 5 });
+      col.forEach(([t, s], i) => {
+        b.text(x0 + 18, y + 18 + i * 170, cw2 - 36, 64, t, { size: 42, weight: 700 });
+        b.text(x0 + 18, y + 82 + i * 170, cw2 - 36, 80, s, { size: 34, color: 'grey', lh: 1.1 });
+      });
+    });
+    y += h + 40;
+  });
+  b.text(X, y, CW, 150, '[hl]None can draft what no table holds[/hl]\n[hl]– so people still write it[/hl]', { size: 52, weight: 700, align: 'center', valign: 'middle', lh: 1.25 });
+  y = b.legend(y + 150 + 70, [['grey', 'machine-drafted'], ['green', 'modeled by people']]);
+  return b.end(y);
+}
+
+export const BOARDS = [recordsAndReality(), knowledgeLayer(), experiment(), theExam(), fiveSteps(), techMachine(), techRun(), techSweep(), techAgents(), techRoutes(), techResults(), techReplicate(), techMarket()];
