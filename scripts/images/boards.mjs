@@ -659,4 +659,37 @@ function techMarket() {
   return b.end(y);
 }
 
-export const BOARDS = [recordsAndReality(), knowledgeLayer(), experiment(), theExam(), fiveSteps(), techMachine(), techRun(), techSweep(), techAgents(), techRoutes(), techResults(), techReplicate(), techMarket()];
+
+// 9. The repeat of the Opus and Sonnet packs.
+const REP = json('auto-ontology-repeat-sweep.json');
+function techRepeat() {
+  const b = board(TECH, 'repeat');
+  let y = b.title('Same model, [hl]different luck[/hl]', 2, `Each pack tried six times · ${REP.tries_saved} of ${REP.tries_planned} tries saved`);
+  b.text(X, y, CW, 70, '[b]Tries with all four right, out of 6[/b]', { size: 48 });
+  y += 90;
+  ['Nemotron 3 Ultra', 'Nemotron 3.5 Lightning', 'Gemma 4 31B', 'Nemotron 3.5 Super', 'Step 5 Preview'].forEach((name) => {
+    const m = REP.per_model[name];
+    b.text(X, y, CW, 60, name, { size: 44, weight: 700 });
+    b.text(X, y + 66, 150, 56, 'Opus', { size: 38, color: 'grey' });
+    b.bar(X + 160, y + 74, 640, 44, Math.max(m.opus[1] / 6, 0.012), 'blue');
+    b.text(X + 830, y + 62, 200, 60, `${m.opus[1]}`, { size: 46, weight: 700, color: 'blue' });
+    b.text(X, y + 126, 150, 56, 'Sonnet', { size: 38, color: 'grey' });
+    b.bar(X + 160, y + 134, 640, 44, Math.max(m.sonnet[1] / 6, 0.012), 'orange');
+    b.text(X + 830, y + 122, 200, 60, `${m.sonnet[1]}`, { size: 46, weight: 700, color: 'orange' });
+    y += 214;
+  });
+  y += 20;
+  b.rect(X, y, CW, 340, { stroke: 'ink', fill: FILL.yellow, sw: 5, rot: 0.4 });
+  b.text(X + 30, y + 16, CW - 60, 66, '[b]Across every model[/b]', { size: 48 });
+  b.text(X + 30, y + 96, CW - 60, 230, `Opus pack: [b]${REP.totals.opus.all_four_right} of ${REP.totals.opus.tries}[/b] tries\nSonnet pack: [b]${REP.totals.sonnet.all_four_right} of ${REP.totals.sonnet.tries}[/b] tries\n[hl]The packs came out level[/hl]`, { size: 50, lh: 1.25 });
+  y += 340 + 50;
+  b.rect(X, y, CW, 330, { stroke: 'orange', fill: FILL.orange, sw: 5 });
+  b.text(X + 30, y + 16, CW - 60, 66, '[b]Not every job finished[/b]', { size: 48 });
+  b.text(X + 30, y + 96, CW - 60, 220, `GLM 5.3 Flash saved nothing.\nKimi K3.1 Pro saved 6 tries, none finished.\nBoth hit the job’s time limit.`, { size: 42, lh: 1.25 });
+  y += 330 + 50;
+  b.text(X, y, CW, 150, '[hl]One model, two packs:[/hl]\n[hl]Ultra 5 of 6 on one, 0 of 6 on the other[/hl]', { size: 50, weight: 700, align: 'center', valign: 'middle', lh: 1.25 });
+  y = b.legend(y + 150 + 70, [['blue', 'with the Opus pack'], ['orange', 'with the Sonnet pack']]);
+  return b.end(y);
+}
+
+export const BOARDS = [recordsAndReality(), knowledgeLayer(), experiment(), theExam(), fiveSteps(), techMachine(), techRun(), techSweep(), techAgents(), techRoutes(), techResults(), techReplicate(), techMarket(), techRepeat()];
