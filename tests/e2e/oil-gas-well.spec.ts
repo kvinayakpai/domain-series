@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { articleText, us } from './helpers';
 
 // KPIs 2 to 6, the rest of the well. Every number the posts quote must match Field 014's records
 // (src/data/oil-gas/well-kpis.json from scripts/oil-gas/well.py, and field-014.json), so changing a
@@ -7,13 +8,7 @@ import { readFileSync } from 'node:fs';
 const field = JSON.parse(readFileSync(new URL('../../src/data/oil-gas/field-014.json', import.meta.url), 'utf8'));
 const well = JSON.parse(readFileSync(new URL('../../src/data/oil-gas/well-kpis.json', import.meta.url), 'utf8'));
 const ws = well.story;
-const us = (v: number) => Math.round(v).toLocaleString('en-US');
 const words: Record<number, string> = { 3: 'three', 5: 'five', 11: 'eleven', 15: 'fifteen', 16: 'sixteen' };
-
-async function articleText(page: import('@playwright/test').Page, path: string) {
-  await page.goto(path);
-  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-}
 
 test('production efficiency quotes the plan and the wells correctly', async ({ page }) => {
   const pe = ws.pe;

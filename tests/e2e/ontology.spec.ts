@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import yaml from 'js-yaml';
 import { ON_POSTS } from '../../src/lib/ontology';
+import { articleText } from './helpers';
 
 // Season 2, "Ontology is all about domain knowledge": its contents page, its posts, the ontology they
 // show (src/data/ontology.json) and the Store 014 numbers they quote. The numbers must still match the
@@ -56,11 +57,6 @@ const ONE_RULE = ['why-ontology-matters', 'ontology-in-open-standards', 'stock-h
 // Posts about a Season 1 problem carry its record and reality lines; the opening posts explain instead.
 const WITH_PAIR = ['stock-has-a-place', ...PROBLEMS];
 
-async function articleText(page: import('@playwright/test').Page, path: string) {
-  await page.goto(path);
-  // Typographic quotes in the page compare equal to plain ones in the expectations.
-  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-}
 async function kpiList(request: import('@playwright/test').APIRequestContext) {
   const list = yaml.load(await (await request.get('kpis/domain-kpis.yaml')).text()) as { domains: { kpis: { id: string; name: string; store_014: { reported: { value: string }; observed: { value: string } } }[] }[] };
   return list.domains.flatMap((d) => d.kpis);

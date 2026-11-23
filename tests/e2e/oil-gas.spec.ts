@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { articleText, dayOf } from './helpers';
 
 // The Oil & Gas season: its contents page, its posts, and the Field 014 numbers they quote. Every
 // number must still match the simulation's output (src/data/oil-gas/field-014.json), so changing
@@ -8,7 +9,6 @@ const field = JSON.parse(readFileSync(new URL('../../src/data/oil-gas/field-014.
 const s = field.story;
 const days = field.meta.days as string[];
 const n = (v: number) => Math.round(v).toLocaleString('en-IN');
-const dayOf = (iso: string) => Number(iso.slice(8, 10));
 const words: Record<number, string> = { 2: 'two', 3: 'three', 9: 'nine', 15: 'fifteen', 16: 'sixteen' };
 // The season's KPI posts in reading order: [slug, KPI id, part as the header names it, the place
 // its second heading names].
@@ -34,12 +34,6 @@ const KPI_POSTS: [string, string, string, string][] = [
 ];
 const LINKING_POSTS = ['upstream', 'midstream', 'downstream', 'well-to-refinery'];
 const SEASON_POSTS = ['every-barrel/', ...KPI_POSTS.map(([slug]) => `${slug}/`), ...LINKING_POSTS.map((x) => `${x}/`)];
-
-async function articleText(page: import('@playwright/test').Page, path: string) {
-  await page.goto(path);
-  // Typographic quotes in the page compare equal to plain ones in the expectations.
-  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-}
 
 for (const p of [{ path: 'oil-and-gas/', og: 'oil-and-gas' }, { path: 'every-barrel/', og: 'every-barrel' }, { path: 'production/', og: 'production' }, ...LINKING_POSTS.map((x) => ({ path: `${x}/`, og: x }))]) {
   test(`${p.path} renders cleanly`, async ({ page, request }) => {

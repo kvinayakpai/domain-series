@@ -1,6 +1,7 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { load } from 'js-yaml';
+import { articleText } from './helpers';
 
 // The opener, the KPI page, the home table and the KPI x-ray in each post header all quote the
 // world. Every number checked here is derived from the world's exports directly, not from
@@ -47,11 +48,6 @@ const heroes = [
     found: `median ${refunds.median_days_to_refund} days`,
   },
 ];
-
-async function articleText(page: Page, path: string) {
-  await page.goto(path);
-  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-}
 
 test('the opener quotes the world correctly', async ({ page }) => {
   const text = await articleText(page, 'why-domain/');
