@@ -1,0 +1,66 @@
+name: Packs test repeated 3 times, Opus and Sonnet packs, every NVIDIA chat model (Store 014)
+
+# The same four questions and packs as owl-packs-test, with each chat model NVIDIA hosts
+# through the free API (build.nvidia.com), so no GPU is needed here. Needs the NVIDIA_API_KEY secret.
+# Raw answers are committed to owl-packs-repeat/results/run-N with the key taken out first.
+
+on:
+  push:
+    branches: [owl-packs-repeat]
+    paths:
+      - "owl-packs-repeat/**"
+      - ".github/workflows/owl-packs-repeat.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        model: ["meta/muse-glimmer-30b", "minimaxai/minimax-m3.1-flash", "mistralai/mistral-large-4-1t-a52b", "moonshotai/kimi-k3.1-pro", "z-ai/glm-5.3-flash", "stepfun-ai/step-5-preview", "poolside/laguna-xs-2.1", "nvidia/nemotron-3.5-bolt-e4b", "nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3.5-super-vl-120b-a12b", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning", "google/gemma-4-31b-it"]
+    env:
+      RESULTS: owl-packs-repeat/results/run-${{ github.run_number }}
+      NIM_MODEL: ${{ matrix.model }}
+      TRIES: "3"
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          pip install --quiet requests psycopg2-binary
+
+      - name: Run the model
+        run: |
+          if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
+          python3 owl-packs-repeat/run_repeat.py "$RESULTS"
+
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "OWL and SHACL packs test, $NIM_MODEL (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3 4 5 6; do git pull -q --rebase origin owl-packs-repeat && git push -q origin HEAD:owl-packs-repeat && break; sleep $((RANDOM % 10 + 3)); done
