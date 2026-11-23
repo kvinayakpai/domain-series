@@ -1,0 +1,55 @@
+{
+  "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+  "pack": "auto-sonnet",
+  "rule_line": true,
+  "prompt_chars": 44200,
+  "seconds": 125,
+  "sql_calls": [
+    {
+      "sql": "SELECT sku, productName, packSize\nFROM store.products\nWHERE packSize = '5 kg' AND productName ILIKE '%atta%';",
+      "result": "ERROR: column \"productname\" does not exist\nLINE 1: SELECT sku, productName, packSize\n                    ^\n"
+    },
+    {
+      "sql": "SELECT sku, product_name, pack_size\nFROM store.products\nWHERE pack_size = '5 kg' AND product_name ILIKE '%atta%';",
+      "result": "ERROR: column \"product_name\" does not exist\nLINE 1: SELECT sku, product_name, pack_size\n                    ^\n"
+    },
+    {
+      "sql": "SELECT column_name FROM information_schema.columns WHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(bl.quantity) AS total_quantity\nFROM store.bill_line bl\nJOIN store.product p ON bl.scannedGtin = p.gtin\nWHERE p.pack = '5 kg'\n  AND p.name ILIKE '%atta%'\n  AND bl.billTimestamp::date >= '2026-06-01'\n  AND bl.billTimestamp::date < '2026-07-01';",
+      "result": "ERROR: relation \"store.bill_line\" does not exist\nLINE 2: FROM store.bill_line bl\n             ^\n"
+    },
+    {
+      "sql": "SELECT table_name FROM information_schema.tables WHERE table_schema = 'store' AND table_type = 'BASE TABLE';",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'pos_lines';",
+      "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+      "sql": "SELECT SUM(l.qty) AS total_bags_sold\nFROM store.pos_lines l\nJOIN store.products p ON l.sku_scanned = p.sku\nWHERE p.pack = '5 kg'\n  AND p.name ILIKE '%atta%'\n  AND l.bill_ts::date >= '2026-06-01'\n  AND l.bill_ts::date < '2026-07-01';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT DISTINCT a.auditTimestamp::date AS audit_date\nFROM store.shelf_audit a\nJOIN store.products p ON a.ofProduct = p.sku\nWHERE p.pack = '5 kg'\n  AND p.name ILIKE '%atta%'\n  AND a.auditTimestamp::date BETWEEN '2026-06-01' AND '2026-06-30';",
+      "result": "ERROR: relation \"store.shelf_audit\" does not exist\nLINE 2: FROM store.shelf_audit a\n             ^\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+      "sql": "SELECT COUNT(*) AS on_shelf_records\nFROM store.shelf_audits a\nJOIN store.products p ON a.sku = p.sku\nWHERE p.pack = '5 kg'\n  AND p.name ILIKE '%atta%'\n  AND a.audit_ts::date >= '2026-06-01'\n  AND a.audit_ts::date < '2026-07-01'\n  AND a.status = 'on shelf';",
+      "result": "6"
+    },
+    {
+      "sql": "SELECT COUNT(DISTINCT a.audit_ts::date) AS on_shelf_days\nFROM store.shelf_audits a\nJOIN store.products p ON a.sku = p.sku\nWHERE p.pack = '5 kg'\n  AND p.name ILIKE '%atta%'\n  AND a.audit_ts::date BETWEEN '2026-06-01' AND '2026-06-30'\n  AND a.status = 'on shelf';",
+      "result": "6"
+    }
+  ],
+  "final": "{\n  \"answers\": [\n    {\n      \"id\": 1,\n      \"sql\": \"SELECT SUM(l.qty) AS total_bags_sold\\nFROM store.pos_lines l\\nJOIN store.products p ON l.sku_scanned = p.sku\\nWHERE p.pack = '5 kg'\\n  AND p.name ILIKE '%atta%'\\n  AND l.bill_ts::date >= '2026-06-01'\\n  AND l.bill_ts::date < '2026-07-01';\",\n      \"answer\": \"567\",\n      \"basis\": \"Sum of quantities from pos_lines for 5\u202fkg atta products in June\u202f2026.\"\n    },\n    {\n      \"id\": 2,\n      \"sql\": \"none\",\n      \"answer\": \"no record\",\n      \"basis\": \"No information about shoppers or their purchase behavior is available in the schema.\"\n    },\n    {\n      \"id\": 3,\n      \"sql\": \"SELECT COUNT(DISTINCT a.audit_ts::date) AS on_shelf_days\\nFROM store.shelf_audits a\\nJOIN store.products p ON a.sku = p.sku\\nWHERE p.pack = '5 kg'\\n  AND p.name ILIKE '%atta%'\\n  AND a.audit_ts::date BETWEEN '2026-06-01' AND '2026-06-30'\\n  AND a.status = 'on shelf';\",\n      \"answer\": \"6\",\n      \"basis\": \"Count of distinct audit dates where 5\u202fkg atta was recorded as on shelf during June\u202f2026.\"\n    },\n    {\n      \"id\": 4,\n      \"sql\": \"none\",\n      \"answer\": \"no record\",\n      \"basis\": \"No data on lost sales (unmet demand) for 5\u202fkg atta in June\u202f2026 is available.\"\n    }\n  ]\n}",
+  "try": 2
+}
