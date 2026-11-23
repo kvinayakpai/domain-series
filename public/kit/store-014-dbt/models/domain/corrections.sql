@@ -6,4 +6,4 @@ UNION ALL
 SELECT 'store', c.count_ts, c.sku, split_part(c.sku, '-', 1), NULL, c.adjustment,
        c.adjustment / CAST(p.case_units AS DOUBLE), round(c.adjustment * p.cost_inr, 2), c.trigger
 FROM {{ ref('stock_counts') }} c JOIN {{ ref('products') }} p USING (sku)
-WHERE c.adjustment <> 0 AND c.count_ts > TIMESTAMP '2026-06-01 07:00'
+WHERE c.adjustment <> 0 AND c.count_ts > TIMESTAMP '{{ var('window_start') }} 07:00'

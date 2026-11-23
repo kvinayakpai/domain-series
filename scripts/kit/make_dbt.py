@@ -210,6 +210,40 @@ def domain_models() -> dict[str, str]:
     }
 
 
+# ---------------------------------------------------------------- date windows
+# June 2026's boundaries live in dbt_project.yml as vars, so the models and tests can be pointed at
+# another window. Every date literal in the SQL above is swapped for its var here; an unlisted date fails the build.
+DATE_VARS = {
+    "2026-06-01": "window_start",   # first day of the window (also week 1 of the halving test)
+    "2026-06-29": "window_end",     # the day after the last day, and the review's date
+    "2026-05-04": "history_start",  # where the silent-run baseline starts, four weeks before the window
+    "2026-06-07": "week1_end",
+    "2026-06-08": "week2_start",
+    "2026-06-14": "week2_end",
+}
+PROJECT_VARS = (
+    "vars:\n  data_dir: data  # the folder holding the CSV records; get_data.py fills it\n"
+    "  window_start: '2026-06-01'   # the window the records cover: first day ...\n"
+    "  window_end: '2026-06-29'     # ... and the day after its last\n"
+    "  history_start: '2026-05-04'  # the silent-run baseline starts here, before the window\n"
+    "  week1_end: '2026-06-07'      # no_weekly_sales_halve compares window_start..week1_end\n"
+    "  week2_start: '2026-06-08'    # with week2_start..week2_end\n"
+    "  week2_end: '2026-06-14'\n"
+    "  review_ts: '2026-06-29 09:00'  # the review at which a refund counts as late\n"
+)
+
+
+def parameterize(sql: str) -> str:
+    def swap(m: re.Match) -> str:
+        date, clock = m.group(1), m.group(2) or ""
+        if f"{date}{clock}" == "2026-06-29 09:00":
+            return "'{{ var('review_ts') }}'"
+        if date not in DATE_VARS:
+            sys.exit(f"date {date} in the SQL has no dbt var: add it to DATE_VARS")
+        return "'{{ var('" + DATE_VARS[date] + "') }}" + clock + "'"
+    return re.sub(r"'(\d{4}-\d\d-\d\d)( \d\d:\d\d)?'", swap, sql)
+
+
 # ---------------------------------------------------------------- tests
 PIPELINE_WARN = {"Book stock: one row per item per day, never negative"}  # fails on milk: the till's scan errors
 
@@ -391,7 +425,7 @@ def write() -> tuple[dict, dict]:
         "name: store_014\nversion: \"1.0.0\"\nconfig-version: 2\nprofile: store_014\n\n"
         "model-paths: [\"models\"]\ntest-paths: [\"tests\"]\n\n"
         "flags:\n  send_anonymous_usage_stats: false\n\n"
-        "vars:\n  data_dir: data  # the folder holding the CSV records; get_data.py fills it\n\n"
+        + PROJECT_VARS + "\n"
         "models:\n  store_014:\n    +materialized: view\n\n"
         "data_tests:\n  store_014:\n    domain:\n      +severity: warn\n      +store_failures: true\n")
     (OUT / "profiles.yml").write_text("store_014:\n  target: dev\n  outputs:\n    dev:\n      type: duckdb\n      path: store_014.duckdb\n      threads: 4\n")
@@ -403,13 +437,13 @@ def write() -> tuple[dict, dict]:
             f"select * from read_csv_auto('{{{{ var(\"data_dir\") }}}}/{file}'{opt})\n")
     (OUT / "models" / "records" / "_records.yml").write_text(records_yml())
     for name, sql in domain_models().items():
-        (OUT / "models" / "domain" / f"{name}.sql").write_text(sql)
+        (OUT / "models" / "domain" / f"{name}.sql").write_text(parameterize(sql))
     tests = pipeline_tests()
     for k, (title, sql) in tests.items():
         cfg = "{{ config(severity='warn') }}\n" if title in PIPELINE_WARN else ""
-        (OUT / "tests" / "pipeline" / f"{k}.sql").write_text(f"-- {title}\n{cfg}{sql}\n")
+        (OUT / "tests" / "pipeline" / f"{k}.sql").write_text(f"-- {title}\n{cfg}{parameterize(sql)}\n")
     for k, (title, sql) in DOMAIN_TESTS.items():
-        (OUT / "tests" / "domain" / f"{k}.sql").write_text(f"-- {title}\n{sql}\n")
+        (OUT / "tests" / "domain" / f"{k}.sql").write_text(f"-- {title}\n{parameterize(sql)}\n")
     (OUT / "get_data.py").write_text(GET_DATA)
     (OUT / "README.md").write_text(readme(tests, DOMAIN_TESTS))
     return tests, DOMAIN_TESTS
