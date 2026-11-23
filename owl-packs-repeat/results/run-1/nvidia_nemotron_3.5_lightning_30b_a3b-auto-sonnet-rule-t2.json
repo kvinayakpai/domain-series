@@ -1,0 +1,59 @@
+{
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "pack": "auto-sonnet",
+  "rule_line": true,
+  "prompt_chars": 44200,
+  "seconds": 80,
+  "sql_calls": [
+    {
+      "sql": "SELECT table_name, table_schema \nFROM information_schema.tables \nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+      "result": "customer_complaints|payments\npos_payments|payments\npsp_upi_report|payments\nupi_refunds|payments\nupi_settlements|payments\ndaily_sales|store\nforecasts|store\nfresh_deliveries|store\ngoods_receipts|store\ninventory_book|store\npos_lines|store\nproducts|store\nshelf_audits|store\nstock_counts|store\nstore_orders|store\nwrite_offs|store\npallets|warehouse\npick_confirmations|warehouse\nshipments|warehouse\nshipping_notice_lines|warehouse\nstock_adjustments|warehouse"
+    },
+    {
+      "sql": "SELECT sku, has_gtin, product_name, pack_size, flow \nFROM store.products \nWHERE pack_size = '5 kg' OR product_name LIKE '%atta%';",
+      "result": "ERROR: column \"has_gtin\" does not exist\nLINE 1: SELECT sku, has_gtin, product_name, pack_size, flow \n                    ^\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'products' AND table_schema = 'store'\nORDER BY ordinal_position;",
+      "result": "sku|text\ngtin|text\nname|text\npack|text\ncase_units|integer\ncase_kg|numeric\nflow|text\ndc_slot|text\nprice_inr|numeric\ncost_inr|numeric"
+    },
+    {
+      "sql": "SELECT sku, gtin, name, pack, case_units, flow \nFROM store.products \nWHERE pack = '5 kg' OR name LIKE '%atta%';",
+      "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|DC\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|DC\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|DC\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|DC"
+    },
+    {
+      "sql": "SELECT SUM(unitsSold) AS total_units_sold\nFROM store.daily_sales\nWHERE ofProduct = 'ATTA-WW-5KG'\n  AND recordDate >= '2026-06-01' AND recordDate <= '2026-06-30';",
+      "result": "ERROR: column \"unitssold\" does not exist\nLINE 1: SELECT SUM(unitsSold) AS total_units_sold\n                   ^\nHINT:  Perhaps you meant to reference the column \"daily_sales.units_sold\".\n"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) AS total_units_sold\nFROM store.daily_sales\nWHERE ofProduct = 'ATTA-WW-5KG'\n  AND recordDate >= '2026-06-01' AND recordDate <= '2026-06-30';",
+      "result": "ERROR: column \"ofproduct\" does not exist\nLINE 3: WHERE ofProduct = 'ATTA-WW-5KG'\n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'daily_sales' AND table_schema = 'store'\nORDER BY ordinal_position;",
+      "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) AS total_units_sold\nFROM store.daily_sales\nWHERE sku = 'ATTA-WW-5KG'\n  AND date >= '2026-06-01' AND date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT auditTimestamp, shelfStatus, ofProduct \nFROM store.shelf_audits \nWHERE ofProduct = 'ATTA-WW-5KG'\n  AND auditTimestamp >= '2026-06-01' AND auditTimestamp <= '2026-06-30'\nORDER BY auditTimestamp;",
+      "result": "ERROR: column \"audittimestamp\" does not exist\nLINE 1: SELECT auditTimestamp, shelfStatus, ofProduct \n               ^\n"
+    },
+    {
+      "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'shelf_audits' AND table_schema = 'store'\nORDER BY ordinal_position;",
+      "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+      "sql": "SELECT audit_ts, status, sku \nFROM store.shelf_audits \nWHERE sku = 'ATTA-WW-5KG'\n  AND audit_ts >= '2026-06-01' AND audit_ts <= '2026-06-30'\nORDER BY audit_ts;",
+      "result": "2026-06-02 11:00:00|on shelf|ATTA-WW-5KG\n2026-06-05 11:00:00|on shelf|ATTA-WW-5KG\n2026-06-09 11:00:00|on shelf|ATTA-WW-5KG\n2026-06-12 11:00:00|empty|ATTA-WW-5KG\n2026-06-16 11:00:00|on shelf|ATTA-WW-5KG\n2026-06-19 11:00:00|on shelf|ATTA-WW-5KG\n2026-06-23 11:00:00|on shelf|ATTA-WW-5KG\n2026-06-26 11:00:00|empty|ATTA-WW-5KG"
+    },
+    {
+      "sql": "SELECT status, COUNT(*) AS cnt \nFROM store.shelf_audits \nWHERE sku = 'ATTA-WW-5KG' \n  AND audit_ts >= '2026-06-01' AND audit_ts <= '2026-06-30' \nGROUP BY status;",
+      "result": "on shelf|6\nempty|2"
+    }
+  ],
+  "final": "{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(units_sold) AS total_units_sold FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"daily_sales table filtered by SKU ATTA-WW-5KG and June 2026 date range; returned 567 total units sold.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"records cannot answer this question plainly\",\"basis\":\"no table in the database tracks shopper-level intent or abandonment events; shelf audits only record on-shelf/empty status at audit times, not whether shoppers left without the product.\"},{\"id\":3,\"sql\":\"SELECT status, COUNT(*) AS cnt FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts <= '2026-06-30' GROUP BY status;\",\"answer\":\"6 on-shelf, 2 empty observations (75% on-shelf availability by observation count in June 2026)\",\"basis\":\"store.shelf_audits contains 8 audit events for SKU ATTA-WW-5KG in June 2026; 6 recorded as 'on shelf', 2 as 'empty'.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"records do not contain a direct 'lost sales' metric for 5 kg atta in June 2026\",\"basis\":\"no table logs units not sold due to stockouts; lost sales would require demand inventory gap data not explicitly stored in the schema.\"}]}",
+  "try": 2
+}
