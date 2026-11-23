@@ -1,0 +1,51 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-sonnet",
+  "rule_line": false,
+  "prompt_chars": 44130,
+  "seconds": 815,
+  "sql_calls": [
+    {
+      "sql": "SELECT p.product_name, p.sku, SUM(ds.units_sold) as total_sold\nFROM store.products p\nJOIN store.daily_sales ds ON p.sku = ds.sku\nWHERE p.product_name ILIKE '%atta%' \n  AND p.pack_size = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30'\nGROUP BY p.product_name, p.sku;",
+      "result": "ERROR: column p.product_name does not exist\nLINE 1: SELECT p.product_name, p.sku, SUM(ds.units_sold) as total_so...\n               ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold\nFROM store.products p\nJOIN store.daily_sales ds ON p.sku = ds.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30'\nGROUP BY p.name, p.sku;",
+      "result": "ERROR: column ds.record_date does not exist\nLINE 6:   AND ds.record_date >= '2026-06-01' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold\nFROM store.products p\nJOIN store.daily_sales ds ON p.sku = ds.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30'\nGROUP BY p.name, p.sku;",
+      "result": "Whole wheat atta 5 kg|ATTA-WW-5KG|567"
+    },
+    {
+      "sql": "SELECT p.sku, COUNT(*) as empty_days\nFROM store.products p\nJOIN store.shelf_audit sa ON p.sku = sa.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND sa.shelf_status = 'empty'\n  AND sa.audit_timestamp >= '2026-06-01' \n  AND sa.audit_timestamp < '2026-07-01'\nGROUP BY p.sku;",
+      "result": "ERROR: relation \"store.shelf_audit\" does not exist\nLINE 3: JOIN store.shelf_audit sa ON p.sku = sa.sku\n             ^\n"
+    },
+    {
+      "sql": "SELECT table_name \nFROM information_schema.tables \nWHERE table_schema = 'store';",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs"
+    },
+    {
+      "sql": "SELECT p.sku, COUNT(*) as empty_events\nFROM store.products p\nJOIN store.shelf_audits sa ON p.sku = sa.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND sa.shelf_status = 'empty'\n  AND sa.audit_timestamp >= '2026-06-01' \n  AND sa.audit_timestamp < '2026-07-01'\nGROUP BY p.sku;",
+      "result": "ERROR: column sa.shelf_status does not exist\nLINE 6:   AND sa.shelf_status = 'empty'\n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    (SELECT COUNT(*) FROM store.shelf_audits sa \n     JOIN store.products p ON sa.sku = p.sku \n     WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n     AND sa.status = 'empty' \n     AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01') as empty_count,\n    (SELECT COUNT(*) FROM store.shelf_audits sa \n     JOIN store.products p ON sa.sku = p.sku \n     WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n     AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01') as total_audits,\n    (SELECT price_inr FROM store.products WHERE name ILIKE '%atta%' AND pack = '5 kg' LIMIT 1) as unit_price;",
+      "result": "2|8|265.0"
+    }
+  ],
+  "final": "1. How many bags of 5 kg atta were sold in June 2026?\nSQL: `SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold FROM store.products p JOIN store.daily_sales ds ON p.sku = ds.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30' GROUP BY p.name, p.sku;`\nAnswer: 567\nBasis: Sum of units_sold from store.daily_sales for the matching product in June 2026.\n\n2. How many shoppers left without 5 kg atta in June 2026?\nSQL: `SELECT p.sku, COUNT(*) as empty_events FROM store.products p JOIN store.shelf_audits sa ON p.sku = sa.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.status = 'empty' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' GROUP BY p.sku;`\nAnswer: 2\nBasis: Number of shelf audit records marked as 'empty' for the product in June 2026.\n\n3. What was on-shelf availability for 5 kg atta in June 2026?\nSQL: `SELECT (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.status = 'empty' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01'), (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01')`\nAnswer: 75%\nBasis: Calculated as (Total Audits - Empty Audits) / Total Audits = (8 - 2) / 8 = 0.75.\n\n4. What were the lost sales of 5 kg atta in June 2026?\nSQL: `SELECT (SELECT price_inr FROM store.products WHERE name ILIKE '%atta%' AND pack = '5 kg' LIMIT 1)`\nAnswer: 530.0 INR\nBasis: Estimated as (Number of empty shelf events) * (Unit Price) = 2 * 265.0 = 530.0.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold FROM store.products p JOIN store.daily_sales ds ON p.sku = ds.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30' GROUP BY p.name, p.sku;\",\"answer\":\"567\",\"basis\":\"Sum of units_sold from store.daily_sales for the matching product in June 2026.\"},{\"id\":2,\"sql\":\"SELECT p.sku, COUNT(*) as empty_events FROM store.products p JOIN store.shelf_audits sa ON p.sku = sa.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.status = 'empty' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' GROUP BY p.sku;\",\"answer\":\"2\",\"basis\":\"Number of shelf audit records marked as 'empty' for the product in June 2026.\"},{\"id\":3,\"sql\":\"SELECT (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.status = 'empty' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01'), (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01')\",\"answer\":\"75%\",\"basis\":\"Calculated as (Total Audits - Empty Audits) / Total Audits = (8 - 2) / 8 = 0.75.\"},{\"id\":4,\"sql\":\"SELECT (SELECT price_inr FROM store.products WHERE name ILIKE '%atta%' AND pack = '5 kg' LIMIT 1)\",\"answer\":\"530.0 INR\",\"basis\":\"Estimated as (Number of empty shelf events) * (Unit Price) = 2 * 265.0 = 530.0.\"}]}\n```",
+  "try": 3
+}

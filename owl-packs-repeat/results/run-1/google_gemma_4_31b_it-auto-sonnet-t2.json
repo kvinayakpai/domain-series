@@ -1,0 +1,63 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-sonnet",
+  "rule_line": false,
+  "prompt_chars": 44130,
+  "seconds": 886,
+  "sql_calls": [
+    {
+      "sql": "SELECT p.product_name, p.sku, SUM(bl.quantity) as total_sold\nFROM store.products p\nJOIN store.bill_lines bl ON p.gtin = bl.scanned_gtin\nWHERE p.product_name ILIKE '%atta%' \n  AND p.pack_size = '5 kg' \n  AND bl.bill_timestamp >= '2026-06-01' \n  AND bl.bill_timestamp < '2026-07-01'\nGROUP BY p.product_name, p.sku;",
+      "result": "ERROR: relation \"store.bill_lines\" does not exist\nLINE 3: JOIN store.bill_lines bl ON p.gtin = bl.scanned_gtin\n             ^\n"
+    },
+    {
+      "sql": "SELECT table_name \nFROM information_schema.tables \nWHERE table_schema = 'store';",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs"
+    },
+    {
+      "sql": "SELECT p.product_name, p.sku, SUM(ds.units_sold) as total_sold\nFROM store.products p\nJOIN store.daily_sales ds ON p.sku = ds.sku\nWHERE p.product_name ILIKE '%atta%' \n  AND p.pack_size = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30'\nGROUP BY p.product_name, p.sku;",
+      "result": "ERROR: column p.product_name does not exist\nLINE 1: SELECT p.product_name, p.sku, SUM(ds.units_sold) as total_so...\n               ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold\nFROM store.products p\nJOIN store.daily_sales ds ON p.sku = ds.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30'\nGROUP BY p.name, p.sku;",
+      "result": "ERROR: column ds.record_date does not exist\nLINE 6:   AND ds.record_date >= '2026-06-01' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold\nFROM store.products p\nJOIN store.daily_sales ds ON p.sku = ds.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30'\nGROUP BY p.name, p.sku;",
+      "result": "Whole wheat atta 5 kg|ATTA-WW-5KG|567"
+    },
+    {
+      "sql": "SELECT \n    COUNT(DISTINCT sa.audit_timestamp) as total_audits,\n    SUM(CASE WHEN sa.shelf_status = 'empty' THEN 1 ELSE 0 END) as empty_count\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND sa.audit_timestamp >= '2026-06-01' \n  AND sa.audit_timestamp < '2026-07-01';",
+      "result": "ERROR: column sa.audit_timestamp does not exist\nLINE 2:     COUNT(DISTINCT sa.audit_timestamp) as total_audits,\n                           ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) as total_audits,\n    SUM(CASE WHEN status = 'empty' THEN 1 ELSE 0 END) as empty_count\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.name ILIKE '%atta%' \n  AND p.pack = '5 kg' \n  AND sa.audit_ts >= '2026-06-01' \n  AND sa.audit_ts < '2026-07-01';",
+      "result": "8|2"
+    },
+    {
+      "sql": "SELECT \n    SUM(ds.units_sold * (1 - (CAST(empty_count AS FLOAT) / total_audits))) - SUM(ds.units_sold) as lost_sales_estimate\nFROM (\n    SELECT \n        SUM(units_sold) as total_sold,\n        (SELECT COUNT(*) FROM store.shelf_audits sa \n         JOIN store.products p ON sa.sku = p.sku \n         WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n         AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01') as total_audits,\n        (SELECT COUNT(*) FROM store.shelf_audits sa \n         JOIN store.products p ON sa.sku = p.sku \n         WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n         AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty') as empty_count\n    FROM store.daily_sales ds\n    JOIN store.products p ON ds.sku = p.sku\n    WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n    AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30'\n) as stats;",
+      "result": "ERROR: missing FROM-clause entry for table \"ds\"\nLINE 2:     SUM(ds.units_sold * (1 - (CAST(empty_count AS FLOAT) / t...\n                ^\n"
+    },
+    {
+      "sql": "SELECT \n    (SUM(units_sold) / (1.0 - (CAST(empty_count AS FLOAT) / total_audits))) - SUM(units_sold) as lost_sales\nFROM (\n    SELECT \n        SUM(ds.units_sold) as units_sold,\n        (SELECT COUNT(*) FROM store.shelf_audits sa \n         JOIN store.products p ON sa.sku = p.sku \n         WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n         AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01') as total_audits,\n        (SELECT COUNT(*) FROM store.shelf_audits sa \n         JOIN store.products p ON sa.sku = p.sku \n         WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n         AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty') as empty_count\n    FROM store.daily_sales ds\n    JOIN store.products p ON ds.sku = p.sku\n    WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n    AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30'\n) as stats;",
+      "result": "ERROR: column \"stats.empty_count\" must appear in the GROUP BY clause or be used in an aggregate function\nLINE 2:     (SUM(units_sold) / (1.0 - (CAST(empty_count AS FLOAT) / ...\n                                            ^\n"
+    },
+    {
+      "sql": "SELECT \n    (SUM(units_sold) / (1.0 - (CAST(empty_count AS FLOAT) / total_audits))) - SUM(units_sold) as lost_sales\nFROM (\n    SELECT \n        ds.units_sold,\n        (SELECT COUNT(*) FROM store.shelf_audits sa \n         JOIN store.products p ON sa.sku = p.sku \n         WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n         AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01') as total_audits,\n        (SELECT COUNT(*) FROM store.shelf_audits sa \n         JOIN store.products p ON sa.sku = p.sku \n         WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n         AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty') as empty_count\n    FROM store.daily_sales ds\n    JOIN store.products p ON ds.sku = p.sku\n    WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' \n    AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30'\n) as stats\nGROUP BY empty_count, total_audits;",
+      "result": "189.0"
+    }
+  ],
+  "final": "1. How many bags of 5 kg atta were sold in June 2026?\nSQL: `SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold FROM store.products p JOIN store.daily_sales ds ON p.sku = ds.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30' GROUP BY p.name, p.sku;`\nAnswer: 567 bags\nBasis: Sum of `units_sold` from `store.daily_sales` for the product matching \"atta\" and \"5 kg\" in June 2026.\n\n2. How many shoppers left without 5 kg atta in June 2026?\nSQL: none\nAnswer: The records do not provide data on individual shoppers or \"walk-outs\"; only aggregate sales and shelf audits are available.\nBasis: No customer-level transaction failure or footfall data exists in the provided schema.\n\n3. What was on-shelf availability for 5 kg atta in June 2026?\nSQL: `SELECT COUNT(*) as total_audits, SUM(CASE WHEN status = 'empty' THEN 1 ELSE 0 END) as empty_count FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';`\nAnswer: 75%\nBasis: Calculated as (Total Audits - Empty Audits) / Total Audits = (8 - 2) / 8 = 0.75.\n\n4. What were the lost sales of 5 kg atta in June 2026?\nSQL: `SELECT (SUM(units_sold) / (1.0 - (CAST(empty_count AS FLOAT) / total_audits))) - SUM(units_sold) as lost_sales FROM (SELECT ds.units_sold, (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01') as total_audits, (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty') as empty_count FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30') as stats GROUP BY empty_count, total_audits;`\nAnswer: 189 bags\nBasis: Estimated using the formula: [Actual Sales / (1 - Out-of-Stock Rate)] - Actual Sales.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT p.name, p.sku, SUM(ds.units_sold) as total_sold FROM store.products p JOIN store.daily_sales ds ON p.sku = ds.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30' GROUP BY p.name, p.sku;\",\"answer\":\"567\",\"basis\":\"Sum of units_sold from store.daily_sales for the matching product in June 2026.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"Not available\",\"basis\":\"The database contains no records of shoppers who left without purchasing.\"},{\"id\":3,\"sql\":\"SELECT COUNT(*) as total_audits, SUM(CASE WHEN status = 'empty' THEN 1 ELSE 0 END) as empty_count FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';\",\"answer\":\"75%\",\"basis\":\"Based on 6 'on shelf' and 2 'empty' audits out of 8 total audits.\"},{\"id\":4,\"sql\":\"SELECT (SUM(units_sold) / (1.0 - (CAST(empty_count AS FLOAT) / total_audits))) - SUM(units_sold) as lost_sales FROM (SELECT ds.units_sold, (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01') as total_audits, (SELECT COUNT(*) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty') as empty_count FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.name ILIKE '%atta%' AND p.pack = '5 kg' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30') as stats GROUP BY empty_count, total_audits;\",\"answer\":\"189\",\"basis\":\"Estimated lost sales based on the observed out-of-stock rate from shelf audits.\"}]}\n```",
+  "try": 2
+}

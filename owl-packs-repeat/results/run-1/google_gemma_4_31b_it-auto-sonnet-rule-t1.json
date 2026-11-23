@@ -1,0 +1,55 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-sonnet",
+  "rule_line": true,
+  "prompt_chars": 44200,
+  "seconds": 1605,
+  "sql_calls": [
+    {
+      "sql": "SELECT p.product_name, p.sku, p.gtin \nFROM store.products p \nWHERE p.product_name ILIKE '%atta%' AND p.pack_size = '5 kg';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 1: SELECT p.product_name, p.sku, p.gtin \n               ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT p.sku, p.gtin \nFROM store.products p \nWHERE p.name ILIKE '%atta%' AND p.pack = '5 kg';",
+      "result": "ATTA-WW-5KG|2900001001014"
+    },
+    {
+      "sql": "SELECT SUM(bl.quantity) \nFROM store.bill_lines bl \nJOIN store.products p ON bl.scanned_gtin = p.gtin \nWHERE p.sku = 'ATTA-WW-5KG' \nAND bl.bill_timestamp >= '2026-06-01' \nAND bl.bill_timestamp < '2026-07-01';",
+      "result": "ERROR: relation \"store.bill_lines\" does not exist\nLINE 2: FROM store.bill_lines bl \n             ^\n"
+    },
+    {
+      "sql": "SELECT table_name \nFROM information_schema.tables \nWHERE table_schema = 'store';",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales \nWHERE sku = 'ATTA-WW-5KG' \nAND record_date >= '2026-06-01' \nAND record_date <= '2026-06-30';",
+      "result": "ERROR: column \"record_date\" does not exist\nLINE 4: AND record_date >= '2026-06-01' \n            ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales \nWHERE sku = 'ATTA-WW-5KG' \nAND date >= '2026-06-01' \nAND date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE shelf_status = 'empty') as empty_count,\n    COUNT(*) FILTER (WHERE shelf_status = 'on shelf') as on_shelf_count\nFROM store.shelf_audits \nWHERE sku = 'ATTA-WW-5KG' \nAND audit_timestamp >= '2026-06-01' \nAND audit_timestamp < '2026-07-01';",
+      "result": "ERROR: column \"shelf_status\" does not exist\nLINE 2:     COUNT(*) FILTER (WHERE shelf_status = 'empty') as empty_...\n                                   ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE status = 'empty') as empty_count,\n    COUNT(*) FILTER (WHERE status = 'on shelf') as on_shelf_count\nFROM store.shelf_audits \nWHERE sku = 'ATTA-WW-5KG' \nAND audit_ts >= '2026-06-01' \nAND audit_ts < '2026-07-01';",
+      "result": "2|6"
+    }
+  ],
+  "final": "1. How many bags of 5 kg atta were sold in June 2026?\nSQL: `SELECT SUM(units_sold) FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date <= '2026-06-30';`\nAnswer: 567\nBasis: Sum of units_sold from store.daily_sales for the specific SKU in June 2026.\n\n2. How many shoppers left without 5 kg atta in June 2026?\nSQL: none\nAnswer: no record\nBasis: The database contains sales and shelf audits, but no record of \"lost shoppers\" or abandoned carts.\n\n3. What was on-shelf availability for 5 kg atta in June 2026?\nSQL: `SELECT COUNT(*) FILTER (WHERE status = 'empty') as empty_count, COUNT(*) FILTER (WHERE status = 'on shelf') as on_shelf_count FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';`\nAnswer: 75%\nBasis: Calculated as (on_shelf_count / total_audits) = 6 / (6 + 2) = 0.75.\n\n4. What were the lost sales of 5 kg atta in June 2026?\nSQL: none\nAnswer: no record\nBasis: Lost sales typically require demand data or \"out-of-stock\" duration multiplied by average sales, but there is no specific \"lost sales\" metric or demand forecast for the specific dates of emptiness provided.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(units_sold) FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units_sold from store.daily_sales for the specific SKU in June 2026.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"no record\",\"basis\":\"The database contains sales and shelf audits, but no record of shoppers who left without purchasing.\"},{\"id\":3,\"sql\":\"SELECT COUNT(*) FILTER (WHERE status = 'empty') as empty_count, COUNT(*) FILTER (WHERE status = 'on shelf') as on_shelf_count FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';\",\"answer\":\"75%\",\"basis\":\"Calculated as 6 on-shelf audits out of 8 total audits for the SKU in June.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"no record\",\"basis\":\"No data available to calculate lost sales (e.g., demand during out-of-stock periods).\"}]}\n```",
+  "try": 1
+}

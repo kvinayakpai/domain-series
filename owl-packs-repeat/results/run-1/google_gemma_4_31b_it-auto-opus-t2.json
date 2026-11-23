@@ -1,0 +1,47 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-opus",
+  "rule_line": false,
+  "prompt_chars": 90041,
+  "seconds": 1321,
+  "sql_calls": [
+    {
+      "sql": "SELECT p.product_name, p.sku \nFROM store.products p \nWHERE p.pack_size = '5 kg' AND p.product_name ILIKE '%atta%';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 1: SELECT p.product_name, p.sku \n               ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds\nJOIN store.products p ON ds.sku = p.sku\nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' \nAND ds.business_date >= '2026-06-01' AND ds.business_date <= '2026-06-30';",
+      "result": "ERROR: column ds.business_date does not exist\nLINE 5: AND ds.business_date >= '2026-06-01' AND ds.business_date <=...\n            ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds\nJOIN store.products p ON ds.sku = p.sku\nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' \nAND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE sa.shelf_status = 'empty') AS empty_days,\n    COUNT(*) AS total_audits\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%'\nAND sa.audit_timestamp >= '2026-06-01' AND sa.audit_timestamp < '2026-07-01';",
+      "result": "ERROR: column sa.shelf_status does not exist\nLINE 2:     COUNT(*) FILTER (WHERE sa.shelf_status = 'empty') AS emp...\n                                   ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE sa.status = 'empty') AS empty_audits,\n    COUNT(*) AS total_audits\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%'\nAND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';",
+      "result": "2|8"
+    },
+    {
+      "sql": "SELECT p.price_inr \nFROM store.products p \nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%';",
+      "result": "265.0"
+    }
+  ],
+  "final": "1. How many bags of 5 kg atta were sold in June 2026?\nSQL: `SELECT SUM(ds.units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';`\nAnswer: 567\nBasis: Sum of units sold from daily_sales for the matching product in June.\n\n2. How many shoppers left without 5 kg atta in June 2026?\nSQL: none\nAnswer: The records cannot answer this question.\nBasis: The database contains sales and shelf audits, but no data on \"lost customers\" or footfall of people who intended to buy but didn't.\n\n3. What was on-shelf availability for 5 kg atta in June 2026?\nSQL: `SELECT COUNT(*) FILTER (WHERE sa.status = 'empty') AS empty_audits, COUNT(*) AS total_audits FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';`\nAnswer: 75%\nBasis: Calculated as (Total Audits - Empty Audits) / Total Audits = (8 - 2) / 8 = 0.75.\n\n4. What were the lost sales of 5 kg atta in June 2026?\nSQL: none\nAnswer: The records cannot answer this question.\nBasis: Lost sales typically require demand data or a conversion of \"empty shelf\" time into missed units, neither of which is available in the provided tables.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(ds.units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units sold from daily_sales for the matching product in June.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"The records cannot answer this question.\",\"basis\":\"No data on customer footfall or intent to purchase.\"},{\"id\":3,\"sql\":\"SELECT COUNT(*) FILTER (WHERE sa.status = 'empty') AS empty_audits, COUNT(*) AS total_audits FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';\",\"answer\":\"75%\",\"basis\":\"Based on 6 'on shelf' audits out of 8 total audits.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"The records cannot answer this question.\",\"basis\":\"No demand data or lost-sales calculation logic available.\"}]}\n```",
+  "try": 2
+}

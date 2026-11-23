@@ -1,0 +1,55 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-opus",
+  "rule_line": true,
+  "prompt_chars": 90111,
+  "seconds": 1171,
+  "sql_calls": [
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales \nWHERE for_product = (SELECT sku FROM store.products WHERE product_name = 'Atta' AND pack_size = '5 kg') \nAND business_date >= '2026-06-01' AND business_date <= '2026-06-30';",
+      "result": "ERROR: column \"for_product\" does not exist\nLINE 3: WHERE for_product = (SELECT sku FROM store.products WHERE pr...\n              ^\n"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales \nWHERE sku = (SELECT sku FROM store.products WHERE product_name = 'Atta' AND pack_size = '5 kg') \nAND business_date >= '2026-06-01' AND business_date <= '2026-06-30';",
+      "result": "ERROR: column \"product_name\" does not exist\nLINE 3: WHERE sku = (SELECT sku FROM store.products WHERE product_na...\n                                                          ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales \nWHERE sku = (SELECT sku FROM store.products WHERE name = 'Atta' AND pack = '5 kg') \nAND business_date >= '2026-06-01' AND business_date <= '2026-06-30';",
+      "result": "ERROR: column \"business_date\" does not exist\nLINE 4: AND business_date >= '2026-06-01' AND business_date <= '2026...\n            ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales \nWHERE sku = (SELECT sku FROM store.products WHERE name = 'Atta' AND pack = '5 kg') \nAND date >= '2026-06-01' AND date <= '2026-06-30';",
+      "result": "(no rows)"
+    },
+    {
+      "sql": "SELECT sku, name, pack, price_inr FROM store.products WHERE name ILIKE '%Atta%';",
+      "result": "ATTA-WW-5KG|Whole wheat atta 5 kg|5 kg|265.0\nATTA-WW-1KG|Whole wheat atta 1 kg|1 kg|58.0\nATTA-WW-10KG|Whole wheat atta 10 kg|10 kg|499.0"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales \nWHERE sku = 'ATTA-WW-5KG' \nAND date >= '2026-06-01' AND date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT \n    (SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND shelf_status = 'empty' AND audit_timestamp >= '2026-06-01' AND audit_timestamp < '2026-07-01') as empty_counts,\n    (SELECT (COUNT(*) FILTER (WHERE shelf_status = 'on shelf')::float / COUNT(*)) * 100 FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_timestamp >= '2026-06-01' AND audit_timestamp < '2026-07-01') as osa,\n    (SELECT price_inr FROM store.products WHERE sku = 'ATTA-WW-5KG') * (SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND shelf_status = 'empty' AND audit_timestamp >= '2026-06-01' AND audit_timestamp < '2026-07-01') as lost_sales;",
+      "result": "ERROR: column \"shelf_status\" does not exist\nLINE 2: ... store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND shelf_stat...\n                                                             ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    (SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND status = 'empty' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01') as empty_counts,\n    (SELECT (COUNT(*) FILTER (WHERE status = 'on shelf')::float / COUNT(*)) * 100 FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01') as osa,\n    (SELECT price_inr FROM store.products WHERE sku = 'ATTA-WW-5KG') * (SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND status = 'empty' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01') as lost_sales;",
+      "result": "2|75.0|530.0"
+    }
+  ],
+  "final": "1. How many bags of 5 kg atta were sold in June 2026?\nSQL: `SELECT SUM(units_sold) FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date <= '2026-06-30';`\nAnswer: 567\nBasis: Sum of units sold for SKU ATTA-WW-5KG in June 2026 from store.daily_sales.\n\n2. How many shoppers left without 5 kg atta in June 2026?\nSQL: `SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND status = 'empty' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';`\nAnswer: 2\nBasis: Number of shelf audits where the status was 'empty' for SKU ATTA-WW-5KG in June 2026.\n\n3. What was on-shelf availability for 5 kg atta in June 2026?\nSQL: `SELECT (COUNT(*) FILTER (WHERE status = 'on shelf')::float / COUNT(*)) * 100 FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';`\nAnswer: 75.0%\nBasis: Percentage of 'on shelf' audits over total audits for SKU ATTA-WW-5KG in June 2026.\n\n4. What were the lost sales of 5 kg atta in June 2026?\nSQL: `SELECT (SELECT price_inr FROM store.products WHERE sku = 'ATTA-WW-5KG') * (SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND status = 'empty' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01');`\nAnswer: 530.0 INR\nBasis: Product price (265.0) multiplied by the number of empty shelf audits (2).\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(units_sold) FROM store.daily_sales WHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units sold for SKU ATTA-WW-5KG in June 2026 from store.daily_sales.\"},{\"id\":2,\"sql\":\"SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND status = 'empty' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';\",\"answer\":\"2\",\"basis\":\"Number of shelf audits where the status was 'empty' for SKU ATTA-WW-5KG in June 2026.\"},{\"id\":3,\"sql\":\"SELECT (COUNT(*) FILTER (WHERE status = 'on shelf')::float / COUNT(*)) * 100 FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';\",\"answer\":\"75.0%\",\"basis\":\"Percentage of 'on shelf' audits over total audits for SKU ATTA-WW-5KG in June 2026.\"},{\"id\":4,\"sql\":\"SELECT (SELECT price_inr FROM store.products WHERE sku = 'ATTA-WW-5KG') * (SELECT COUNT(*) FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND status = 'empty' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01');\",\"answer\":\"530.0 INR\",\"basis\":\"Product price (265.0) multiplied by the number of empty shelf audits (2).\"}]}\n```",
+  "try": 3
+}

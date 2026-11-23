@@ -1,0 +1,47 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-opus",
+  "rule_line": true,
+  "prompt_chars": 90111,
+  "seconds": 1007,
+  "sql_calls": [
+    {
+      "sql": "SELECT p.sku, p.product_name \nFROM store.products p \nWHERE p.pack_size = '5 kg' AND p.product_name ILIKE '%atta%';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 1: SELECT p.sku, p.product_name \n                      ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(sl.quantity) \nFROM store.pos_lines sl \nJOIN store.products p ON sl.sku_scanned = p.sku \nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' \nAND sl.bill_ts >= '2026-06-01' AND sl.bill_ts < '2026-07-01';",
+      "result": "ERROR: column sl.quantity does not exist\nLINE 1: SELECT SUM(sl.quantity) \n                   ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'pos_lines';",
+      "result": "bill_id\nbill_ts\nline\ngtin_scanned\nsku_scanned\nqty\nunit_price\nline_amount"
+    },
+    {
+      "sql": "SELECT SUM(sl.qty) \nFROM store.pos_lines sl \nJOIN store.products p ON sl.sku_scanned = p.sku \nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' \nAND sl.bill_ts >= '2026-06-01' AND sl.bill_ts < '2026-07-01';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT COUNT(DISTINCT sa.audit_timestamp) \nFROM store.shelf_audits sa \nJOIN store.products p ON sa.sku = p.sku \nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' \nAND sa.audit_timestamp >= '2026-06-01' AND sa.audit_timestamp < '2026-07-01' \nAND sa.status = 'empty';",
+      "result": "ERROR: column sa.audit_timestamp does not exist\nLINE 1: SELECT COUNT(DISTINCT sa.audit_timestamp) \n                              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    (SELECT COUNT(DISTINCT audit_ts) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'on shelf')::float / \n    NULLIF((SELECT COUNT(DISTINCT audit_ts) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01'), 0) as osa;",
+      "result": "0.75"
+    },
+    {
+      "sql": "SELECT \n    (SELECT COUNT(DISTINCT audit_ts) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty') as empty_count,\n    (SELECT price_inr FROM store.products p WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' LIMIT 1) as price;",
+      "result": "2|265.0"
+    }
+  ],
+  "final": "To answer the questions, I first identified the product \"5 kg atta\" in the `store.products` table. I then queried the `store.pos_lines` table for total quantities sold in June 2026. For availability and lost sales, I analyzed the `store.shelf_audits` table.\n\n1. **Bags sold**: The sum of `qty` for the identified product in June 2026 is 567.\n2. **Shoppers who left without**: The records in `store.shelf_audits` show the shelf was \"empty\" on 2 distinct audit timestamps in June 2026. However, the database does not track individual shoppers who left the store; it only tracks shelf status. Therefore, the number of shoppers cannot be determined from the available records.\n3. **On-shelf availability (OSA)**: Based on the distinct audit timestamps in June 2026, the product was \"on shelf\" for 75% of the audits.\n4. **Lost sales**: Lost sales are typically estimated as (Price $\\times$ Demand during out-of-stock periods). While I have the price (265.0 INR) and the number of empty audits (2), the database does not provide the specific demand (lost units) for those specific time windows. Thus, a precise lost sales figure cannot be calculated.\n\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(sl.qty) FROM store.pos_lines sl JOIN store.products p ON sl.sku_scanned = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sl.bill_ts >= '2026-06-01' AND sl.bill_ts < '2026-07-01';\",\"answer\":\"567\",\"basis\":\"Sum of qty from pos_lines for the matching product in June 2026.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"no record\",\"basis\":\"The database tracks shelf status but not individual customer behavior or footfall.\"},{\"id\":3,\"sql\":\"SELECT (SELECT COUNT(DISTINCT audit_ts) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'on shelf')::float / NULLIF((SELECT COUNT(DISTINCT audit_ts) FROM store.shelf_audits sa JOIN store.products p ON sa.sku = p.sku WHERE p.pack = '5 kg' AND p.name ILIKE '%atta%' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01'), 0) as osa;\",\"answer\":\"0.75\",\"basis\":\"Ratio of 'on shelf' audits to total audits for the product in June 2026.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"no record\",\"basis\":\"While price and out-of-stock events are known, the volume of lost demand during those events is not recorded.\"}]}",
+  "try": 1
+}

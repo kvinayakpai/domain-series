@@ -1,0 +1,63 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-sonnet",
+  "rule_line": false,
+  "prompt_chars": 44130,
+  "seconds": 1633,
+  "sql_calls": [
+    {
+      "sql": "SELECT SUM(quantity) \nFROM store.bill_lines bl\nJOIN store.products p ON bl.sku_scanned = p.sku\nWHERE p.product_name = 'Atta' \n  AND p.pack_size = '5 kg' \n  AND bl.bill_timestamp >= '2026-06-01' \n  AND bl.bill_timestamp < '2026-07-01';",
+      "result": "ERROR: relation \"store.bill_lines\" does not exist\nLINE 2: FROM store.bill_lines bl\n             ^\n"
+    },
+    {
+      "sql": "SELECT table_name \nFROM information_schema.tables \nWHERE table_schema = 'store';",
+      "result": "products\npos_lines\ndaily_sales\ninventory_book\nforecasts\nstore_orders\ngoods_receipts\nfresh_deliveries\nstock_counts\nshelf_audits\nwrite_offs"
+    },
+    {
+      "sql": "SELECT SUM(units_sold) \nFROM store.daily_sales ds\nJOIN store.products p ON ds.sku = p.sku\nWHERE p.product_name = 'Atta' \n  AND p.pack_size = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 4: WHERE p.product_name = 'Atta' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds\nJOIN store.products p ON ds.sku = p.sku\nWHERE p.name = 'Atta' \n  AND p.pack = '5 kg' \n  AND ds.record_date >= '2026-06-01' \n  AND ds.record_date <= '2026-06-30';",
+      "result": "ERROR: column ds.record_date does not exist\nLINE 6:   AND ds.record_date >= '2026-06-01' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds\nJOIN store.products p ON ds.sku = p.sku\nWHERE p.name = 'Atta' \n  AND p.pack = '5 kg' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "(no rows)"
+    },
+    {
+      "sql": "SELECT p.name, p.pack, p.sku \nFROM store.products p \nWHERE p.name ILIKE '%Atta%' AND p.pack ILIKE '%5 kg%';",
+      "result": "Whole wheat atta 5 kg|5 kg|ATTA-WW-5KG"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds\nJOIN store.products p ON ds.sku = p.sku\nWHERE p.sku = 'ATTA-WW-5KG' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE shelf_status = 'empty') as empty_count,\n    COUNT(*) FILTER (WHERE shelf_status = 'on shelf') as on_shelf_count\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.sku = 'ATTA-WW-5KG' \n  AND sa.audit_timestamp >= '2026-06-01' \n  AND sa.audit_timestamp < '2026-07-01';",
+      "result": "ERROR: column \"shelf_status\" does not exist\nLINE 2:     COUNT(*) FILTER (WHERE shelf_status = 'empty') as empty_...\n                                   ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT \n    COUNT(*) FILTER (WHERE status = 'empty') as empty_count,\n    COUNT(*) FILTER (WHERE status = 'on shelf') as on_shelf_count\nFROM store.shelf_audits sa\nJOIN store.products p ON sa.sku = p.sku\nWHERE p.sku = 'ATTA-WW-5KG' \n  AND sa.audit_ts >= '2026-06-01' \n  AND sa.audit_ts < '2026-07-01';",
+      "result": "2|6"
+    },
+    {
+      "sql": "SELECT \n    SUM(f.forecast_units_per_day) - SUM(ds.units_sold) as lost_sales\nFROM store.forecasts f\nJOIN store.daily_sales ds ON f.sku = ds.sku AND f.date = ds.date\nWHERE f.sku = 'ATTA-WW-5KG' \n  AND f.date >= '2026-06-01' \n  AND f.date <= '2026-06-30'\n  AND EXISTS (\n      SELECT 1 FROM store.shelf_audits sa \n      WHERE sa.sku = f.sku \n      AND sa.status = 'empty' \n      AND sa.audit_ts::date = f.date\n  );",
+      "result": "42.60"
+    }
+  ],
+  "final": "To answer the questions for 5 kg atta (SKU: ATTA-WW-5KG) in June 2026:\n\n1. **Bags sold**: 567 bags were sold.\n2. **Shoppers who left without it**: The database does not record individual shopper behavior or \"lost customers,\" only shelf status and sales. Therefore, this cannot be answered.\n3. **On-shelf availability**: Based on the shelf audits, the product was \"on shelf\" 6 times and \"empty\" 2 times. Availability = $6 / (6+2) = 75\\%$.\n4. **Lost sales**: Lost sales are estimated at 42.60 units, calculated as the difference between forecast and actual sales on days when the shelf was audited as empty.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(ds.units_sold) FROM store.daily_sales ds JOIN store.products p ON ds.sku = p.sku WHERE p.sku = 'ATTA-WW-5KG' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units_sold from daily_sales for SKU ATTA-WW-5KG in June 2026.\"},{\"id\":2,\"sql\":\"none\",\"answer\":\"Cannot be determined\",\"basis\":\"The database contains sales and audit data but no records of customers who intended to buy but left without the product.\"},{\"id\":3,\"sql\":\"SELECT COUNT(*) FILTER (WHERE status = 'on shelf') * 100.0 / COUNT(*) FROM store.shelf_audits sa WHERE sa.sku = 'ATTA-WW-5KG' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01';\",\"answer\":\"75%\",\"basis\":\"Calculated from 6 'on shelf' and 2 'empty' audit records.\"},{\"id\":4,\"sql\":\"SELECT SUM(f.forecast_units_per_day) - SUM(ds.units_sold) as lost_sales FROM store.forecasts f JOIN store.daily_sales ds ON f.sku = ds.sku AND f.date = ds.date WHERE f.sku = 'ATTA-WW-5KG' AND f.date >= '2026-06-01' AND f.date <= '2026-06-30' AND EXISTS (SELECT 1 FROM store.shelf_audits sa WHERE sa.sku = f.sku AND sa.status = 'empty' AND sa.audit_ts::date = f.date);\",\"answer\":\"42.60\",\"basis\":\"Difference between forecast and actual sales on days where the shelf was audited as empty.\"}]}\n```",
+  "try": 1
+}

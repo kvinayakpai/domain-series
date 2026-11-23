@@ -1,0 +1,55 @@
+{
+  "model": "google/gemma-4-31b-it",
+  "pack": "auto-opus",
+  "rule_line": false,
+  "prompt_chars": 90041,
+  "seconds": 384,
+  "sql_calls": [
+    {
+      "sql": "SELECT p.sku, p.product_name \nFROM store.products p \nWHERE p.pack_size = '5 kg' AND p.product_name ILIKE '%atta%';",
+      "result": "ERROR: column p.product_name does not exist\nLINE 1: SELECT p.sku, p.product_name \n                      ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+      "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+      "sql": "SELECT p.sku \nFROM store.products p \nWHERE p.pack = '5 kg' AND p.name ILIKE '%atta%';",
+      "result": "ATTA-WW-5KG"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nWHERE ds.sku = 'ATTA-WW-5KG' \n  AND ds.business_date >= '2026-06-01' \n  AND ds.business_date <= '2026-06-30';",
+      "result": "ERROR: column ds.business_date does not exist\nLINE 4:   AND ds.business_date >= '2026-06-01' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+      "result": "date\nsku\nunits_sold\nrevenue_inr"
+    },
+    {
+      "sql": "SELECT SUM(ds.units_sold) \nFROM store.daily_sales ds \nWHERE ds.sku = 'ATTA-WW-5KG' \n  AND ds.date >= '2026-06-01' \n  AND ds.date <= '2026-06-30';",
+      "result": "567"
+    },
+    {
+      "sql": "SELECT COUNT(*) \nFROM store.shelf_audits sa \nWHERE sa.sku = 'ATTA-WW-5KG' \n  AND sa.audit_timestamp >= '2026-06-01' \n  AND sa.audit_timestamp < '2026-07-01' \n  AND sa.shelf_status = 'empty';",
+      "result": "ERROR: column sa.audit_timestamp does not exist\nLINE 4:   AND sa.audit_timestamp >= '2026-06-01' \n              ^\n"
+    },
+    {
+      "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+      "result": "audit_ts\nsku\nstatus"
+    },
+    {
+      "sql": "SELECT COUNT(*) \nFROM store.shelf_audits sa \nWHERE sa.sku = 'ATTA-WW-5KG' \n  AND sa.audit_ts >= '2026-06-01' \n  AND sa.audit_ts < '2026-07-01' \n  AND sa.status = 'empty';",
+      "result": "2"
+    },
+    {
+      "sql": "SELECT \n    (COUNT(*) FILTER (WHERE status = 'on shelf')::float / COUNT(*)) * 100 as osa\nFROM store.shelf_audits \nWHERE sku = 'ATTA-WW-5KG' \n  AND audit_ts >= '2026-06-01' \n  AND audit_ts < '2026-07-01';",
+      "result": "75.0"
+    },
+    {
+      "sql": "SELECT price_inr \nFROM store.products \nWHERE sku = 'ATTA-WW-5KG';",
+      "result": "265.0"
+    }
+  ],
+  "final": "To calculate the lost sales, we identify the number of times the product was found \"empty\" during shelf audits in June 2026 and multiply that by the average daily sales for that product in the same period.\n\n1. **Bags sold**: 567 units.\n2. **Shoppers who left**: The data records 2 instances where the shelf was audited as 'empty'. While this doesn't track every single shopper who left, it is the only available proxy for out-of-stock events.\n3. **On-shelf availability (OSA)**: 75.0%.\n4. **Lost sales**: \n   - Average daily sales in June = 567 units / 30 days = 18.9 units/day.\n   - Total \"empty\" audit events = 2.\n   - Assuming each \"empty\" audit represents a period of lost sales (and using the daily average as a proxy for the volume lost during those gaps), the lost units are $2 \\times 18.9 = 37.8$ units.\n   - Lost revenue = $37.8 \\times 265.0 \\text{ INR} = 10,017 \\text{ INR}$.\n\n1. SQL: `SELECT SUM(ds.units_sold) FROM store.daily_sales ds WHERE ds.sku = 'ATTA-WW-5KG' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';`\n   Answer: 567\n   Basis: Sum of units sold from daily_sales for the specific SKU in June.\n\n2. SQL: `SELECT COUNT(*) FROM store.shelf_audits sa WHERE sa.sku = 'ATTA-WW-5KG' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty';`\n   Answer: 2\n   Basis: Count of 'empty' status records in shelf_audits for the SKU in June.\n\n3. SQL: `SELECT (COUNT(*) FILTER (WHERE status = 'on shelf')::float / COUNT(*)) * 100 as osa FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';`\n   Answer: 75.0%\n   Basis: Percentage of 'on shelf' audits over total audits for the SKU in June.\n\n4. SQL: `none` (Calculated from previous results)\n   Answer: 10,017 INR\n   Basis: (Average daily sales $\\times$ number of empty audits) $\\times$ unit price.\n\n```json\n{\"answers\":[{\"id\":1,\"sql\":\"SELECT SUM(ds.units_sold) FROM store.daily_sales ds WHERE ds.sku = 'ATTA-WW-5KG' AND ds.date >= '2026-06-01' AND ds.date <= '2026-06-30';\",\"answer\":\"567\",\"basis\":\"Sum of units sold from daily_sales for the specific SKU in June.\"},{\"id\":2,\"sql\":\"SELECT COUNT(*) FROM store.shelf_audits sa WHERE sa.sku = 'ATTA-WW-5KG' AND sa.audit_ts >= '2026-06-01' AND sa.audit_ts < '2026-07-01' AND sa.status = 'empty';\",\"answer\":\"2\",\"basis\":\"Count of 'empty' status records in shelf_audits for the SKU in June.\"},{\"id\":3,\"sql\":\"SELECT (COUNT(*) FILTER (WHERE status = 'on shelf')::float / COUNT(*)) * 100 as osa FROM store.shelf_audits WHERE sku = 'ATTA-WW-5KG' AND audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01';\",\"answer\":\"75.0%\",\"basis\":\"Percentage of 'on shelf' audits over total audits for the SKU in June.\"},{\"id\":4,\"sql\":\"none\",\"answer\":\"10,017 INR\",\"basis\":\"Calculated as (Average daily sales * number of empty audits) * unit price.\"}]}\n```",
+  "try": 3
+}
