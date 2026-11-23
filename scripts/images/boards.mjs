@@ -333,11 +333,11 @@ function experiment() {
   const [best, bestRuns] = MODELS_RIGHT.slice().sort((p, q) => q[1].all_four_right - p[1].all_four_right)[0];
   const tests = [
     ['Auto-Ontology’s own agent', `Nemotron: 2 shoppers, 3 bags [o]✗[/o] → with the layer, “no record” [g]✓[/g]\nRerun with table descriptions: shoppers “no record” [g]✓[/g], lost sales “142” [o]✗[/o]\n7B: right tables, wrong logic [o]✗[/o]\nIts check: every question “covered”`],
-    [`${AGENTS.agents.length} fresh Claude agents`, `All: ${AGENTS.truth.sold} and ${AGENTS.truth.availability_pct}% [g]✓[/g]\nSonnet: “no record”, both times [g]✓[/g]\nOpus: lost sales as a labelled estimate\nHaiku: forecast → 43–84 shoppers [o]✗[/o]`],
+    [`${AGENTS.agents.length} fresh Claude agents`, `All: ${AGENTS.truth.sold} and ${AGENTS.truth.availability_pct}% [g]✓[/g]\nSonnet: “no record”, both times [g]✓[/g]\nOpus: lost sales as a labelled estimate\nHaiku: forecast → 43–84 shoppers [o]✗[/o]\nWith Sonnet and Opus’s notes: Haiku, shoppers “no record” 4 of 4 [g]✓[/g]`],
     [`${SWEEP.models_run} models, ${SWEEP.runs} tries`, `3 OWL + SHACL packs × with and without one line\nAll 4 right: [b]${REV.plain.all_four_right} → ${REV.rule.all_four_right}[/b] of ${REV.rule.runs}\n[gr]a script had said ${SWEEP.totals.plain.honest} → ${SWEEP.totals.rule.honest} “honest”[/gr]\nBest: ${best}, ${bestRuns.all_four_right} of ${bestRuns.runs} tries`],
   ];
   tests.forEach(([head, body], i) => {
-    const h = i === 0 ? 480 : 360;
+    const h = i === 0 ? 480 : i === 1 ? 480 : 360;
     b.rect(X, y, CW, h, { stroke: 'ink', fill: i === 2 ? 'noteY' : 'paper', sw: 5, rot: i === 1 ? 0.5 : -0.5 });
     b.num(X + 30, y + 12, i + 1, { d: 76, size: 48 });
     b.text(X + 80, y + 20, CW - 110, 66, `[b]${head}[/b]`, { size: 48 });
