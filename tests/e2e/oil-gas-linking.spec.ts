@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { articleText, dayOf, us } from './helpers';
 
 // The Oil & Gas season's four linking posts. Every number they quote must match the records and
 // the linking experiment (src/data/oil-gas/linking.json from scripts/oil-gas/linking.py), so a
@@ -13,15 +14,8 @@ const refinery = read('refinery-014.json');
 const rs = refinery.story;
 const link = read('linking.json');
 const s = field.story;
-const us = (v: number) => Math.round(v).toLocaleString('en-US');
-const dayOf = (iso: string) => Number(iso.slice(8, 10));
 const joinOf = (id: string) => link.joins.find((j: { id: string }) => j.id === id);
 const foundOf = (id: string) => link.found.find((f: { id: string }) => f.id === id);
-
-async function articleText(page: import('@playwright/test').Page, path: string) {
-  await page.goto(path);
-  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-}
 
 test('the well linking post quotes Field 014 and the forty Marches correctly', async ({ page }) => {
   const w = link.well;

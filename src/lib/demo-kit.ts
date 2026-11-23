@@ -8,6 +8,10 @@ export const when = (iso: string) => `${day(iso)}, ${time(iso)}`;
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
 export const num = (x: number) => Math.round(x).toLocaleString('en-IN');
 export const inr = (x: number) => `${x < 0 ? '−' : ''}₹${Math.abs(Math.round(x)).toLocaleString('en-IN')}`;
+/** Rupees to the paisa, for amounts that are matched to the paisa. */
+export const inr2 = (x: number) => `₹${x.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+/** Straight apostrophes to curly ones, for text typed in code. */
+export const curly = (s: string) => s.replace(/'/g, '’');
 export const signed = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(Math.round(x * 100))}%`;
 export const plus = (x: number) => `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(Math.round(x)).toLocaleString('en-IN')}`;
 
@@ -135,4 +139,11 @@ export function wireTabs(root: HTMLElement, onSelect: (key: string) => void) {
     });
   });
   return select;
+}
+
+/** `items.find(pred)` that fails the build with a message naming what was expected, instead of a `!` that hides a missing item. */
+export function mustFind<T>(items: readonly T[], pred: (x: T) => boolean, label: string): T {
+  const found = items.find(pred);
+  if (found === undefined) throw new Error(`Expected to find ${label} among ${items.length} items, and did not.`);
+  return found;
 }

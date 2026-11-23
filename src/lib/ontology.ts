@@ -14,7 +14,7 @@ export const ON_SEASON = { number: 2, name: 'Ontology is all about domain knowle
 export type OnPartId = 'on-start' | 'on-detour' | 'on-retail' | 'on-logistics' | 'on-payments' | 'on-together';
 
 export interface OnPost {
-  /** The post's number in the season, 1 to 15. */
+  /** The post's number in the season, 1 to 19. */
   n: number;
   slug: string;
   title: string;

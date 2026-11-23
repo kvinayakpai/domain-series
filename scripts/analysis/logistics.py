@@ -158,7 +158,7 @@ WHERE (a.building = b.building AND a.sku <> b.sku
 def mirror_pairs(con) -> list[dict]:
     con.execute(CORRECTIONS)
     con.execute(MIRRORS)
-    return rows(con, "SELECT * FROM v_mirror_pairs ORDER BY ts_b, ts_a")
+    return rows(con, "SELECT * FROM v_mirror_pairs ORDER BY ts_b, ts_a, sku_a, sku_b, building_a, building_b, slot_a")
 
 
 def trace(con, pair: dict) -> dict:
@@ -279,7 +279,7 @@ def assistant(con, pairs, wtrace, survival, ways, gap, key, rkey) -> dict:
              f"AS discrepancies FROM goods_receipts WHERE shipment_id = '{sid}'")
     rr = q(s_rcv)
     s_pairs = ("SELECT kind, building_a, ts_a, sku_a, slot_a, cases_a, building_b, ts_b, sku_b, slot_b, cases_b "
-               "FROM v_mirror_pairs WHERE sku_a LIKE 'ATTA%' ORDER BY ts_b")
+               "FROM v_mirror_pairs WHERE sku_a LIKE 'ATTA%' ORDER BY ts_b, ts_a, sku_a, sku_b")
     rp = q(s_pairs)
     cand = wtrace["candidates"]
     c0 = cand[0] if len(cand) == 1 else None

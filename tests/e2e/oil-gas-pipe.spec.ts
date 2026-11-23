@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { articleText, dayOf, us } from './helpers';
 
 // KPIs 7 to 11, the pipe and the ship. Every number the posts quote must match the records
 // (src/data/oil-gas/pipe-014.json from scripts/oil-gas/pipe.py), so changing the generator fails the
@@ -7,13 +8,6 @@ import { readFileSync } from 'node:fs';
 const field = JSON.parse(readFileSync(new URL('../../src/data/oil-gas/field-014.json', import.meta.url), 'utf8'));
 const pipe = JSON.parse(readFileSync(new URL('../../src/data/oil-gas/pipe-014.json', import.meta.url), 'utf8'));
 const ps = pipe.story;
-const us = (v: number) => Math.round(v).toLocaleString('en-US');
-const dayOf = (iso: string) => Number(iso.slice(8, 10));
-
-async function articleText(page: import('@playwright/test').Page, path: string) {
-  await page.goto(path);
-  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-}
 
 test('throughput quotes the water in the crude correctly', async ({ page }) => {
   const t = ps.throughput;

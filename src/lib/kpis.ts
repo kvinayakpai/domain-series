@@ -8,6 +8,7 @@ import logistics from '../data/logistics.json';
 import payments from '../data/payments.json';
 import lai from '../data/logistics-ai.json';
 import pai from '../data/payments-ai.json';
+import { mustFind } from './demo-kit';
 
 export interface Measured { value: string; how: string }
 export interface Kpi {
@@ -38,7 +39,7 @@ const inr = (v: number) => `₹${Math.round(v).toLocaleString('en-IN')}`;
 const num = (v: number) => Math.round(v).toLocaleString('en-IN');
 
 // ---------- retail ----------
-const asIs = retail.scenarios.find((s) => s.key === 'off|today')!;
+const asIs = mustFind(retail.scenarios, (s) => s.key === 'off|today', "retail scenario 'off|today'");
 const ep = retail.story.episode!;
 const hero5 = ai.forecast.by_sku['ATTA-WW-5KG'];
 const flag = ai.detector.hero_flags[0];
@@ -48,26 +49,26 @@ const week = (k: number) => base.slice(k * 7, k * 7 + 7).reduce((a, b) => a + b,
 const made = Object.fromEntries(ai.forecast.made_5kg.map((m) => [m.date, m.naive]));
 const daysOfSupply = ep.book_on_hand_max / made['2026-06-10'];
 const accuracy = retail.record_accuracy;
-const countDetail = retail.meta.realism.find((r) => r.check.startsWith('Most item records'))!.detail;
+const countDetail = mustFind(retail.meta.realism, (r) => r.check.startsWith('Most item records'), "the 'Most item records' realism check").detail;
 const adj = (sku: string) => Number((countDetail.match(new RegExp(`${sku} ([+-]\\d+)`)) ?? [])[1] ?? 0);
 const minus = (v: number) => `${v < 0 ? '−' : '+'}${Math.abs(v)}`;
 const milk = Object.fromEntries(retail.milk.map((m) => [m.factor, m]));
 const evenings = (f: number) => milk[f].daily_lost.filter((x: number) => x > 0).length;
 
 // ---------- logistics ----------
-const lk = logistics.scenarios.find((s) => s.key === 'none|label')!.kpis;
+const lk = mustFind(logistics.scenarios, (s) => s.key === 'none|label', "logistics scenario 'none|label'").kpis;
 const ls = logistics.story;
 const hm = (ts: string) => ts.slice(11, 16);
 const foundAfterDays = Math.floor((Date.parse(`${ls.corrections[0].count_ts}:00+05:30`) - Date.parse(`${ls.shipment.arrived_ts}:00+05:30`)) / 86_400_000);
 
 // ---------- payments ----------
-const pk = payments.scenarios.find((s) => s.key === 'retry|manual')!;
+const pk = mustFind(payments.scenarios, (s) => s.key === 'retry|manual', "payments scenario 'retry|manual'");
 const slow = payments.story.slowdown;
 const june = payments.story.june;
 const refunds = payments.story.refunds;
 const unmatched = pk.daily.filter((d) => d.date === '2026-06-20' || d.date === '2026-06-21').reduce((a, d) => a + d.unmatched, 0);
 // Refund wait as support measures it: from the complaint (the assistant's schema-only answer).
-const fromComplaint = Math.round((pai.assistant.questions.find((q) => q.id === 'wait')!.naive as unknown as { value: number }).value);
+const fromComplaint = Math.round(mustFind(pai.assistant.questions, (q) => q.id === 'wait', "assistant question 'wait'").naive.value as number);
 
 export const DOMAINS: Domain[] = [
   {

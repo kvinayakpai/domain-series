@@ -3,7 +3,7 @@
 Removes the run's throwaway passwords (SCRUB, separated by |), the NVIDIA key
 (NVIDIA_API_KEY), anything shaped like an NVIDIA key, Bearer tokens and
 key/token/password assignments from every text file
-under a folder, in place.
+under a folder (non-UTF-8 bytes are kept as they are), in place.
 
     python3 auto-ontology-demo/scrub.py <folder>
 
@@ -45,12 +45,17 @@ def clean_tree(root: str | Path) -> int:
         if not path.is_file():
             continue
         try:
-            text = path.read_text()
-        except (UnicodeDecodeError, OSError):  # binary files, such as the Ossie zip
+            raw = path.read_bytes()
+        except OSError:
             continue
+        if b"\0" in raw:  # binary files, such as the Ossie zip
+            continue
+        # surrogateescape keeps any non-UTF-8 byte as it was, so a log with a stray byte is still
+        # scrubbed (it used to be skipped on UnicodeDecodeError) and is written back unchanged elsewhere.
+        text = raw.decode("utf-8", errors="surrogateescape")
         cleaned = clean(text)
         if cleaned != text:
-            path.write_text(cleaned)
+            path.write_bytes(cleaned.encode("utf-8", errors="surrogateescape"))
             changed += 1
     return changed
 

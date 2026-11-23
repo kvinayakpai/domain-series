@@ -1,18 +1,13 @@
 import { test, expect } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import { articleText, us } from './helpers';
 
 // KPIs 12 to 18, Refinery 014. Every number the posts quote must match the refinery's records
 // (src/data/oil-gas/refinery-014.json from scripts/oil-gas/refinery.py).
 const ref = JSON.parse(readFileSync(new URL('../../src/data/oil-gas/refinery-014.json', import.meta.url), 'utf8'));
 const pipe = JSON.parse(readFileSync(new URL('../../src/data/oil-gas/pipe-014.json', import.meta.url), 'utf8'));
 const rs = ref.story;
-const us = (v: number) => Math.round(v).toLocaleString('en-US');
 const d2 = (v: number) => Math.abs(v).toFixed(2);
-
-async function articleText(page: import('@playwright/test').Page, path: string) {
-  await page.goto(path);
-  return (await page.locator('article').innerText()).replace(/\s+/g, ' ').replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
-}
 
 test('refinery utilization quotes the runs and the slate correctly', async ({ page }) => {
   const u = rs.utilization;

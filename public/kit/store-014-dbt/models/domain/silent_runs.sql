@@ -5,7 +5,7 @@
 -- 1,000. Closing time does not break a run, and once a run is flagged one lone unit does not end it:
 -- inside a long silence a single sale is as likely a scan error as a sale.
 with dc as (select sku from {{ ref('products') }} where flow = 'DC'),
-days as (select cast(d as date) as date from range(date '2026-05-04', date '2026-06-29', interval 1 day) t(d)),
+days as (select cast(d as date) as date from range(date '{{ var('history_start') }}', date '{{ var('window_end') }}', interval 1 day) t(d)),
 hours as (select h from range(7, 22) t(h)),
 sold as (
   select sku_scanned as sku, cast(bill_ts as date) as date, hour(bill_ts) as h, sum(qty) as units
@@ -17,12 +17,12 @@ grid as (
 daily as (select sku, date, sum(units) as units from grid group by all),
 shape as (
   select sku, h, (sum(units) + 0.5) / (sum(sum(units)) over (partition by sku) + 0.5 * 15) as share
-  from grid where date < date '2026-06-01' group by sku, h),
+  from grid where date < date '{{ var('window_start') }}' group by sku, h),
 level as (
   select sku,
          avg(case when dayofweek(date) not in (0, 6) then units end) / avg(units) as weekday,
          avg(case when dayofweek(date) in (0, 6) then units end) / avg(units) as weekend
-  from daily where date < date '2026-06-01' group by sku),
+  from daily where date < date '{{ var('window_start') }}' group by sku),
 forecast as (
   select sku, date + 1 as date,
          avg(units) over (partition by sku order by date rows between 27 preceding and current row) as per_day

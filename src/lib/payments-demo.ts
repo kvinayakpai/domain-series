@@ -14,7 +14,6 @@ const ST = data.story;
 const MDR = ST.mdr_on_june_bills;
 const pct1 = (x: number) => `${(Math.round(x * 1000) / 10).toFixed(1)}%`;
 const days1 = (x: number | null) => (x == null ? '–' : x.toFixed(1));
-const mins = (x: number) => `${Math.round(x)} min`;
 const tillName: Record<string, string> = { retry: 'take another payment at once', check: 'wait for the status check' };
 const KIND: Record<string, string> = { 'debited but the till said failed': 'debited, till failed' };
 const hms = (iso: string) => iso.slice(11, 19);
@@ -299,7 +298,8 @@ const recon: Panel = (host) => {
 };
 
 const assistant: Panel = (host) => {
-  assistantView(host, pai.assistant as unknown as Assistant, {
+  const data: Assistant = pai.assistant;
+  assistantView(host, data, {
     grounding: state.ground, q: state.q, onAsk: (id) => { state.q = id; },
     context: `Asked at the month-end review on Monday 29 June, of June’s records${rerun() ? ', as they happened' : ''}.`,
     schema: 'till’s payment', listLabel: 'Questions at the month-end review',

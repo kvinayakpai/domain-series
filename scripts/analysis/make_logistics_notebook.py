@@ -16,6 +16,9 @@ from pathlib import Path
 
 import nbformat as nbf
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import logistics as LG  # the analysis's SQL is the single source: the notebook cells below embed it
+
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / "public" / "notebooks" / "logistics.ipynb"
 SITE = "https://kvinayakpai.github.io/domain-series/"
@@ -133,20 +136,7 @@ The warehouse corrects its slots; the store corrects its books at counts. Put ev
 and in cases, because a mis-pick moves whole cases and the two sizes of atta have different case sizes.
 """)
 
-code('''
-con.execute("""
-CREATE OR REPLACE VIEW v_corrections AS
-SELECT 'warehouse' AS building, a.adjusted_ts AS ts, a.sku, split_part(a.sku, '-', 1) AS family, a.slot,
-       a.units, CAST(a.cases AS DOUBLE) AS cases, a.value_at_cost_inr AS value_inr, a.reason AS why
-FROM dc_adjustments a
-UNION ALL
-SELECT 'store', c.count_ts, c.sku, split_part(c.sku, '-', 1), NULL, c.adjustment,
-       c.adjustment / CAST(p.case_units AS DOUBLE), round(c.adjustment * p.cost_inr, 2), c.trigger
-FROM stock_counts c JOIN products p USING (sku)
-WHERE c.adjustment <> 0 AND c.count_ts > TIMESTAMP '2026-06-01 07:00'
-""")
-q("SELECT * FROM v_corrections ORDER BY ts")
-''')
+code('con.execute("""\n' + LG.CORRECTIONS.strip() + '\n""")\nq("SELECT * FROM v_corrections ORDER BY ts")')
 
 md("""
 Netted, the atta corrections come to almost nothing. That is why nobody chases them.
@@ -225,22 +215,7 @@ A receipt booked by a pallet-label scan copies the shipping notice. A later coun
 the latest receipt before a count when the count takes off half or more of what that receipt booked.
 """)
 
-code('''
-con.execute("""
-CREATE OR REPLACE VIEW v_receipt_survival AS
-WITH latest AS (
-  SELECT c.count_ts, c.sku, c.book_before, c.counted, c.adjustment, max(r.received_ts) AS received_ts
-  FROM stock_counts c JOIN goods_receipts r ON r.sku_booked = c.sku AND r.received_ts < c.count_ts
-   AND r.received_ts >= c.count_ts - INTERVAL 7 DAY
-  WHERE c.adjustment < 0 GROUP BY ALL)
-SELECT r.shipment_id, r.sscc, r.line, r.received_ts, r.sku_booked AS sku, r.units_booked,
-       l.count_ts, l.book_before, l.counted, l.adjustment
-FROM latest l JOIN goods_receipts r ON r.sku_booked = l.sku AND r.received_ts = l.received_ts
-WHERE -l.adjustment >= 0.5 * r.units_booked
-""")
-survival = q("SELECT * FROM v_receipt_survival")
-survival
-''')
+code('con.execute("""\n' + LG.SURVIVAL.strip() + '\n""")\nsurvival = q("SELECT * FROM v_receipt_survival")\nsurvival')
 
 md("""
 ## 6. OTIF, four ways

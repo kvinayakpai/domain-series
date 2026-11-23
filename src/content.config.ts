@@ -31,6 +31,8 @@ const posts = defineCollection({
     personas: z.array(z.object({ name: z.string(), role: z.string() })).optional(),
     kpis: z.array(z.string()).optional(),
     learningPath: z.array(z.string()).optional(),
+  }).refine((d) => Boolean(d.record) === Boolean(d.reality), {
+    message: 'Post must define both record and reality, or neither',
   }),
 });
 
