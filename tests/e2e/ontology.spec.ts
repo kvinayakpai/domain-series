@@ -17,6 +17,7 @@ const finale = json('finale.json');
 const machineRun = json('auto-ontology-run.json');
 // Six fresh Claude agents and NVIDIA's Nemotron on the same questions, scored against the records.
 const claudeAgents = json('auto-ontology-claude-agents.json');
+const repeat = json('auto-ontology-repeat-sweep.json');
 const owlShacl = json('auto-ontology-owl-shacl.json');
 const sweep = json('auto-ontology-model-sweep.json');
 const story = retail.story;
@@ -397,7 +398,7 @@ test('posts 6 to 19 quote their rules from the ontology and their numbers from S
       expect(text, `${p.slug} rule ${n}`).toContain(`Rule ${n} – ${rule.text.replace(/[“”]/g, '"')}`);
     }
     const runs = ['does-written-down-knowledge-help', 'the-auto-ontology-experiment-in-full', 'ontology-tools-in-the-market'];
-    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (runs.includes(p.slug) ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) + JSON.stringify(owlShacl) + JSON.stringify(sweep) : '');
+    let sources = known + (p.slug === 'what-would-a-machine-draft' ? JSON.stringify(machineRun) : '') + (runs.includes(p.slug) ? JSON.stringify(claudeAgents) + JSON.stringify(machineRun) + JSON.stringify(owlShacl) + JSON.stringify(sweep) + JSON.stringify(repeat) : '');
     for (const s of DRAWS_ON[p.slug]) sources += ` ${await articleText(page, `${s}/`)}`;
     const found = numbers(sources);
     for (const n of numbers(text)) {
@@ -787,4 +788,19 @@ test('posts 17 and 18 report the model sweep as recorded, and as read answer by 
   const gemma = runs.find((r) => r.model === 'Gemma 4 31B' && r.pack === 'auto-opus' && !r.rule_line)!;
   expect(gemma.answers['4']).toBe('37.8');
   expect(choose).toContain('such as 37.8');
+});
+
+// Post 17 and post 18: the repeat of the Opus and Sonnet packs, as recorded.
+test('posts 17 and 18 report the repeat of the packs as recorded', async ({ page }) => {
+  const t17 = await articleText(page, 'the-auto-ontology-experiment-in-full/');
+  const t18 = await articleText(page, 'ontology-tools-in-the-market/');
+  const a = repeat;
+  expect(t17).toContain('Did repeating the Opus and Sonnet packs change the story?');
+  expect(t17).toContain(`${a.tries_saved} of the ${a.tries_planned} tries were saved.`);
+  expect(t17).toContain(`${a.totals.opus.all_four_right} of ${a.totals.opus.tries} tries all four right with the Opus pack, ${a.totals.sonnet.all_four_right} of ${a.totals.sonnet.tries} with the Sonnet pack`);
+  expect(a.per_model['Nemotron 3 Ultra'].opus).toEqual([6, 5]);
+  expect(a.per_model['Nemotron 3 Ultra'].sonnet).toEqual([6, 0]);
+  expect(t17).toContain('five of six on the Opus pack and none of six on the Sonnet pack');
+  expect(t18).toContain('Nemotron 3 Ultra got all four right in 5 of 6 tries with the Opus pack and in none of 6 with the Sonnet pack');
+  expect(t18).toContain(`${a.totals.opus.all_four_right} of ${a.totals.opus.tries} tries right against ${a.totals.sonnet.all_four_right} of ${a.totals.sonnet.tries}`);
 });

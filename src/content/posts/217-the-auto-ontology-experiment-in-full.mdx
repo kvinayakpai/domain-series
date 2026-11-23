@@ -14,6 +14,7 @@ import Picture from '../../components/figures/Picture.astro';
 import MachineRunFiles from '../../components/figures/MachineRunFiles.astro';
 import owl from '../../data/auto-ontology-owl-shacl.json';
 import sweep from '../../data/auto-ontology-model-sweep.json';
+import repeat from '../../data/auto-ontology-repeat-sweep.json';
 
 export const [opus, sonnet] = owl.agents;
 export const rev = sweep.reviewed;
@@ -217,6 +218,30 @@ The runs with no final answer – {rev.plain.no_final_answer} as it was, {rev.ru
 
 Three failures are worth naming. Nemotron 3.5 Super, with the Sonnet pack, ran no query at all and still answered – 1,840 bags sold, 2,360 shoppers, and a brand name and product code it made up. Qwen2.5 7B and Nemotron 3.5 Bolt queried tables named after the ontology's classes – store.sale, store.demand, store.bill_lines – that do not exist. And GLM 5.3 Flash, like Haiku, turned the forecast into shoppers. One run of each setting, read by hand, so read it as a sign, not proof.
 
+## Did repeating the Opus and Sonnet packs change the story?
+
+The sweep ran each setting once, so I ran it again, six tries for each model and pack: the Opus pack and the Sonnet pack, each with and without the plain line, three times over. It ran on GitHub on 23 November, one job per model. {repeat.tries_saved} of the {repeat.tries_planned} tries were saved. GLM 5.3 Flash and Kimi K3.1 Pro hit the job's time limit: GLM saved nothing, and Kimi saved six tries, none with a final answer. I scored every try the same way as before, with a script first and then by reading each near miss.
+
+The two packs came out about the same: {repeat.totals.opus.all_four_right} of {repeat.totals.opus.tries} tries all four right with the Opus pack, {repeat.totals.sonnet.all_four_right} of {repeat.totals.sonnet.tries} with the Sonnet pack. The line did more than the pack. Without it, the Opus pack got {repeat.by_setting.opus_plain.all_four_right} of {repeat.by_setting.opus_plain.tries} and the Sonnet pack {repeat.by_setting.sonnet_plain.all_four_right} of {repeat.by_setting.sonnet_plain.tries}. With it, both got {repeat.by_setting.opus_line.all_four_right} of about 35.
+
+<div class="table-wrap">
+<table class="ledger">
+<thead><tr><th>Model</th><th class="n">Opus pack</th><th class="n">Sonnet pack</th><th>What stood out</th></tr></thead>
+<tbody>
+<tr><td>Nemotron 3 Ultra</td><td class="n">5 of 6</td><td class="n">0 of 6</td><td>With the Sonnet pack it estimated the lost sales in all six tries, from about 43 to about 94 units</td></tr>
+<tr><td>Nemotron 3.5 Lightning</td><td class="n">3 of 6</td><td class="n">5 of 6</td><td>The reverse: better with the Sonnet pack</td></tr>
+<tr><td>Gemma 4 31B</td><td class="n">2 of 6</td><td class="n">1 of 6</td><td>Right when it said no record; otherwise estimated the lost sales</td></tr>
+<tr><td>Nemotron 3.5 Super</td><td class="n">0 of 6</td><td class="n">1 of 6</td><td>Estimated the lost sales at about 43 to 95 units, or never finished</td></tr>
+<tr><td>Step 5 Preview</td><td class="n">0 of 6</td><td class="n">1 of 6</td><td>Finished one of its twelve tries</td></tr>
+<tr><td>Seven other models</td><td class="n">0</td><td class="n">0</td><td>Mostly no final answer; Kimi and GLM did not finish their jobs</td></tr>
+</tbody>
+</table>
+</div>
+
+<Picture src="images/the-auto-ontology-experiment-in-full/repeat.png" width={1200} height={2782} narrow alt="Whiteboard: the repeat of the packs, six tries each. Tries with all four right: Nemotron 3 Ultra 5 with the Opus pack and 0 with the Sonnet pack, Nemotron 3.5 Lightning 3 and 5, Gemma 4 31B 2 and 1, Nemotron 3.5 Super 0 and 1, Step 5 Preview 0 and 1. Across every model the Opus pack got 10 of 70 tries and the Sonnet pack 8 of 68. GLM 5.3 Flash saved nothing and Kimi K3.1 Pro saved 6 tries, none finished." />
+
+What this changes: nothing about the packs, and one thing about my earlier numbers. The Opus pack and the Sonnet pack do not differ in any way I can show. The single runs before hid how much one model moves – Nemotron 3 Ultra had been right on both earlier runs with the Opus pack and on one of two with the Sonnet pack. Repeated, it got five of six on the Opus pack and none of six on the Sonnet pack, where it kept estimating the lost sales. A difference of one try on a single run is noise.
+
 ## Who offers the tools, and what do they write?
 
 <Picture src="images/the-auto-ontology-experiment-in-full/market.png" width={1200} height={2322} narrow alt="Whiteboard: who offers the tools and what they write. A machine drafts: Ontop and Fabric IQ in OWL; NVIDIA Auto-Ontology, Snowflake and Databricks Genie in their own format. People model it: Protégé, Stardog and Timbr with OWL; Palantir Foundry and Apache Ossie in their own format. None can draft what no table holds, so people still write it." />
@@ -256,6 +281,7 @@ You need a GitHub account and a free key from build.nvidia.com. The steps are on
 - The coverage check said every question was covered, every time, including the two no table can answer.
 - My local copy of the database stopped twice, and once more during the second Claude test, when a rerun could not connect. The first Sonnet agent found nothing to connect to and built nothing, so I started the database and ran it again.
 - The sweep's first score came from a script. Reading the answers changed the per-model story, as above.
+- The repeat of the packs: two of the thirteen jobs hit the time limit, so {repeat.tries_saved} of {repeat.tries_planned} tries were saved, and GLM 5.3 Flash saved none.
 
 <MachineRunFiles />
 
@@ -264,7 +290,7 @@ You need a GitHub account and a free key from build.nvidia.com. The steps are on
 1. Every automatic route – Auto-Ontology on two models, Ontop, and Claude writing OWL and SHACL – named the tables and never named demand or a lost sale.
 2. Plain-language knowledge tied to the records moved where models looked. It turned NVIDIA's model from confident guesses into honest answers.
 3. The season's knowledge as formal OWL and SHACL files – with no line tying a rule to a table – did no better than packs a machine wrote from the tables, and misled some small models into querying tables that do not exist.
-4. One plain behavioral line did more than any pack: {rev.plain.all_four_right} runs all four right without it, {rev.rule.all_four_right} with it.
+4. One plain behavioral line did more than any pack: {rev.plain.all_four_right} runs all four right without it, {rev.rule.all_four_right} with it. Repeating the Opus and Sonnet packs six times each gave the same answer: the line mattered, the pack did not.
 5. The model matters: some answered without a query, some refused everything, some never finished. Score all four answers, not just the hard ones.
 
 **A machine can draft what the tables hold, even as standard OWL and SHACL. The meaning has to come from people, in words the model can use, and the model has to be strong enough to use them.**
