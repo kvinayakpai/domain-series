@@ -14,7 +14,6 @@ const ST = data.story;
 const MDR = ST.mdr_on_june_bills;
 const pct1 = (x: number) => `${(Math.round(x * 1000) / 10).toFixed(1)}%`;
 const days1 = (x: number | null) => (x == null ? '–' : x.toFixed(1));
-const mins = (x: number) => `${Math.round(x)} min`;
 const tillName: Record<string, string> = { retry: 'take another payment at once', check: 'wait for the status check' };
 const KIND: Record<string, string> = { 'debited but the till said failed': 'debited, till failed' };
 const hms = (iso: string) => iso.slice(11, 19);
