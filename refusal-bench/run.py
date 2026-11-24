@@ -37,7 +37,7 @@ CONDITION = os.environ["CONDITION"]
 assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule"}, CONDITION
 KEY = os.environ.get("NVIDIA_API_KEY", "")
 N_BATCHES = int(os.environ.get("N_BATCHES", "10"))
-MAX_TURNS = int(os.environ.get("MAX_TURNS", "25"))
+MAX_TURNS = int(os.environ.get("MAX_TURNS", "40"))
 DEADLINE_MIN = float(os.environ.get("DEADLINE_MIN", "300"))
 SEED = int(os.environ.get("SEED", "42"))
 STARTED = time.time()
@@ -109,7 +109,7 @@ def run_batch(items: list[dict]) -> dict:
         + (RULE if CONDITION.endswith("-rule") else "") + FORMAT
     messages = [{"role": "user", "content": prompt}]
     calls, final, started = [], "", time.time()
-    for _ in range(MAX_TURNS):
+    for turn in range(MAX_TURNS):
         content = chat(messages)
         messages.append({"role": "assistant", "content": content})
         block = re.search(r"```sql\s*(.*?)```", content, re.S)
@@ -117,7 +117,13 @@ def run_batch(items: list[dict]) -> dict:
             q = block.group(1).strip()
             res = sql(q)
             calls.append({"sql": q, "result": res[:600]})
-            messages.append({"role": "user", "content": "Rows:\n" + res})
+            left = MAX_TURNS - 1 - turn
+            note = ""
+            if left <= 1:
+                note = "\n\nDo not run any more SQL. Give your final answers now, with the JSON block."
+            elif left <= 4:
+                note = f"\n\nYou have {left} queries left. Then give your final answers with the JSON block."
+            messages.append({"role": "user", "content": "Rows:\n" + res + note})
             continue
         final = content
         break

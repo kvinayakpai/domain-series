@@ -51,8 +51,31 @@ def parse_answers(final: str) -> dict:
                         pass
                     break
     if not best:
-        return {}
+        return salvage(final)
     return {a.get("id"): a for a in best.get("answers", []) if isinstance(a, dict)}
+
+
+def salvage(final: str) -> dict:
+    """The JSON block is malformed (a missing bracket, a stray quote): read each item's verdict and value on its own.
+
+    Only the model's own verdict and value are taken, so nothing is guessed from the prose. Items are marked salvaged."""
+    start = final.rfind('"answers"')
+    if start < 0:
+        return {}
+    text = final[start:]
+    parts = re.split(r'(?="id"\s*:\s*"?q\d+"?)', text)
+    out = {}
+    for part in parts[1:]:
+        m = re.match(r'"id"\s*:\s*"?(q\d+)"?', part)
+        v = re.search(r'"verdict"\s*:\s*"(answer|proxy|no_record)"', part) or re.search(r'"(answer|proxy|no_record)"', part)
+        if not m or not v:
+            continue
+        val = re.search(r'"value"\s*:\s*(null|"[^"]*"|-?[\d,]*\.?\d+)', part)
+        sq = re.search(r'"sql"\s*:\s*"((?:[^"\\]|\\.)*)"', part)
+        raw = val.group(1) if val else None
+        value = None if raw in (None, "null") else raw.strip('"')
+        out[m.group(1)] = {"id": m.group(1), "verdict": v.group(1), "value": value, "sql": sq.group(1) if sq else "", "salvaged": True}
+    return out
 
 
 def num(v):
@@ -111,6 +134,8 @@ def main() -> None:
                 q = Q[qid]
                 a = ans.get(f"q{i}")
                 outcome, flag = grade(q, a, sql_ran)
+                if a and a.get("salvaged"):
+                    flag = (flag + "; " if flag else "") + "salvaged from malformed JSON"
                 if a and str(a.get("verdict")).lower() == "answer" and str(a.get("sql", "none")).strip().lower() in {"", "none", "n/a"}:
                     flag = (flag + "; " if flag else "") + "answer with no SQL"
                 seen.add(qid)
