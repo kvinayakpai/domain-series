@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 340
     strategy:
       fail-fast: false
-      max-parallel: 6
+      max-parallel: 3
       matrix:
         tier: [flash-lite, flash, pro]
         condition: [schema, schema-rule, pack, pack-rule]
@@ -89,8 +89,19 @@ jobs:
               return (0 if "preview" in i else 1, v)  # stable first, then the highest version
           cands = sorted((i for i in ids if ok(i)), key=key, reverse=True)
           print("candidates", cands)
-          if not cands:
-              raise SystemExit("no model for tier " + tier)
+          chosen, probes = None, {}
+          for c in cands:  # the newest candidate this key can actually call
+              p = requests.post("https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                                headers={"Authorization": "Bearer " + os.environ["GEMINI_API_KEY"]},
+                                json={"model": c, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 50}, timeout=120)
+              probes[c] = [p.status_code, p.text[:1200]]
+              if p.status_code == 200:
+                  chosen = c
+                  break
+          json.dump(probes, open(os.environ["RESULTS"] + "/probes-" + tier + ".json", "w"), indent=1)
+          if not chosen:
+              raise SystemExit("no callable model for tier " + tier + ": " + str({k: v[0] for k, v in probes.items()}))
+          cands = [chosen]
           with open(os.environ["GITHUB_ENV"], "a") as f:
               f.write("MODEL=" + cands[0] + "\n")
           PY

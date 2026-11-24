@@ -31,7 +31,6 @@ import psycopg2
 import requests
 
 HERE = Path(__file__).parent
-<<<<<<< HEAD
 PROVIDER = os.environ.get("PROVIDER", "nvidia")  # nvidia or gemini (Gemini's OpenAI-compatible endpoint)
 BASE = {"nvidia": "https://integrate.api.nvidia.com/v1",
         "gemini": "https://generativelanguage.googleapis.com/v1beta/openai"}[PROVIDER]
@@ -39,13 +38,6 @@ MODEL = os.environ["MODEL"]
 CONDITION = os.environ["CONDITION"]
 assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule"}, CONDITION
 KEY = os.environ.get("GEMINI_API_KEY" if PROVIDER == "gemini" else "NVIDIA_API_KEY", "")
-=======
-BASE = "https://integrate.api.nvidia.com/v1"
-MODEL = os.environ["MODEL"]
-CONDITION = os.environ["CONDITION"]
-assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule"}, CONDITION
-KEY = os.environ.get("NVIDIA_API_KEY", "")
->>>>>>> b777c08 (Refusal benchmark: google/gemma-4-31b-it, schema (run 2))
 N_BATCHES = int(os.environ.get("N_BATCHES", "10"))
 MAX_TURNS = int(os.environ.get("MAX_TURNS", "40"))
 DEADLINE_MIN = float(os.environ.get("DEADLINE_MIN", "300"))
@@ -93,28 +85,32 @@ def sql(query: str) -> str:
 
 
 def chat(messages: list) -> str:
-    last = ""
-    for _ in range(6):
+    last, tries, rate_limited = "", 0, 0
+    while tries < 6 and rate_limited < 30:
         if (time.time() - STARTED) / 60 > DEADLINE_MIN:
             raise TimeoutError("run deadline reached")
+        wait = 30
         try:
             r = requests.post(f"{BASE}/chat/completions", timeout=900,
                               headers={"Authorization": f"Bearer {KEY}"},
-<<<<<<< HEAD
                               json={"model": MODEL, "messages": messages, "max_tokens": 16000,
                                     # Gemini 3 models are meant to run at their default temperature
                                     **({} if PROVIDER == "gemini" else {"temperature": 0.2})})
-=======
-                              json={"model": MODEL, "messages": messages, "temperature": 0.2, "max_tokens": 16000})
->>>>>>> b777c08 (Refusal benchmark: google/gemma-4-31b-it, schema (run 2))
             if r.status_code < 300:
                 return r.json()["choices"][0]["message"].get("content") or ""
-            last = f"{r.status_code} {r.text[:200]}"
-            if r.status_code in (400, 404):  # not a transient failure: the model is not served or rejects the request
+            last = f"{r.status_code} {r.text[:1500]}"
+            if r.status_code in (400, 404, 410):  # not a transient failure: the model is not served or rejects the request
                 break
+            if r.status_code == 429:  # a quota or rate limit: wait as long as the API asks, and do not count it as a failed try
+                m = re.search(r"retry in ([\d.]+)s|\"retryDelay\":\s*\"([\d.]+)s\"", r.text)
+                wait = min(120, float(m.group(1) or m.group(2)) + 2) if m else 60
+                rate_limited += 1
+                time.sleep(wait)
+                continue
         except requests.RequestException as e:
-            last = str(e)[:200]
-        time.sleep(30)
+            last = str(e)[:300]
+        tries += 1
+        time.sleep(wait)
     raise RuntimeError(f"model call failed: {last}")
 
 
