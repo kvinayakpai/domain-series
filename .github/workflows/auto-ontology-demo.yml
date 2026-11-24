@@ -217,10 +217,13 @@ jobs:
         if: env.MODELS != 'ollama'
         run: |
           if [ "$MODELS" = gemini ]; then HOSTED_KEY="$GEMINI_API_KEY"; else HOSTED_KEY="$NVIDIA_API_KEY"; fi
-          ask() {  # ask <name> <url> <json>: prints the HTTP status, and the body when it fails
-            code=$(curl -sS -o "/tmp/$1.json" -w '%{http_code}' --max-time 300 "$2" \
-              -H "Authorization: Bearer $HOSTED_KEY" -H 'Content-Type: application/json' -H 'Accept: application/json' -d "$3")
-            echo "$1: HTTP $code"
+          ask() {  # ask <name> <url> <json>: prints the HTTP status, and the body when it fails; retries busy answers (429, 5xx)
+            for try in 1 2 3 4 5; do
+              code=$(curl -sS -o "/tmp/$1.json" -w '%{http_code}' --max-time 300 "$2" \
+                -H "Authorization: Bearer $HOSTED_KEY" -H 'Content-Type: application/json' -H 'Accept: application/json' -d "$3")
+              echo "$1: HTTP $code (try $try)"
+              case "$code" in 429|5??) sleep $((try * 20)) ;; *) break ;; esac
+            done
             [ "$code" = 200 ] || { head -c 800 "/tmp/$1.json"; echo; return 1; }
           }
           ask chat "$NV_CHAT_ENDPOINT/chat/completions" \
