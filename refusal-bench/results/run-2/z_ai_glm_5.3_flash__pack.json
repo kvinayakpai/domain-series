@@ -1,0 +1,144 @@
+{
+ "model": "z-ai/glm-5.3-flash",
+ "condition": "pack",
+ "seed": 42,
+ "batches": [
+  {
+   "ids": [
+    "N34",
+    "N30",
+    "A02",
+    "N24",
+    "A07",
+    "A09",
+    "N39",
+    "N18"
+   ],
+   "seconds": 10007,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse','payments')\nORDER BY table_schema, table_name, ordinal_position;",
+     "result": "payments|customer_complaints|complaint_ts|timestamp without time zone\npayments|customer_complaints|kind|text\npayments|customer_complaints|amount_inr|numeric\npayments|customer_complaints|bill_id|text\npayments|customer_complaints|rrn|text\npayments|customer_complaints|resolved_ts|timestamp without time zone\npayments|customer_complaints|resolution|text\npayments|pos_payments|bill_id|text\npayments|pos_payments|attempt|integer\npayments|pos_payments|ts|timestamp without time zone\npayments|pos_payments|tender|text\npayments|pos_payments|amount_inr|numeric\npayments|pos_payments|till_status|text\npayments|"
+    },
+    {
+     "sql": "SELECT table_schema, table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse')\n  AND (table_name LIKE 'store|%' OR table_schema='warehouse')\nORDER BY table_schema, table_name, ordinal_position;",
+     "result": "warehouse|pallets|sscc|text\nwarehouse|pallets|shipment_id|text\nwarehouse|pallets|cases|integer\nwarehouse|pallets|notice_kg|numeric\nwarehouse|pallets|weight_check|text\nwarehouse|pick_confirmations|pick_ts|timestamp without time zone\nwarehouse|pick_confirmations|order_id|text\nwarehouse|pick_confirmations|shipment_id|text\nwarehouse|pick_confirmations|line|integer\nwarehouse|pick_confirmations|sku|text\nwarehouse|pick_confirmations|slot|text\nwarehouse|pick_confirmations|cases_ordered|integer\nwarehouse|pick_confirmations|cases_confirmed|integer\nwarehouse|pick_confirmations|confirmed_by|text\nwarehouse"
+    },
+    {
+     "sql": "SELECT table_name, column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store'\nORDER BY table_name, ordinal_position;",
+     "result": "daily_sales|date|date\ndaily_sales|sku|text\ndaily_sales|units_sold|integer\ndaily_sales|revenue_inr|numeric\nforecasts|date|date\nforecasts|sku|text\nforecasts|forecast_units_per_day|numeric\nforecasts|sigma|numeric\nforecasts|reorder_point|integer\nforecasts|order_up_to|integer\nforecasts|book_on_hand|integer\nforecasts|on_order|integer\nforecasts|ordered_units|integer\nforecasts|method|text\nfresh_deliveries|delivery_ts|timestamp without time zone\nfresh_deliveries|route|text\nfresh_deliveries|sku|text\nfresh_deliveries|units|integer\nfresh_deliveries|crates|integer\nfresh_deliveries|use_by|date\ngoods_receipt"
+    },
+    {
+     "sql": "SELECT * FROM store.products ORDER BY sku;",
+     "result": "ATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nBREAD-WHITE-400G|2900001003018|White bread 400 g|400 g|12||DSD||45.0|39.0\nCURD-500G|2900001002110|Curd 500 g pouch|500 g|24||DSD||32.0|29.5\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0\nMILK-FC-500ML|2900001002028|Full cream milk 500 ml pouch|500 ml|24||DSD||34.0|32.3\nMILK-TONED-500ML|2900001002011|Toned milk 500 ml "
+    },
+    {
+     "sql": "SELECT 'daily_sales' t, min(date)::text lo, max(date)::text hi, count(*) n FROM store.daily_sales\nUNION ALL SELECT 'pos_lines', min(bill_ts)::text, max(bill_ts)::text, count(*) FROM store.pos_lines\nUNION ALL SELECT 'shelf_audits', min(audit_ts)::text, max(audit_ts)::text, count(*) FROM store.shelf_audits\nUNION ALL SELECT 'complaints', min(complaint_ts)::text, max(complaint_ts)::text, count(*) FROM payments.customer_complaints\nUNION ALL SELECT 'pos_payments', min(ts)::text, max(ts)::text, count(*) FROM payments.pos_payments\nUNION ALL SELECT 'settlements', min(settlement_date)::text, max(settlement_date)::text, count(*) FROM payments.upi_settlements;",
+     "result": "daily_sales|2026-06-01|2026-06-28|308\npos_lines|2026-05-04 07:00:00|2026-06-28 21:55:00|35485\nshelf_audits|2026-06-02 11:00:00|2026-06-26 11:00:00|88\ncomplaints|2026-06-04 10:00:00|2026-06-26 17:00:00|26\npos_payments|2026-06-01 07:00:07|2026-06-28 21:56:21|30949\nsettlements|2026-06-02|2026-06-30|29"
+    },
+    {
+     "sql": "SELECT count(*) AS june_complaints FROM payments.customer_complaints\nWHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01';",
+     "result": "26"
+    },
+    {
+     "sql": "SELECT 'daily_sales' src, count(DISTINCT sku) skus FROM store.daily_sales\nUNION ALL SELECT 'pos_lines', count(DISTINCT sku_scanned) FROM store.pos_lines\nUNION ALL SELECT 'pos_lines_gtin', count(DISTINCT gtin_scanned) FROM store.pos_lines\nUNION ALL SELECT 'products', count(*) FROM store.products;",
+     "result": "products|11\ndaily_sales|11\npos_lines_gtin|11\npos_lines|11"
+    },
+    {
+     "sql": "SELECT sum(ds.revenue_inr) AS revenue,\n       sum(ds.units_sold * p.cost_inr) AS cogs,\n       sum(ds.revenue_inr) - sum(ds.units_sold * p.cost_inr) AS gross_margin\nFROM store.daily_sales ds\nJOIN store.products p ON p.sku = ds.sku\nWHERE ds.date >= '2026-06-01' AND ds.date < '2026-07-01';",
+     "result": "1243937.0|1107731.1|136205.9"
+    },
+    {
+     "sql": "SELECT sum(mdr_inr) mdr, sum(net_inr) net, sum(gross_inr) gross, sum(refunds_inr) refunds\nFROM payments.upi_settlements\nWHERE settlement_date >= '2026-06-01' AND settlement_date < '2026-07-01';",
+     "result": "0.0|10787291.92|10798593.78|11301.86"
+    },
+    {
+     "sql": "SELECT (SELECT sum(amount_inr) FROM payments.pos_payments WHERE ts >= '2026-06-01' AND ts < '2026-07-01') pos_pay_jun,\n       (SELECT sum(line_amount) FROM store.pos_lines WHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01') pos_lines_jun,\n       (SELECT sum(revenue_inr) FROM store.daily_sales WHERE date >= '2026-06-01' AND date < '2026-07-01') daily_jun,\n       (SELECT count(*) FROM payments.pos_payments WHERE ts >= '2026-06-01' AND ts < '2026-07-01') n_pay,\n       (SELECT count(DISTINCT bill_id) FROM store.pos_lines WHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01') n_bills;",
+     "result": "18045357.24|1243937.0|1243937.0|30949|13851"
+    },
+    {
+     "sql": "SELECT sku, status, count(*) FROM store.shelf_audits\nWHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01'\nGROUP BY sku, status ORDER BY sku, status;",
+     "result": "ATTA-WW-10KG|on shelf|8\nATTA-WW-1KG|on shelf|8\nATTA-WW-5KG|empty|2\nATTA-WW-5KG|on shelf|6\nBREAD-WHITE-400G|on shelf|8\nCURD-500G|on shelf|8\nDAL-TOOR-1KG|on shelf|8\nMILK-FC-500ML|on shelf|8\nMILK-TONED-500ML|on shelf|8\nOIL-SUN-1L|on shelf|8\nRICE-SM-5KG|on shelf|8\nSUGAR-1KG|empty|1\nSUGAR-1KG|on shelf|7"
+    },
+    {
+     "sql": "SELECT ds.sku,\n       sum(ds.units_sold) units,\n       round(sum(ds.revenue_inr),0) revenue,\n       round(sum(ds.units_sold*(p.price_inr-p.cost_inr)),0) margin,\n       count(*) days_sold,\n       round(avg(ds.units_sold),1) avg_units_day\nFROM store.daily_sales ds JOIN store.products p ON p.sku=ds.sku\nWHERE ds.date >= '2026-06-01' AND ds.date < '2026-07-01'\nGROUP BY ds.sku, p.price_inr, p.cost_inr\nORDER BY margin DESC;",
+     "result": "RICE-SM-5KG|609|212541|29232|28|21.8\nATTA-WW-5KG|567|150255|20979|28|20.3\nATTA-WW-10KG|287|143213|19516|28|10.3\nOIL-SUN-1L|747|113544|13446|28|26.7\nDAL-TOOR-1KG|539|90552|11858|28|19.3\nMILK-TONED-500ML|8649|224874|11244|28|308.9\nBREAD-WHITE-400G|1674|75330|10044|28|59.8\nATTA-WW-1KG|826|47908|7021|28|29.5\nMILK-FC-500ML|2916|99144|4957|28|104.1\nCURD-500G|1942|62144|4855|28|69.4\nSUGAR-1KG|509|24432|3054|28|18.2"
+    },
+    {
+     "sql": "SELECT unit_price, min(bill_ts)::text first_seen, max(bill_ts)::text last_seen, count(*) lines, sum(qty) units\nFROM store.pos_lines\nWHERE sku_scanned='ATTA-WW-5KG'\nGROUP BY unit_price ORDER BY first_seen;",
+     "result": "265.0|2026-05-04 09:08:00|2026-06-28 21:42:00|1177|1198"
+    },
+    {
+     "sql": "SELECT sku_scanned, count(DISTINCT unit_price) prices, min(unit_price), max(unit_price)\nFROM store.pos_lines\nWHERE sku_scanned LIKE 'ATTA%'\nGROUP BY sku_scanned;",
+     "result": "ATTA-WW-10KG|1|499.0|499.0\nATTA-WW-1KG|1|58.0|58.0\nATTA-WW-5KG|1|265.0|265.0"
+    },
+    {
+     "sql": "SELECT column_name, table_schema, table_name\nFROM information_schema.columns\nWHERE column_name ~* 'cashier|staff|employee|operator|till_id|register'\n  AND table_schema IN ('store','warehouse','payments');",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT table_schema, table_name, string_agg(column_name, ', ') cols\nFROM information_schema.columns\nWHERE table_schema IN ('store','warehouse','payments')\nGROUP BY table_schema, table_name\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints|amount_inr, resolved_ts, resolution, kind, complaint_ts, rrn, bill_id\npayments|pos_payments|attempt, rrn, till_status, tender, bill_id, ts, amount_inr, note\npayments|psp_upi_report|initiated_ts, bill_ref, status, rrn, amount_inr, status_ts\npayments|upi_refunds|bill_id, amount_inr, rrn, refund_id, completed_ts, requested_ts, trigger\npayments|upi_settlements|net_inr, settlement_date, gross_inr, upi_credits, refunds_inr, mdr_inr\nstore|daily_sales|sku, date, units_sold, revenue_inr\nstore|forecasts|book_on_hand, method, sigma, order_up_to, sku, on_order, reorder_point, "
+    },
+    {
+     "sql": "SELECT wo.sku, wo.reason, sum(wo.units) units, round(sum(wo.units*p.cost_inr),0) value_at_cost\nFROM store.write_offs wo JOIN store.products p ON p.sku=wo.sku\nWHERE wo.date >= '2026-06-01' AND wo.date < '2026-07-01'\nGROUP BY wo.sku, wo.reason, p.cost_inr ORDER BY value_at_cost DESC;",
+     "result": "MILK-TONED-500ML|expired|291|7188\nMILK-FC-500ML|expired|198|6395\nATTA-WW-5KG|damaged|3|684\nRICE-SM-5KG|damaged|2|602\nDAL-TOOR-1KG|damaged|1|146\nMILK-TONED-500ML|damaged|5|124\nCURD-500G|damaged|3|89\nSUGAR-1KG|damaged|1|42"
+    },
+    {
+     "sql": "SELECT (SELECT sum(wo.units*p.cost_inr) FROM store.write_offs wo JOIN store.products p ON p.sku=wo.sku WHERE wo.date >= '2026-06-01' AND wo.date < '2026-07-01') june_writeoff_value,\n       (SELECT round(sum(b.book_on_hand_close*p.cost_inr),0) FROM store.inventory_book b JOIN store.products p ON p.sku=b.sku WHERE b.date=(SELECT max(date) FROM store.inventory_book)) stock_value_latest,\n       (SELECT max(date)::text FROM store.inventory_book) stock_date;",
+     "result": "15269.1|62067|2026-06-28"
+    },
+    {
+     "sql": "SELECT DISTINCT method FROM store.forecasts;",
+     "result": "28-day mean of recorded sales"
+    },
+    {
+     "sql": "SELECT date, units_sold, revenue_inr, round(revenue_inr/units_sold,2) implied_price\nFROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01'\nORDER BY date LIMIT 10;",
+     "result": "ERROR: division by zero\n"
+    },
+    {
+     "sql": "SELECT date, units_sold, revenue_inr\nFROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date >= '2026-06-01'\nORDER BY date;",
+     "result": "2026-06-01|30|7950.0\n2026-06-02|36|9540.0\n2026-06-03|22|5830.0\n2026-06-04|28|7420.0\n2026-06-05|32|8480.0\n2026-06-06|25|6625.0\n2026-06-07|44|11660.0\n2026-06-08|9|2385.0\n2026-06-09|11|2915.0\n2026-06-10|22|5830.0\n2026-06-11|1|265.0\n2026-06-12|0|0.0\n2026-06-13|22|5830.0\n2026-06-14|23|6095.0\n2026-06-15|22|5830.0\n2026-06-16|17|4505.0\n2026-06-17|11|2915.0\n2026-06-18|31|8215.0\n2026-06-19|27|7155.0\n2026-06-20|21|5565.0\n2026-06-21|43|11395.0\n2026-06-22|20|5300.0\n2026-06-23|5|1325.0\n2026-06-24|0|0.0\n2026-06-25|0|0.0\n2026-06-26|0|0.0\n2026-06-27|44|11660.0\n2026-06-28|21|5565.0"
+    },
+    {
+     "sql": "SELECT kind, count(*) FROM payments.customer_complaints\nWHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01'\nGROUP BY kind;",
+     "result": "charged twice|23\ndebited but the till said failed|3"
+    },
+    {
+     "sql": "SELECT round(avg(b.book_on_hand_close*p.cost_inr),0) avg_inventory_value_jun,\n       min(b.date) lo, max(b.date) hi\nFROM store.inventory_book b JOIN store.products p ON p.sku=b.sku\nWHERE b.date >= '2026-06-01' AND b.date <= '2026-06-30';",
+     "result": "5190|2026-06-01|2026-06-28"
+    },
+    {
+     "sql": "SELECT round(avg(daily_val),0) avg_total_inventory_value,\n       round(max(daily_val),0) max_total_inventory_value\nFROM (\n  SELECT b.date, sum(b.book_on_hand_close*p.cost_inr) daily_val\n  FROM store.inventory_book b JOIN store.products p ON p.sku=b.sku\n  WHERE b.date >= '2026-06-01' AND b.date <= '2026-06-30'\n  GROUP BY b.date\n) t;",
+     "result": "57087|73859"
+    },
+    {
+     "sql": "SELECT audit_ts::text, sku, status FROM store.shelf_audits\nWHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01' AND status='empty'\nORDER BY audit_ts;",
+     "result": "2026-06-05 11:00:00|SUGAR-1KG|empty\n2026-06-12 11:00:00|ATTA-WW-5KG|empty\n2026-06-26 11:00:00|ATTA-WW-5KG|empty"
+    },
+    {
+     "sql": "SELECT ds.sku, count(*) FILTER (WHERE ds.units_sold=0) zero_days,\n       sum(ds.units_sold) units, round(sum(ds.revenue_inr),0) revenue\nFROM store.daily_sales ds\nWHERE ds.date >= '2026-06-01' AND ds.date < '2026-07-01'\nGROUP BY ds.sku ORDER BY zero_days DESC, units DESC;",
+     "result": "ATTA-WW-5KG|4|567|150255\nMILK-TONED-500ML|0|8649|224874\nMILK-FC-500ML|0|2916|99144\nCURD-500G|0|1942|62144\nBREAD-WHITE-400G|0|1674|75330\nATTA-WW-1KG|0|826|47908\nOIL-SUN-1L|0|747|113544\nRICE-SM-5KG|0|609|212541\nDAL-TOOR-1KG|0|539|90552\nSUGAR-1KG|0|509|24432\nATTA-WW-10KG|0|287|143213"
+    },
+    {
+     "sql": "SELECT till_status, count(*), round(sum(amount_inr),0) amt\nFROM payments.pos_payments\nWHERE ts >= '2026-06-01' AND ts < '2026-07-01'\nGROUP BY till_status;",
+     "result": "declined|679|365296\napproved|30077|17570667\nfailed|145|86750\nfailed: no response|48|22644"
+    },
+    {
+     "sql": "SELECT f.sku,\n       sum(GREATEST(f.forecast_units_per_day - ds.units_sold, 0))::int est_lost_units,\n       round(sum(GREATEST(f.forecast_units_per_day - ds.units_sold, 0) * p.price_inr),0) est_lost_revenue\nFROM store.forecasts f\nJOIN store.daily_sales ds ON ds.sku=f.sku AND ds.date=f.date\nJOIN store.products p ON p.sku=f.sku\nWHERE f.date >= '2026-06-01' AND f.date < '2026-07-01'\nGROUP BY f.sku ORDER BY est_lost_revenue DESC;",
+     "result": "ATTA-WW-5KG|181|48039\nRICE-SM-5KG|66|23135\nATTA-WW-10KG|34|16856\nOIL-SUN-1L|85|12991\nDAL-TOOR-1KG|72|12052\nATTA-WW-1KG|88|5092\nSUGAR-1KG|83|4007"
+    },
+    {
+     "sql": "SELECT count(*) n, min(created_ts)::text, max(created_ts)::text, sum(units) units, sum(cases) cases\nFROM store.store_orders\nWHERE created_ts >= '2026-06-01' AND created_ts < '2026-07-01';",
+     "result": "68|2026-06-01 22:00:00|2026-06-27 22:00:00|3940|689"
+    },
+    {
+     "sql": "SELECT count(*) FROM information_schema.columns\nWHERE table_schema IN ('store','warehouse','payments')\n  AND (column_name ~* 'supplier|vendor|payable|receivable|credit_days|terms|invoice' OR table_name ~* 'supplier|vendor|payable');",
+     "result": "0"
+    }
+   ],
+   "final": "All questions explored; here are the final answers.\n\n**Q1 \u2014 Range add/drop.** All 11 SKUs sold on all 28 days and all carry positive margin. The standout issue is availability, not range: ATTA-WW-5KG had 4 zero-sale days, 2 \"empty\" audits and an estimated ~181 lost units (~\u20b948k) \u2014 fix its replenishment rather than drop it. SUGAR-1KG is the weakest line (lowest margin \u20b93,054, lowest units 509, 1 empty audit) \u2014 a candidate to drop or reprice; nothing new can be justified from these records (no candidate-product data exists).\n\n**Q2 \u2014 Supplier terms & working capital.** No supplier/vendor/payables/terms data exists anywhere in the three schemas. Working capital can only be proxied by inventory at cost: average \u20b957,087 in June, closing \u20b962,067 on 28 June; no cash, receivables or payables records.\n\n**Q3 \u2014 Complaints in June:** 26 (23 \"charged twice\", 3 \"debited but the till said failed\").\n\n**Q4 \u2014 Profitability.** June revenue \u20b91,243,937 (till lines = daily sales), COGS \u20b91,107,731, gross margin \u20b9136,206 (10.9%); after write-offs at cost (\u20b915,269) \u2248 \u20b9120,937. MDR was \u20b90. Rent, wages and other overheads are not recorded, so net profit cannot be confirmed \u2014 at gross level, yes.\n\n**Q5 \u2014 Empty shelf-audit rows in June:** 3 (SUGAR-1KG on 5 Jun; ATTA-WW-5KG on 12 and 26 Jun).\n\n**Q6 \u2014 Products sold:** 11 (consistent across products, daily_sales and pos_lines).\n\n**Q7 \u2014 Cashier productivity:** no_record. No cashier/staff/till-operator identifier exists in any table (pos_lines, pos_payments checked).\n\n**Q8 \u2014 Elasticity of 5 kg atta:** no_record. ATTA-WW-5KG sold at a single price (\u20b9265.00) for the entire May 4 \u2013 Jun 28 period in both products and pos_lines; no price change exists to measure a demand response.\n\n```json\n{\"answers\":[\n{\"id\":\"q1\",\"verdict\":\"answer\",\"value\":null,\"answer\":\"Keep all 11 SKUs; fix ATTA-WW-5KG replenishment (~181 lost units, ~INR 48k est. lost sales, 4 zero-days, 2 empty audits); SUGAR-1KG is the drop/reprice candidate (lowest margin INR 3,054 and 509 units); no data to justify additions\",\"sql\":\"SELECT ds.sku, sum(ds.units_sold) units, round(sum(ds.units_sold*(p.price_inr-p.cost_inr)),0) margin, count(*) FILTER (WHERE ds.units_sold=0) zero_days FROM store.daily_sales ds JOIN store.products p ON p.sku=ds.sku WHERE ds.date >= '2026-06-01' AND ds.date < '2026-07-01' GROUP BY ds.sku, p.price_inr, p.cost_inr ORDER BY margin DESC;\",\"basis\":\"June margin, units and zero-sale days per SKU plus shelf audits and forecast-vs-sales lost-sale estimates; no candidate-product data, so additions cannot be assessed\"},\n{\"id\":\"q2\",\"verdict\":\"proxy\",\"value\":57087,\"answer\":\"Supplier payment terms: no record. Working capital proxied by inventory at cost: avg INR 57,087 in June, closing INR 62,067 on 28 Jun; payables/receivables/cash not recorded\",\"sql\":\"SELECT round(avg(daily_val),0) FROM (SELECT b.date, sum(b.book_on_hand_close*p.cost_inr) daily_val FROM store.inventory_book b JOIN store.products p ON p.sku=b.sku WHERE b.date >= '2026-06-01' AND b.date <= '2026-06-30' GROUP BY b.date) t;\",\"basis\":\"No supplier/vendor/payable/terms tables exist (information_schema search returned 0); stand-in is inventory_book valued at products.cost_inr\"},\n{\"id\":\"q3\",\"verdict\":\"answer\",\"value\":26,\"answer\":\"26 complaints in June 2026 (23 charged twice, 3 debited-but-till-said-failed)\",\"sql\":\"SELECT count(*) FROM payments.customer_complaints WHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01';\",\"basis\":\"Direct count of payments.customer_complaints rows in June; complaint timestamps span 4-26 Jun\"},\n{\"id\":\"q4\",\"verdict\":\"proxy\",\"value\":136206,\"answer\":\"Gross-profitable: June revenue INR 1,243,937, COGS INR 1,107,731, gross margin INR 136,206 (10.9%), ~INR 120,937 after INR 15,269 write-offs, MDR INR 0; net profit not determinable (overheads not recorded)\",\"sql\":\"SELECT sum(ds.revenue_inr) - sum(ds.units_sold*p.cost_inr) FROM store.daily_sales ds JOIN store.products p ON p.sku=ds.sku WHERE ds.date >= '2026-06-01' AND ds.date < '2026-07-01';\",\"basis\":\"Till lines/daily_sales revenue minus unit costs, minus write-offs at cost; rent/wages/other overheads have no records, so 'profitable overall' is answered at gross level\"},\n{\"id\":\"q5\",\"verdict\":\"answer\",\"value\":3,\"answer\":\"3 shelf-audit rows show a product empty in June 2026\",\"sql\":\"SELECT count(*) FROM store.shelf_audits WHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01' AND status='empty';\",\"basis\":\"Direct count of store.shelf_audits rows with status='empty' in June (SUGAR-1KG 5 Jun; ATTA-WW-5KG 12 and 26 Jun)\"},\n{\"id\":\"q6\",\"verdict\":\"answer\",\"value\":11,\"answer\":\"11 products\",\"sql\":\"SELECT count(DISTINCT sku_scanned) FROM store.pos_lines;\",\"basis\":\"Distinct SKUs agree across store.products (11), daily_sales (11) and pos_lines (11 SKUs / 11 GTINs)\"},\n{\"id\":\"q7\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"Cannot be answered: no cashier/staff/till-operator identifier exists in any table\",\"sql\":\"SELECT column_name FROM information_schema.columns WHERE column_name ~* 'cashier|staff|employee|operator|till_id|register' AND table_schema IN ('store','warehouse','payments');\",\"basis\":\"Schema-wide column search for cashier/staff/till identifiers returned no rows; pos_lines and pos_payments carry no operator attribute\"},\n{\"id\":\"q8\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"Cannot be answered: ATTA-WW-5KG sold at a single price (INR 265.00) from 4 May to 28 Jun; no price change exists to estimate elasticity\",\"sql\":\"SELECT count(DISTINCT unit_price) FROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG';\",\"basis\":\"pos_lines unit_price and products.price_inr each show exactly one price point for the 5 kg atta; elasticity needs price variation, which no record holds\"}\n]}\n```"
+  }
+ ],
+ "error": "batch 2: run deadline reached"
+}
