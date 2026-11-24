@@ -109,7 +109,7 @@ CONTROLS = [
     ("How many units were written off as expired in June 2026?", sum(int(r["units"]) for r in wo if r["reason"] == "expired"), 0, "write-offs-june.csv"),
     ("How many truck shipments arrived from the warehouse in June 2026?", len(rows("shipments-june.csv")), 0, "shipments-june.csv"),
     ("How many shelf-audit rows in June 2026 show a product as empty?", sum(r["status"] == "empty" for r in rows("shelf-audits-june.csv")), 0, "shelf-audits-june.csv"),
-    ("How many store orders were sent to the warehouse in June 2026?", len(rows("store-orders-june.csv")), 0, "store-orders-june.csv"),
+    ("How many distinct store orders (distinct order ids, each of which can have several lines) were sent to the warehouse in June 2026?", len({r["order_id"] for r in rows("store-orders-june.csv")}), 0, "store-orders-june.csv"),
     ("How many products does Store 014 sell in these records?", len(rows("products.csv")), 0, "products.csv"),
     ("How many distinct bills were rung up at the tills in June 2026?", len({r["bill_id"] for r in pl if r["bill_ts"] >= "2026-06-01"}), 0, "pos-lines-may-june.csv"),
     ("What is the selling price in rupees of 5 kg atta?", 265, 0, "products.csv"),
