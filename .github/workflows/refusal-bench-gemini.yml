@@ -1,0 +1,134 @@
+name: Refusal benchmark, Gemini on Store 014
+
+# The same 76 questions and four conditions as refusal-bench.yml, with Gemini (through its OpenAI-compatible
+# endpoint). Needs the GEMINI_API_KEY_DOMAIN_SERIES secret. Gemini's model names change often, so each job asks the
+# API which models this key can use and takes the newest stable one of its tier (flash-lite, flash or pro).
+# Raw answers go to refusal-bench/results/gemini-run-N with the key taken out first, and the last job scores them.
+# Starts on a push to the refusal-bench-gemini branch that changes refusal-bench/ (not its results) or this file.
+
+on:
+  push:
+    branches: [refusal-bench-gemini]
+    paths:
+      - "refusal-bench/**"
+      - "!refusal-bench/results/**"
+      - ".github/workflows/refusal-bench-gemini.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RESULTS: refusal-bench/results/gemini-run-${{ github.run_number }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        tier: [flash-lite, flash, pro]
+        condition: [schema, schema-rule, pack, pack-rule]
+    env:
+      PROVIDER: gemini
+      TIER: ${{ matrix.tier }}
+      CONDITION: ${{ matrix.condition }}
+      DEADLINE_MIN: "300"
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
+      SCRUB: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          pip install --quiet requests psycopg2-binary
+
+      - name: Check the questions match the data
+        run: python3 -I refusal-bench/build_questions.py && git diff --exit-code refusal-bench/questions.json
+
+      - name: Pick the newest stable Gemini model of this tier
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then echo "::error::needs the GEMINI_API_KEY_DOMAIN_SERIES secret"; exit 1; fi
+          python3 - <<'PY'
+          import json, os, re, requests
+          r = requests.get("https://generativelanguage.googleapis.com/v1beta/openai/models",
+                           headers={"Authorization": "Bearer " + os.environ["GEMINI_API_KEY"]}, timeout=60)
+          print("models endpoint", r.status_code)
+          r.raise_for_status()
+          ids = sorted(m["id"].split("/")[-1] for m in r.json()["data"])
+          open(os.environ["RESULTS"] + "/models-offered.txt", "w").write("\n".join(ids))
+          tier = os.environ["TIER"]
+          skip = re.compile(r"tts|live|image|embed|audio|transcribe|omni|translate|robotics|computer|thinking|veo|imagen|lyria|aqa|learnlm|gemma|customtools|latest|exp")
+          def ok(i):
+              if not i.startswith("gemini-") or skip.search(i):
+                  return False
+              if tier == "flash-lite":
+                  return "flash-lite" in i
+              if tier == "flash":
+                  return "flash" in i and "lite" not in i
+              return "pro" in i
+          def key(i):
+              v = tuple(int(x) for x in re.findall(r"\d+", i.split("-preview")[0])[:3])
+              return (0 if "preview" in i else 1, v)  # stable first, then the highest version
+          cands = sorted((i for i in ids if ok(i)), key=key, reverse=True)
+          print("candidates", cands)
+          if not cands:
+              raise SystemExit("no model for tier " + tier)
+          with open(os.environ["GITHUB_ENV"], "a") as f:
+              f.write("MODEL=" + cands[0] + "\n")
+          PY
+          echo "using $MODEL"
+
+      - name: Check the model answers
+        run: |
+          code=$(curl -s -o /tmp/answer.json -w '%{http_code}' -H "Authorization: Bearer $GEMINI_API_KEY" -H "Content-Type: application/json" \
+            -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"hi\"}],\"max_tokens\":50}" \
+            https://generativelanguage.googleapis.com/v1beta/openai/chat/completions)
+          echo "$MODEL -> $code"; head -c 300 /tmp/answer.json; echo
+
+      - name: Run the model
+        run: python3 refusal-bench/run.py "$RESULTS"
+
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS"
+          if grep -rEq "AIza[0-9A-Za-z_-]{30,}" "$RESULTS"; then echo "::error::a Gemini key is in the results"; exit 1; fi
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "Refusal benchmark: Gemini $TIER, $CONDITION (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull -q --rebase origin refusal-bench-gemini && git push -q origin HEAD:refusal-bench-gemini && break; sleep $((RANDOM % 10 + 3)); done
+
+  score:
+    needs: test
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refusal-bench-gemini
+      - name: Score and commit the summary
+        run: |
+          git pull -q origin refusal-bench-gemini
+          python3 -I refusal-bench/score.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "Refusal benchmark: Gemini scores for run ${{ github.run_number }}" || exit 0
+          for i in 1 2 3 4 5 6; do git pull -q --rebase origin refusal-bench-gemini && git push -q origin HEAD:refusal-bench-gemini && break; sleep $((RANDOM % 10 + 3)); done
