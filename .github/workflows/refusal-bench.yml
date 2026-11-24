@@ -1,0 +1,97 @@
+name: Refusal benchmark, NVIDIA-hosted models on Store 014
+
+# 76 questions (55 the records cannot answer, 8 with a proxy only, 13 they can) put to each model under four
+# conditions: schema only or the hand-written OWL and SHACL pack, each with and without the "no record" line.
+# Needs the NVIDIA_API_KEY secret. Raw answers go to refusal-bench/results/run-N with the key taken out first,
+# and the last job scores them into refusal-bench/results/run-N/summary.md.
+# Starts on a push to the refusal-bench branch that changes refusal-bench/ (not its results) or this file.
+
+on:
+  push:
+    branches: [refusal-bench]
+    paths:
+      - "refusal-bench/**"
+      - "!refusal-bench/results/**"
+      - ".github/workflows/refusal-bench.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RESULTS: refusal-bench/results/run-${{ github.run_number }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix:
+        model:
+          - nvidia/nemotron-3.5-lightning-30b-a3b
+          - nvidia/nemotron-3-ultra-550b-a55b
+          - z-ai/glm-5.3-flash
+          - google/gemma-4-31b-it
+        condition: [schema, schema-rule, pack, pack-rule]
+    env:
+      MODEL: ${{ matrix.model }}
+      CONDITION: ${{ matrix.condition }}
+      DEADLINE_MIN: "300"
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          pip install --quiet requests psycopg2-binary
+
+      - name: Check the questions match the data
+        run: python3 -I refusal-bench/build_questions.py && git diff --exit-code refusal-bench/questions.json
+
+      - name: Run the model
+        run: |
+          if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
+          python3 refusal-bench/run.py "$RESULTS"
+
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "Refusal benchmark: $MODEL, $CONDITION (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull -q --rebase origin refusal-bench && git push -q origin HEAD:refusal-bench && break; sleep $((RANDOM % 10 + 3)); done
+
+  score:
+    needs: test
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refusal-bench
+      - name: Score and commit the summary
+        run: |
+          git pull -q origin refusal-bench
+          python3 -I refusal-bench/score.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "Refusal benchmark: scores for run ${{ github.run_number }}" || exit 0
+          for i in 1 2 3 4 5 6; do git pull -q --rebase origin refusal-bench && git push -q origin HEAD:refusal-bench && break; sleep $((RANDOM % 10 + 3)); done
