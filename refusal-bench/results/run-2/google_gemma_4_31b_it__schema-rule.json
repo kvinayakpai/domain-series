@@ -1,0 +1,160 @@
+{
+ "model": "google/gemma-4-31b-it",
+ "condition": "schema-rule",
+ "seed": 42,
+ "batches": [
+  {
+   "ids": [
+    "N34",
+    "N30",
+    "A02",
+    "N24",
+    "A07",
+    "A09",
+    "N39",
+    "N18"
+   ],
+   "seconds": 1786,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_name, table_schema \nFROM information_schema.tables \nWHERE table_schema IN ('store', 'warehouse', 'payments');",
+     "result": "products|store\npos_lines|store\ndaily_sales|store\ninventory_book|store\nforecasts|store\nstore_orders|store\ngoods_receipts|store\nfresh_deliveries|store\nstock_counts|store\nshelf_audits|store\nwrite_offs|store\npick_confirmations|warehouse\nstock_adjustments|warehouse\nshipments|warehouse\nshipping_notice_lines|warehouse\npallets|warehouse\npos_payments|payments\npsp_upi_report|payments\nupi_settlements|payments\nupi_refunds|payments\ncustomer_complaints|payments"
+    },
+    {
+     "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'products' AND table_schema = 'store';",
+     "result": "sku|text\ngtin|text\nname|text\npack|text\ncase_units|integer\ncase_kg|numeric\nflow|text\ndc_slot|text\nprice_inr|numeric\ncost_inr|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'pos_lines' AND table_schema = 'store';",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'shelf_audits' AND table_schema = 'store';",
+     "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'customer_complaints' AND table_schema = 'payments';",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type \nFROM information_schema.columns \nWHERE table_name = 'pos_payments' AND table_schema = 'payments';",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT \n    (SELECT COUNT(DISTINCT sku) FROM store.products) as total_products,\n    (SELECT COUNT(*) FROM payments.customer_complaints \n     WHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01' \n     AND kind ILIKE '%payment%') as payment_complaints,\n    (SELECT COUNT(*) FROM store.shelf_audits \n     WHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01' \n     AND status = 'empty') as empty_shelves;",
+     "result": "11|0|3"
+    },
+    {
+     "sql": "SELECT \n    SUM(line_amount) as total_revenue,\n    (SELECT SUM(p.cost_inr * pl.qty) \n     FROM store.pos_lines pl \n     JOIN store.products p ON pl.sku_scanned = p.sku \n     WHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01') as total_cost\nFROM store.pos_lines \nWHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01';",
+     "result": "1243937.0|1107731.1"
+    },
+    {
+     "sql": "SELECT \n    sku_scanned, \n    SUM(qty) as total_qty, \n    AVG(unit_price) as avg_price\nFROM store.pos_lines \nWHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01'\nGROUP BY sku_scanned;",
+     "result": "MILK-FC-500ML|2916|34.0000000000000000\nATTA-WW-5KG|567|265.0000000000000000\nOIL-SUN-1L|747|152.0000000000000000\nBREAD-WHITE-400G|1674|45.0000000000000000\nATTA-WW-10KG|287|499.0000000000000000\nATTA-WW-1KG|826|58.0000000000000000\nDAL-TOOR-1KG|539|168.0000000000000000\nSUGAR-1KG|509|48.0000000000000000\nMILK-TONED-500ML|8649|26.0000000000000000\nRICE-SM-5KG|609|349.0000000000000000\nCURD-500G|1942|32.0000000000000000"
+    }
+   ],
+   "final": "1. Which products should Store 014 add to or drop from its range?\nAnswer: no record\nBasis: The records show sales volume but provide no criteria or target benchmarks for adding or dropping products.\n\n2. What are Store 014's payment terms with its suppliers, and what is its working capital?\nAnswer: no record\nBasis: No tables containing supplier contracts, payment terms, or balance sheet data (current assets/liabilities) were found.\n\n3. How many customer complaints about payments were logged in June 2026?\nAnswer: 0\nBasis: Query of `payments.customer_complaints` for June 2026 with kind 'payment' returned 0.\n\n4. Is Store 014 profitable overall in June 2026?\nAnswer: Yes\nBasis: Total revenue (1,243,937.0) exceeds total cost of goods sold (1,107,731.1).\n\n5. How many shelf-audit rows in June 2026 show a product as empty?\nAnswer: 3\nBasis: Query of `store.shelf_audits` for June 2026 with status 'empty' returned 3.\n\n6. How many products does Store 014 sell in these records?\nAnswer: 11\nBasis: Distinct count of SKUs in `store.products` is 11.\n\n7. How productive is each cashier at Store 014?\nAnswer: no record\nBasis: The `pos_lines` and `pos_payments` tables do not contain cashier IDs or employee identifiers.\n\n8. How much does a price change move demand for 5 kg atta (price elasticity)?\nAnswer: no record\nBasis: The data provides a single average price for June 2026; no historical price variations are available to calculate elasticity.\n\n```json\n{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No criteria for range optimization provided\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No supplier terms or balance sheet data available\"},{\"id\":\"q3\",\"verdict\":\"answer\",\"value\":0,\"answer\":\"0\",\"sql\":\"SELECT (SELECT COUNT(*) FROM payments.customer_complaints WHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01' AND kind ILIKE '%payment%')\",\"basis\":\"Count of payment complaints in June 2026\"},{\"id\":\"q4\",\"verdict\":\"answer\",\"value\":null,\"answer\":\"Yes\",\"sql\":\"SELECT SUM(line_amount) as total_revenue, (SELECT SUM(p.cost_inr * pl.qty) FROM store.pos_lines pl JOIN store.products p ON pl.sku_scanned = p.sku WHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01') as total_cost FROM store.pos_lines WHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01';\",\"basis\":\"Revenue (1,243,937) > COGS (1,107,731)\"},{\"id\":\"q5\",\"verdict\":\"answer\",\"value\":3,\"answer\":\"3\",\"sql\":\"SELECT (SELECT COUNT(*) FROM store.shelf_audits WHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01' AND status = 'empty')\",\"basis\":\"Count of 'empty' status in shelf_audits for June 2026\"},{\"id\":\"q6\",\"verdict\":\"answer\",\"value\":11,\"answer\":\"11\",\"sql\":\"SELECT (SELECT COUNT(DISTINCT sku) FROM store.products)\",\"basis\":\"Distinct count of SKUs in products table\"},{\"id\":\"q7\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No cashier/employee IDs in POS tables\"},{\"id\":\"q8\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No price variation data available to calculate elasticity\"}]}\n```"
+  },
+  {
+   "ids": [
+    "N48",
+    "N57",
+    "N20",
+    "N03",
+    "N10",
+    "N63",
+    "N33",
+    "P29"
+   ],
+   "seconds": 4607,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_name, table_schema \nFROM information_schema.tables \nWHERE table_schema IN ('store', 'warehouse', 'payments');",
+     "result": "products|store\npos_lines|store\ndaily_sales|store\ninventory_book|store\nforecasts|store\nstore_orders|store\ngoods_receipts|store\nfresh_deliveries|store\nstock_counts|store\nshelf_audits|store\nwrite_offs|store\npick_confirmations|warehouse\nstock_adjustments|warehouse\nshipments|warehouse\nshipping_notice_lines|warehouse\npallets|warehouse\npos_payments|payments\npsp_upi_report|payments\nupi_settlements|payments\nupi_refunds|payments\ncustomer_complaints|payments"
+    },
+    {
+     "sql": "SELECT * FROM store.products WHERE product_name ILIKE '%toor dal%';",
+     "result": "ERROR: column \"product_name\" does not exist\nLINE 1: SELECT * FROM store.products WHERE product_name ILIKE '%toor...\n                                           ^\n"
+    },
+    {
+     "sql": "SELECT column_name FROM information_schema.columns WHERE table_name = 'products' AND table_schema = 'store';",
+     "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+     "sql": "SELECT * FROM store.products WHERE name ILIKE '%toor dal%';",
+     "result": "DAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0"
+    },
+    {
+     "sql": "SELECT * FROM store.write_offs WHERE sku = 'DAL-TOOR-1KG';",
+     "result": "2026-06-13|DAL-TOOR-1KG|1|damaged"
+    },
+    {
+     "sql": "SELECT * FROM warehouse.stock_adjustments WHERE sku = 'DAL-TOOR-1KG';",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT * FROM store.goods_receipts WHERE sku = 'DAL-TOOR-1KG';",
+     "result": "ERROR: column \"sku\" does not exist\nLINE 1: SELECT * FROM store.goods_receipts WHERE sku = 'DAL-TOOR-1KG...\n                                                 ^\n"
+    },
+    {
+     "sql": "SELECT column_name FROM information_schema.columns WHERE table_name = 'goods_receipts' AND table_schema = 'store';",
+     "result": "grn_id\nshipment_id\nsscc\nline\nreceived_ts\nasn_sku\nasn_units\nsku_booked\nunits_booked\nreceipt_method"
+    },
+    {
+     "sql": "SELECT * FROM store.goods_receipts WHERE asn_sku = 'DAL-TOOR-1KG';",
+     "result": "GRN-260601|SHP-260601|029000010000010320|2|2026-06-01 06:20:00|DAL-TOOR-1KG|50|DAL-TOOR-1KG|50|pallet label (SSCC) scan against the shipping notice\nGRN-260604|SHP-260604|029000010000010368|1|2026-06-04 06:00:00|DAL-TOOR-1KG|70|DAL-TOOR-1KG|70|pallet label (SSCC) scan against the shipping notice\nGRN-260606|SHP-260606|029000010000010399|3|2026-06-06 06:12:00|DAL-TOOR-1KG|60|DAL-TOOR-1KG|60|pallet label (SSCC) scan against the shipping notice\nGRN-260609|SHP-260609|029000010000010436|3|2026-06-09 06:17:00|DAL-TOOR-1KG|50|DAL-TOOR-1KG|50|pallet label (SSCC) scan against the shipping notice\nGRN-2606"
+    },
+    {
+     "sql": "SELECT * FROM payments.customer_complaints WHERE complaint_text ILIKE '%toor dal%';",
+     "result": "ERROR: column \"complaint_text\" does not exist\nLINE 1: SELECT * FROM payments.customer_complaints WHERE complaint_t...\n                                                         ^\nHINT:  Perhaps you meant to reference the column \"customer_complaints.complaint_ts\".\n"
+    },
+    {
+     "sql": "SELECT column_name FROM information_schema.columns WHERE table_name = 'customer_complaints' AND table_schema = 'payments';",
+     "result": "complaint_ts\nkind\namount_inr\nbill_id\nrrn\nresolved_ts\nresolution"
+    },
+    {
+     "sql": "SELECT * FROM payments.customer_complaints;",
+     "result": "2026-06-04 10:00:00|debited but the till said failed|73.65|B260603-090023|615416001875|2026-06-06 11:00:00|customer's bank returned the money\n2026-06-05 12:00:00|charged twice|143.11|B260604-140026|615521002766|2026-06-10 12:00:00|refunded after the store matched the credit by hand\n2026-06-06 13:00:00|charged twice|224.51|B260605-120088|615619003319|2026-06-08 13:00:00|refunded after the store matched the credit by hand\n2026-06-10 10:00:00|charged twice|532.71|B260609-040018|616011005544|2026-06-14 10:00:00|refunded after the store matched the credit by hand\n2026-06-11 10:00:00|debited but the"
+    },
+    {
+     "sql": "SELECT * FROM store.daily_sales WHERE date >= '2026-06-01' AND date <= '2026-06-30';",
+     "result": "2026-06-01|ATTA-WW-5KG|30|7950.0\n2026-06-02|ATTA-WW-5KG|36|9540.0\n2026-06-03|ATTA-WW-5KG|22|5830.0\n2026-06-04|ATTA-WW-5KG|28|7420.0\n2026-06-05|ATTA-WW-5KG|32|8480.0\n2026-06-06|ATTA-WW-5KG|25|6625.0\n2026-06-07|ATTA-WW-5KG|44|11660.0\n2026-06-08|ATTA-WW-5KG|9|2385.0\n2026-06-09|ATTA-WW-5KG|11|2915.0\n2026-06-10|ATTA-WW-5KG|22|5830.0\n2026-06-11|ATTA-WW-5KG|1|265.0\n2026-06-12|ATTA-WW-5KG|0|0.0\n2026-06-13|ATTA-WW-5KG|22|5830.0\n2026-06-14|ATTA-WW-5KG|23|6095.0\n2026-06-15|ATTA-WW-5KG|22|5830.0\n2026-06-16|ATTA-WW-5KG|17|4505.0\n2026-06-17|ATTA-WW-5KG|11|2915.0\n2026-06-18|ATTA-WW-5KG|31|8215.0\n2026-06-19|A"
+    },
+    {
+     "sql": "SELECT * FROM store.products WHERE name ILIKE '%toned milk 500 ml%';",
+     "result": "MILK-TONED-500ML|2900001002011|Toned milk 500 ml pouch|500 ml|24||DSD||26.0|24.7"
+    },
+    {
+     "sql": "SELECT * FROM store.forecasts WHERE sku = 'MILK-TONED-500ML';",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT * FROM store.pos_lines WHERE sku = 'MILK-TONED-500ML' AND line_date >= '2026-06-01' AND line_date <= '2026-06-30';",
+     "result": "ERROR: column \"sku\" does not exist\nLINE 1: SELECT * FROM store.pos_lines WHERE sku = 'MILK-TONED-500ML'...\n                                            ^\n"
+    },
+    {
+     "sql": "SELECT column_name FROM information_schema.columns WHERE table_name = 'pos_lines' AND table_schema = 'store';",
+     "result": "bill_id\nbill_ts\nline\ngtin_scanned\nsku_scanned\nqty\nunit_price\nline_amount"
+    },
+    {
+     "sql": "SELECT * FROM store.pos_lines WHERE sku_scanned = 'MILK-TONED-500ML' AND bill_ts >= '2026-06-01' AND bill_ts <= '2026-06-30';",
+     "result": "B260601-000007|2026-06-01 07:02:00|1|2900001002011|MILK-TONED-500ML|2|26.0|52.0\nB260601-000011|2026-06-01 07:03:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260601-000014|2026-06-01 07:05:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260601-000024|2026-06-01 07:09:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260601-000038|2026-06-01 07:18:00|2|2900001002011|MILK-TONED-500ML|2|26.0|52.0\nB260601-000042|2026-06-01 07:20:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260601-000048|2026-06-01 07:24:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260601-000049|2026-06-01 07:24:00|1|290"
+    },
+    {
+     "sql": "SELECT \n    p.payment_method, \n    AVG(p.amount_inr) as avg_amount,\n    (SELECT AVG(amount_inr) FROM payments.pos_payments) as overall_avg\nFROM payments.pos_payments p\nGROUP BY p.payment_method;",
+     "result": "ERROR: column p.payment_method does not exist\nLINE 2:     p.payment_method, \n            ^\n"
+    },
+    {
+     "sql": "SELECT column_name FROM information_schema.columns WHERE table_name = 'pos_payments' AND table_schema = 'payments';",
+     "result": "bill_id\nattempt\nts\ntender\namount_inr\ntill_status\nrrn\nnote"
+    },
+    {
+     "sql": "SELECT tender, AVG(amount_inr) FROM payments.pos_payments GROUP BY tender;",
+     "result": "UPI|584.7675613064802254\ncard|583.2287303995953465\ncash|578.8243402733427002"
+    }
+   ],
+   "final": "1. No record of a specific batch or lot number for a toor dal recall was found. While a write-off for \"damaged\" toor dal occurred on 2026-06-13, no recall notice or lot-specific quality issue is documented.\n2. No record. The `daily_sales` table provides sales figures, but there is no data on weather, festivals, or local events to correlate with these changes.\n3. No record. The database contains current price and cost, but no price elasticity data or demand curves to determine a profit-maximizing price.\n4. No record. There is no \"out of stock\" or \"lost sales\" log to calculate true demand versus actual sales for toned milk.\n5. No record. The `pos_lines` and `pos_payments` tables do not contain customer identifiers to track spend per individual.\n6. No record. There are no audit logs, compliance reports, or labelling checks in the provided tables.\n7. No record. There is no data on product launch dates or cross-product sales cannibalization.\n8. No record. The `pos_payments` table records the tender method and amount, but not the transaction cost (merchant fees) associated with each payment type.\n\n```json\n{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT * FROM store.write_offs WHERE sku = 'DAL-TOOR-1KG';\",\"basis\":\"Write-off for damaged goods found, but no recall batch specified.\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT * FROM store.daily_sales WHERE date >= '2026-06-01' AND date <= '2026-06-30';\",\"basis\":\"Sales data exists, but no external event data (weather/festivals) is available.\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT * FROM store.products WHERE name ILIKE '%toned milk 500 ml%';\",\"basis\":\"Only current price and cost are available; no demand elasticity data.\"},{\"id\":\"q4\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT * FROM store.pos_lines WHERE sku_scanned = 'MILK-TONED-500ML';\",\"basis\":\"No records of stock-outs or lost sales to estimate true demand.\"},{\"id\":\"q5\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No customer IDs available in payment or sales tables.\"},{\"id\":\"q6\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No food-safety or labelling audit records found.\"},{\"id\":\"q7\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No product launch dates or comparative sales trends provided.\"},{\"id\":\"q8\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT tender, AVG(amount_inr) FROM payments.pos_payments GROUP BY tender;\",\"basis\":\"Payment methods are recorded, but the cost to serve (fees) is not.\"}]}\n```"
+  }
+ ],
+ "error": "batch 3: model call failed: 410 {\"type\":\"about:blank\",\"title\":\"Gone\",\"status\":410,\"detail\":\"The model 'google/gemma-4-31b-it' has reached its end of life on 2026-11-24T09:00:00Z and is no longer available.\"}\n"
+}
