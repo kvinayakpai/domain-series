@@ -3,7 +3,8 @@ name: Auto-Ontology demo (Store 014)
 # Runs NVIDIA's open-source Auto-Ontology on Store 014's June records, on GitHub's own
 # machine. auto-ontology-demo/run-config.env picks the models: NVIDIA's own hosted models
 # (MODELS=nvidia, with a free key from build.nvidia.com in the NVIDIA_API_KEY secret) or a
-# small open model served by Ollama (MODELS=ollama, no keys). With MODELS=nvidia,
+# small open model served by Ollama (MODELS=ollama, no keys), or Google's Gemini models
+# (MODELS=gemini, with the GEMINI_API_KEY_DOMAIN_SERIES secret; embeddings stay local). With MODELS=nvidia,
 # EMBEDDINGS=local keeps the Ollama runs' local embeddings and reranking. The drafted ontology, its
 # answers and the logs are committed back to this branch under auto-ontology-demo/results,
 # with the run's passwords and the key taken out first.
@@ -38,6 +39,8 @@ jobs:
       RESULTS: auto-ontology-demo/results/run-${{ github.run_number }}
       AO: /tmp/ao
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
+      GEMINI_ENDPOINT: https://generativelanguage.googleapis.com/v1beta/openai
     steps:
       - uses: actions/checkout@v4
 
@@ -50,13 +53,22 @@ jobs:
                 echo "::error::MODELS=nvidia needs the NVIDIA_API_KEY repository secret"
                 exit 1
               fi ;;
+            gemini)
+              if [ -z "$GEMINI_API_KEY" ]; then
+                echo "::error::MODELS=gemini needs the GEMINI_API_KEY_DOMAIN_SERIES repository secret"
+                exit 1
+              fi ;;
             ollama) ;;
             *)
-              echo "::error::run-config.env: MODELS must be nvidia or ollama, not '$MODELS'"
+              echo "::error::run-config.env: MODELS must be nvidia, gemini or ollama, not '$MODELS'"
               exit 1 ;;
           esac
           EMBEDDINGS=$(grep -E '^EMBEDDINGS=' auto-ontology-demo/run-config.env | tail -1 | cut -d= -f2 | tr -d '[:space:]')
-          if [ "$MODELS" = ollama ]; then EMBEDDINGS=local; fi
+          if [ "$MODELS" = ollama ] || [ "$MODELS" = gemini ]; then EMBEDDINGS=local; fi
+          GEMINI_MODEL=$(grep -E '^GEMINI_MODEL=' auto-ontology-demo/run-config.env | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+          GEMINI_NON_REASONING_MODEL=$(grep -E '^GEMINI_NON_REASONING_MODEL=' auto-ontology-demo/run-config.env | tail -1 | cut -d= -f2 | tr -d '[:space:]')
+          echo "GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.5-flash}" >> "$GITHUB_ENV"
+          echo "GEMINI_NON_REASONING_MODEL=${GEMINI_NON_REASONING_MODEL:-gemini-2.5-flash-lite}" >> "$GITHUB_ENV"
           if [ -z "$EMBEDDINGS" ]; then EMBEDDINGS=nvidia; fi
           case "$EMBEDDINGS" in
             nvidia|local) ;;
@@ -107,6 +119,26 @@ jobs:
               print(f"RERANK_MODEL={model}")
           print("LLM_INVOKE_TIMEOUT_S=600")
           PY
+          elif [ "$MODELS" = gemini ]; then
+            # Gemini answers chat through its OpenAI-compatible endpoint; embeddings and reranking come from the adapter.
+            cat > /tmp/models.env <<EOF
+          DEFAULT_MODELS_API_KEY=$GEMINI_API_KEY
+          DEFAULT_MODELS_ENDPOINT=$GEMINI_ENDPOINT
+          DEFAULT_MODELS_MODEL=$GEMINI_MODEL
+          REASONING_API_KEY=$GEMINI_API_KEY
+          REASONING_ENDPOINT=$GEMINI_ENDPOINT
+          REASONING_MODEL=$GEMINI_MODEL
+          NON_REASONING_API_KEY=$GEMINI_API_KEY
+          NON_REASONING_ENDPOINT=$GEMINI_ENDPOINT
+          NON_REASONING_MODEL=$GEMINI_NON_REASONING_MODEL
+          EMBED_API_KEY=local
+          EMBED_ENDPOINT=http://model-adapter:8000/v1
+          EMBED_MODEL=$EMBED_LOCAL_MODEL
+          RERANK_API_KEY=local
+          RERANK_ENDPOINT=http://model-adapter:8000/v1/rerank
+          RERANK_MODEL=$EMBED_LOCAL_MODEL
+          LLM_INVOKE_TIMEOUT_S=600
+          EOF
           else
             cat > /tmp/models.env <<EOF
           DEFAULT_MODELS_API_KEY=ollama
@@ -154,7 +186,7 @@ jobs:
             echo "SCRUB=$PG|$ADMIN|$SECRET"
             echo "DEMO_DIR=$GITHUB_WORKSPACE/auto-ontology-demo"
             echo "DC=docker compose --project-directory $AO -f $AO/docker-compose.yml -f $GITHUB_WORKSPACE/auto-ontology-demo/compose.demo.yml"
-            if [ "$MODELS" = nvidia ]; then
+            if [ "$MODELS" != ollama ]; then
               echo "NV_CHAT_ENDPOINT=$(setting REASONING_ENDPOINT)"
               echo "NV_CHAT_MODEL=$(setting REASONING_MODEL)"
               echo "NV_NON_REASONING_MODEL=$(setting NON_REASONING_MODEL)"
@@ -174,19 +206,20 @@ jobs:
           if [ "$EMBEDDINGS" = local ]; then docker exec ollama ollama --version; fi
 
       - name: Pull the local embedding model
-        if: env.MODELS == 'nvidia' && env.EMBEDDINGS == 'local'
+        if: env.MODELS != 'ollama' && env.EMBEDDINGS == 'local'
         run: |
           docker exec ollama ollama pull "$EMBED_LOCAL_MODEL" >/dev/null
           docker exec ollama ollama list
           for i in $(seq 30); do curl -sf http://localhost:8000/health >/dev/null && break; sleep 2; done
           time curl -sf http://localhost:8000/v1/embeddings -H 'Content-Type: application/json' -d "{\"model\":\"$EMBED_LOCAL_MODEL\",\"input\":[\"5 kg atta\"],\"input_type\":\"query\"}" | python3 -c "import json,sys; d=json.load(sys.stdin); v=d['data'][0]['embedding']; print('dimensions', len(v), 'nonzero', sum(1 for x in v if x))"
 
-      - name: Check NVIDIA's models answer
-        if: env.MODELS == 'nvidia'
+      - name: Check the hosted models answer
+        if: env.MODELS != 'ollama'
         run: |
+          if [ "$MODELS" = gemini ]; then HOSTED_KEY="$GEMINI_API_KEY"; else HOSTED_KEY="$NVIDIA_API_KEY"; fi
           ask() {  # ask <name> <url> <json>: prints the HTTP status, and the body when it fails
             code=$(curl -sS -o "/tmp/$1.json" -w '%{http_code}' --max-time 300 "$2" \
-              -H "Authorization: Bearer $NVIDIA_API_KEY" -H 'Content-Type: application/json' -H 'Accept: application/json' -d "$3")
+              -H "Authorization: Bearer $HOSTED_KEY" -H 'Content-Type: application/json' -H 'Accept: application/json' -d "$3")
             echo "$1: HTTP $code"
             [ "$code" = 200 ] || { head -c 800 "/tmp/$1.json"; echo; return 1; }
           }
@@ -287,7 +320,7 @@ jobs:
           OLLAMA_VERSION="$OLLAMA_VERSION" python3 - <<'PY' > "$RESULTS/setup.json"
           import json, os
           e = os.environ.get
-          nvidia = e("MODELS") == "nvidia"
+          nvidia = e("MODELS") != "ollama"  # a hosted model, NVIDIA's or Gemini's
           local = e("EMBEDDINGS") == "local"
           print(json.dumps({
               "run_number": e("GITHUB_RUN_NUMBER"),
@@ -304,7 +337,7 @@ jobs:
               "runner": {"cpus": os.cpu_count()},
           }, indent=2))
           PY
-          # The run's throwaway passwords and the NVIDIA key never leave the run.
+          # The run's throwaway passwords and the NVIDIA and Gemini keys never leave the run.
           python3 auto-ontology-demo/scrub.py "$RESULTS"
 
       - name: Commit the results to this branch
