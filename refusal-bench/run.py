@@ -31,6 +31,7 @@ import psycopg2
 import requests
 
 HERE = Path(__file__).parent
+<<<<<<< HEAD
 PROVIDER = os.environ.get("PROVIDER", "nvidia")  # nvidia or gemini (Gemini's OpenAI-compatible endpoint)
 BASE = {"nvidia": "https://integrate.api.nvidia.com/v1",
         "gemini": "https://generativelanguage.googleapis.com/v1beta/openai"}[PROVIDER]
@@ -38,6 +39,13 @@ MODEL = os.environ["MODEL"]
 CONDITION = os.environ["CONDITION"]
 assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule"}, CONDITION
 KEY = os.environ.get("GEMINI_API_KEY" if PROVIDER == "gemini" else "NVIDIA_API_KEY", "")
+=======
+BASE = "https://integrate.api.nvidia.com/v1"
+MODEL = os.environ["MODEL"]
+CONDITION = os.environ["CONDITION"]
+assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule"}, CONDITION
+KEY = os.environ.get("NVIDIA_API_KEY", "")
+>>>>>>> b777c08 (Refusal benchmark: google/gemma-4-31b-it, schema (run 2))
 N_BATCHES = int(os.environ.get("N_BATCHES", "10"))
 MAX_TURNS = int(os.environ.get("MAX_TURNS", "40"))
 DEADLINE_MIN = float(os.environ.get("DEADLINE_MIN", "300"))
@@ -92,9 +100,13 @@ def chat(messages: list) -> str:
         try:
             r = requests.post(f"{BASE}/chat/completions", timeout=900,
                               headers={"Authorization": f"Bearer {KEY}"},
+<<<<<<< HEAD
                               json={"model": MODEL, "messages": messages, "max_tokens": 16000,
                                     # Gemini 3 models are meant to run at their default temperature
                                     **({} if PROVIDER == "gemini" else {"temperature": 0.2})})
+=======
+                              json={"model": MODEL, "messages": messages, "temperature": 0.2, "max_tokens": 16000})
+>>>>>>> b777c08 (Refusal benchmark: google/gemma-4-31b-it, schema (run 2))
             if r.status_code < 300:
                 return r.json()["choices"][0]["message"].get("content") or ""
             last = f"{r.status_code} {r.text[:200]}"
