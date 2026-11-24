@@ -17,6 +17,8 @@ SQL is re-run on the records too.
 from __future__ import annotations
 
 import json
+from datetime import datetime
+import os
 import re
 import subprocess
 import sys
@@ -30,11 +32,16 @@ def load(folder: Path, name: str, default=None):
     return json.loads(path.read_text()) if path.exists() else default
 
 
+# The test item and month. Defaults are the published test; run-config.env can override them.
+SKU = os.environ.get("TRUTH_SKU", "ATTA-WW-5KG")
+FROM_DATE = os.environ.get("TRUTH_FROM", "2026-06-01")
+TO_DATE = os.environ.get("TRUTH_TO", "2026-07-01")
+
 # The true answers, from the records themselves. Demand and lost sales are in no table.
 TRUTH = {
-    "sold": "select sum(qty) from store.pos_lines where sku_scanned = 'ATTA-WW-5KG' and bill_ts >= '2026-06-01' and bill_ts < '2026-07-01'",
-    "on-shelf": "select count(*) filter (where status = 'on shelf') || ' of ' || count(*) from store.shelf_audits where sku = 'ATTA-WW-5KG'",
-    "on-shelf-book": "select count(*) filter (where book_on_hand_close > 0) || ' of ' || count(*) from store.inventory_book where sku = 'ATTA-WW-5KG'",
+    "sold": f"select sum(qty) from store.pos_lines where sku_scanned = '{SKU}' and bill_ts >= '{FROM_DATE}' and bill_ts < '{TO_DATE}'",
+    "on-shelf": f"select count(*) filter (where status = 'on shelf') || ' of ' || count(*) from store.shelf_audits where sku = '{SKU}'",
+    "on-shelf-book": f"select count(*) filter (where book_on_hand_close > 0) || ' of ' || count(*) from store.inventory_book where sku = '{SKU}'",
     "left-without": None,
     "lost-sales": None,
 }
@@ -49,6 +56,15 @@ LOG_FACTS = {
 }
 
 
+def run_date(started_at: str | None) -> str | None:
+    """The run's start (UTC), as "20 November 2026"; None when the run record has no start."""
+    try:
+        d = datetime.strptime(started_at or "", "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return f"{d.day} {d:%B %Y}"
+
+
 def log_facts(folder: Path) -> dict:
     path = folder / "logs" / "auto-ontology-ingestion-service.log"
     text = path.read_text(errors="replace") if path.exists() else ""
@@ -56,6 +72,8 @@ def log_facts(folder: Path) -> dict:
     for key, pattern in LOG_FACTS.items():
         found = re.findall(pattern, text)
         facts[key] = found[-1] if found else None
+    # A log line NVIDIA rewords would otherwise make a fact silently None: say which ones are missing.
+    facts["missing_markers"] = [key for key in LOG_FACTS if facts[key] is None]
     facts["joins"] = sorted(set(re.findall(r"Semantic FK join default: (\S+ -> \S+)", text)))
     facts["joins_considered"] = sorted(set(re.findall(r"Resolving semantic FK edges… \(\d+/\d+\): (\S+)", text)))
     facts["joins_rejected"] = sorted(set(re.findall(r"resolve_semantic_fks \[values\]: (\S+) — no vector-search hit holds its values", text)))
@@ -70,7 +88,15 @@ def log_facts(folder: Path) -> dict:
 def rerun(sql: str, conn: str | None) -> object:
     if not conn or not sql:
         return None
-    result = subprocess.run(["psql", conn, "-At", "-F", "\t", "-c", sql], capture_output=True, text=True, timeout=120)
+    # The SQL was written by a model, so it runs read-only: the session defaults to read-only and the
+    # statement sits in a READ ONLY transaction that is always rolled back. A write fails instead of
+    # changing the seeded database.
+    env = {**os.environ, "PGOPTIONS": "-c default_transaction_read_only=on -c statement_timeout=60000"}
+    result = subprocess.run(
+        ["psql", conn, "-q", "-At", "-F", "\t", "-v", "ON_ERROR_STOP=1",
+         "-c", "BEGIN READ ONLY", "-c", sql, "-c", "ROLLBACK"],
+        capture_output=True, text=True, timeout=120, env=env,
+    )
     if result.returncode:
         return {"error": result.stderr.strip()[:500]}
     return [line.split("\t") for line in result.stdout.strip().splitlines()]
@@ -133,7 +159,7 @@ def with_a_7b_model(bigger: Path, expert: Path, conn: str | None) -> dict:
         "after": read_answers(load(expert, "answers-after.json", []), conn),
         "coverage_before": coverage_of(load(expert, "coverage.json", [])),
         "coverage_after": coverage_of(load(expert, "coverage-after.json", [])),
-        "days_with_sales": rerun("select count(distinct bill_ts::date) from store.pos_lines where sku_scanned = 'ATTA-WW-5KG' and bill_ts >= '2026-06-01' and bill_ts < '2026-07-01'", conn),
+        "days_with_sales": rerun(f"select count(distinct bill_ts::date) from store.pos_lines where sku_scanned = '{SKU}' and bill_ts >= '{FROM_DATE}' and bill_ts < '{TO_DATE}'", conn),
         "instructions": instructions,
     }
 
@@ -232,12 +258,19 @@ def main() -> None:
 
     asked = read_answers(answers, conn)
 
+    compile_facts = log_facts(folder)
+    warnings = []
+    if compile_facts.get("missing_markers"):
+        warnings.append("log markers not found (did NVIDIA reword its log?): " + ", ".join(compile_facts["missing_markers"]))
+    if not run_date(run.get("started_at")):
+        warnings.append("run.json has no usable started_at; the run date is empty")
+
     phases = {k: {"status": v.get("status"), "minutes": v.get("minutes")} for k, v in run.get("phases", {}).items()}
     export = run.get("phases", {}).get("export", {})
     summary = {
         "run": {
             "number": setup.get("run_number"), "id": setup.get("run_id"),
-            "date": "20 November 2026",
+            "date": run_date(run.get("started_at")),
             "tables": 21,
             "draft_minutes": round(run.get("phases", {}).get("compile", {}).get("minutes") or 0),
             "answer_model": setup.get("answer_model") or setup.get("chat_model"),
@@ -247,7 +280,7 @@ def main() -> None:
             "phases": phases,
             "ossie_export_refused": (export.get("ossie_refused") or {}).get("body"),
             "export_files": export.get("files"),
-            "compile": log_facts(folder),
+            "compile": compile_facts,
             "book_days_with_stock": rerun(TRUTH["on-shelf-book"], conn),
         },
         "terms": drafted,
@@ -257,6 +290,7 @@ def main() -> None:
         "product_terms": product_terms,
         "coverage": coverage_of(coverage),
         "answers": asked,
+        "warnings": warnings,
     }
     if "--bigger" in flags and "--expert" in flags:
         summary["with_a_7b_model"] = with_a_7b_model(flags["--bigger"], flags["--expert"], conn)
@@ -270,6 +304,9 @@ def main() -> None:
     (files / "store014-run.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")
     if "with_a_7b_model" in summary:
         (files / "store014-expert-instructions.txt").write_text(summary["with_a_7b_model"]["instructions"])
+    if "with_nvidia_models" in summary:
+        nvidia_terms = summary["with_nvidia_models"]["terms"]
+        (files / "store014-nemotron-draft-terms.json").write_text(json.dumps(nvidia_terms, indent=2, ensure_ascii=False) + "\n")
     print(f"{out}: {len(drafted)} terms, {len(coverage)} coverage checks, {len(asked)} answers")
 
 

@@ -61,5 +61,20 @@ runs, not copied into this repository.
   picks). After: 567 from the till lines matched on the GTIN, on-shelf availability as
   the share of shelf audits but with no number, the 567 bags sold given as the shoppers
   who left without, and 24 "lost sales" that were the days with sales. The coverage check
-  passed every question both times. The table descriptions did not go in (a bug in
-  `expert_layer.py`, fixed since).
+  passed every question both times. The table descriptions did not go in, here or in run
+  10: the API answered in a shape `expert_layer.py` did not expect (fixed after run 10,
+  not yet run).
+- Run 9: NVIDIA's own models for everything, as Auto-Ontology ships, with a free key.
+  NVIDIA's hosted embedding model answered 503 ("Service is overloaded") and 504 from the
+  start, the ingest gave up after four attempts, and the draft ran on without the
+  embeddings. Read its results with that in mind.
+- Run 10: NVIDIA's Nemotron 3.5 Lightning drafting and answering, with the local
+  embeddings and reranking of runs 6 to 8 (`EMBEDDINGS=local`), so the chat model is the
+  only change. The draft took 10 minutes: 21 terms, one per table, none for demand or a
+  lost sale; three joins, all to the shipments, and none between the till's payments and
+  UPI's report; no calculations; and the Ossie export went through. Before the knowledge:
+  567 sold and 75% on the shelf (both right), 2 shoppers who left without (the shelf
+  audits that found the shelf empty) and 3 bags of lost sales (the write-offs). After: the
+  same two right answers, and for the other two it said no record holds them and gave the
+  two empty audits and the 567 bags sold. The coverage check passed every question both
+  times.
