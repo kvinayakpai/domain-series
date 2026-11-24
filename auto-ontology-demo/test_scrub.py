@@ -12,6 +12,9 @@ class ScrubTest(unittest.TestCase):
     def test_nvidia_key(self):
         self.assertNotIn("nvapi-abcdefgh12345", scrub.clean("key nvapi-abcdefgh12345 used"))
 
+    def test_gemini_key(self):
+        self.assertNotIn("AIzaSyA-abcdefghijklmnop12345", scrub.clean("url ?key=AIzaSyA-abcdefghijklmnop12345 used"))
+
     def test_bearer_header(self):
         out = scrub.clean("Authorization: Bearer abc.DEF-123_xyz~+/== sent")
         self.assertNotIn("abc.DEF", out)
