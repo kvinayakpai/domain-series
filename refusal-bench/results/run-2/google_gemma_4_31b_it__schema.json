@@ -1,0 +1,100 @@
+{
+ "model": "google/gemma-4-31b-it",
+ "condition": "schema",
+ "seed": 42,
+ "batches": [
+  {
+   "ids": [
+    "N34",
+    "N30",
+    "A02",
+    "N24",
+    "A07",
+    "A09",
+    "N39",
+    "N18"
+   ],
+   "seconds": 4171,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name \nFROM information_schema.tables \nWHERE table_schema IN ('store', 'warehouse', 'payments');",
+     "result": "store|products\nstore|pos_lines\nstore|daily_sales\nstore|inventory_book\nstore|forecasts\nstore|store_orders\nstore|goods_receipts\nstore|fresh_deliveries\nstore|stock_counts\nstore|shelf_audits\nstore|write_offs\nwarehouse|pick_confirmations\nwarehouse|stock_adjustments\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|pallets\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_settlements\npayments|upi_refunds\npayments|customer_complaints"
+    },
+    {
+     "sql": "SELECT * FROM store.products LIMIT 5;",
+     "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|20.3|DC|A-09-01|349.0|301.0\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0"
+    },
+    {
+     "sql": "SELECT * FROM store.pos_lines LIMIT 5;",
+     "result": "B260504-000000|2026-05-04 07:00:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260504-000001|2026-05-04 07:00:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260504-000002|2026-05-04 07:01:00|1|2900001003018|BREAD-WHITE-400G|1|45.0|45.0\nB260504-000004|2026-05-04 07:01:00|1|2900001003018|BREAD-WHITE-400G|1|45.0|45.0\nB260504-000004|2026-05-04 07:01:00|2|2900001002110|CURD-500G|2|32.0|64.0"
+    },
+    {
+     "sql": "SELECT * FROM store.shelf_audits LIMIT 5;",
+     "result": "2026-06-02 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-02 11:00:00|ATTA-WW-1KG|on shelf\n2026-06-02 11:00:00|ATTA-WW-10KG|on shelf\n2026-06-02 11:00:00|RICE-SM-5KG|on shelf\n2026-06-02 11:00:00|DAL-TOOR-1KG|on shelf"
+    },
+    {
+     "sql": "SELECT * FROM payments.customer_complaints LIMIT 5;",
+     "result": "2026-06-04 10:00:00|debited but the till said failed|73.65|B260603-090023|615416001875|2026-06-06 11:00:00|customer's bank returned the money\n2026-06-05 12:00:00|charged twice|143.11|B260604-140026|615521002766|2026-06-10 12:00:00|refunded after the store matched the credit by hand\n2026-06-06 13:00:00|charged twice|224.51|B260605-120088|615619003319|2026-06-08 13:00:00|refunded after the store matched the credit by hand\n2026-06-10 10:00:00|charged twice|532.71|B260609-040018|616011005544|2026-06-14 10:00:00|refunded after the store matched the credit by hand\n2026-06-11 10:00:00|debited but the"
+    },
+    {
+     "sql": "SELECT \n    (SELECT COUNT(*) FROM store.products) as total_products,\n    (SELECT COUNT(*) FROM payments.customer_complaints WHERE complaint_date >= '2026-06-01' AND complaint_date < '2026-07-01') as complaints_june,\n    (SELECT COUNT(*) FROM store.shelf_audits WHERE audit_date >= '2026-06-01' AND audit_date < '2026-07-01' AND status = 'empty') as empty_shelves_june;",
+     "result": "ERROR: column \"complaint_date\" does not exist\nLINE 3: ... COUNT(*) FROM payments.customer_complaints WHERE complaint_...\n                                                             ^\nHINT:  Perhaps you meant to reference the column \"customer_complaints.complaint_ts\".\n"
+    },
+    {
+     "sql": "SELECT \n    (SELECT COUNT(*) FROM store.products) as total_products,\n    (SELECT COUNT(*) FROM payments.customer_complaints WHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01') as complaints_june,\n    (SELECT COUNT(*) FROM store.shelf_audits WHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01' AND status = 'empty') as empty_shelves_june;",
+     "result": "11|26|3"
+    },
+    {
+     "sql": "SELECT \n    p.product_id, \n    p.product_name, \n    SUM(pl.quantity) as total_qty, \n    SUM(pl.total_price) as total_revenue\nFROM store.products p\nJOIN store.pos_lines pl ON p.product_id = pl.product_id\nWHERE pl.timestamp >= '2026-06-01' AND pl.timestamp < '2026-07-01'\nGROUP BY p.product_id, p.product_name;",
+     "result": "ERROR: column p.product_id does not exist\nLINE 7: JOIN store.pos_lines pl ON p.product_id = pl.product_id\n                                   ^\n"
+    },
+    {
+     "sql": "SELECT \n    p.sku, \n    p.product_name, \n    SUM(pl.quantity) as total_qty, \n    SUM(pl.total_price) as total_revenue\nFROM store.products p\nJOIN store.pos_lines pl ON p.sku = pl.sku\nWHERE pl.timestamp >= '2026-06-01' AND pl.timestamp < '2026-07-01'\nGROUP BY p.sku, p.product_name;",
+     "result": "ERROR: column pl.sku does not exist\nLINE 7: JOIN store.pos_lines pl ON p.sku = pl.sku\n                                           ^\nHINT:  Perhaps you meant to reference the column \"p.sku\".\n"
+    },
+    {
+     "sql": "SELECT \n    p.sku, \n    p.product_name, \n    SUM(pl.quantity) as total_qty, \n    SUM(pl.total_price) as total_revenue\nFROM store.products p\nJOIN store.pos_lines pl ON p.barcode = pl.barcode\nWHERE pl.timestamp >= '2026-06-01' AND pl.timestamp < '2026-07-01'\nGROUP BY p.sku, p.product_name;",
+     "result": "ERROR: column p.barcode does not exist\nLINE 7: JOIN store.pos_lines pl ON p.barcode = pl.barcode\n                                   ^\n"
+    },
+    {
+     "sql": "SELECT \n    p.sku, \n    p.product_name, \n    SUM(pl.quantity) as total_qty, \n    SUM(pl.total_price) as total_revenue\nFROM store.products p\nJOIN store.pos_lines pl ON p.product_id = pl.product_id\nWHERE pl.timestamp >= '2026-06-01' AND pl.timestamp < '2026-07-01'\nGROUP BY p.sku, p.product_name;",
+     "result": "ERROR: column p.product_id does not exist\nLINE 7: JOIN store.pos_lines pl ON p.product_id = pl.product_id\n                                   ^\n"
+    },
+    {
+     "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'products';",
+     "result": "sku\ngtin\nname\npack\ncase_units\ncase_kg\nflow\ndc_slot\nprice_inr\ncost_inr"
+    },
+    {
+     "sql": "SELECT column_name \nFROM information_schema.columns \nWHERE table_schema = 'store' AND table_name = 'pos_lines';",
+     "result": "bill_id\nbill_ts\nline\ngtin_scanned\nsku_scanned\nqty\nunit_price\nline_amount"
+    },
+    {
+     "sql": "SELECT \n    p.sku, \n    p.name, \n    SUM(pl.qty) as total_qty, \n    SUM(pl.line_amount) as total_revenue\nFROM store.products p\nJOIN store.pos_lines pl ON p.gtin = pl.gtin_scanned\nWHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01'\nGROUP BY p.sku, p.name;",
+     "result": "MILK-FC-500ML|Full cream milk 500 ml pouch|2916|99144.0\nATTA-WW-5KG|Whole wheat atta 5 kg|567|150255.0\nOIL-SUN-1L|Sunflower oil 1 L pouch|747|113544.0\nBREAD-WHITE-400G|White bread 400 g|1674|75330.0\nATTA-WW-10KG|Whole wheat atta 10 kg|287|143213.0\nATTA-WW-1KG|Whole wheat atta 1 kg|826|47908.0\nDAL-TOOR-1KG|Toor dal 1 kg|539|90552.0\nSUGAR-1KG|Sugar 1 kg|509|24432.0\nMILK-TONED-500ML|Toned milk 500 ml pouch|8649|224874.0\nRICE-SM-5KG|Sona masoori rice 5 kg|609|212541.0\nCURD-500G|Curd 500 g pouch|1942|62144.0"
+    },
+    {
+     "sql": "SELECT \n    p.sku, \n    p.name, \n    SUM(pl.qty) as total_qty, \n    SUM(pl.line_amount) as total_revenue,\n    SUM(pl.qty * p.cost_inr) as total_cost,\n    SUM(pl.line_amount) - SUM(pl.qty * p.cost_inr) as gross_profit\nFROM store.products p\nJOIN store.pos_lines pl ON p.gtin = pl.gtin_scanned\nWHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01'\nGROUP BY p.sku, p.name;",
+     "result": "MILK-FC-500ML|Full cream milk 500 ml pouch|2916|99144.0|94186.8|4957.2\nATTA-WW-5KG|Whole wheat atta 5 kg|567|150255.0|129276.0|20979.0\nOIL-SUN-1L|Sunflower oil 1 L pouch|747|113544.0|100098.0|13446.0\nBREAD-WHITE-400G|White bread 400 g|1674|75330.0|65286.0|10044.0\nATTA-WW-10KG|Whole wheat atta 10 kg|287|143213.0|123697.0|19516.0\nATTA-WW-1KG|Whole wheat atta 1 kg|826|47908.0|40887.0|7021.0\nDAL-TOOR-1KG|Toor dal 1 kg|539|90552.0|78694.0|11858.0\nSUGAR-1KG|Sugar 1 kg|509|24432.0|21378.0|3054.0\nMILK-TONED-500ML|Toned milk 500 ml pouch|8649|224874.0|213630.3|11243.7\nRICE-SM-5KG|Sona masoori rice 5 kg"
+    },
+    {
+     "sql": "SELECT \n    bill_id, \n    COUNT(*) as items_per_bill, \n    SUM(line_amount) as bill_total \nFROM store.pos_lines \nWHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01' \nGROUP BY bill_id;",
+     "result": "B260618-010013|1|32.0\nB260620-130022|1|34.0\nB260625-120034|1|26.0\nB260619-030032|2|86.0\nB260614-040039|2|94.0\nB260603-110069|2|381.0\nB260616-020014|1|26.0\nB260618-020042|1|26.0\nB260616-120076|1|32.0\nB260617-010046|1|26.0\nB260617-000064|1|26.0\nB260624-140034|1|32.0\nB260606-130065|1|265.0\nB260616-110020|1|32.0\nB260607-110074|1|26.0\nB260605-060039|1|26.0\nB260617-060030|1|26.0\nB260622-070017|1|32.0\nB260612-080005|1|349.0\nB260602-110093|1|58.0\nB260609-110059|2|71.0\nB260628-120112|1|34.0\nB260623-060027|1|26.0\nB260608-060020|2|79.0\nB260606-010052|1|34.0\nB260618-010039|2|77.0\nB260620-090003|2|77.0\nB26"
+    },
+    {
+     "sql": "SELECT \n    bill_id, \n    COUNT(*) as items_per_bill, \n    SUM(line_amount) as bill_total \nFROM store.pos_lines \nWHERE bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01' \nGROUP BY bill_id;",
+     "result": "B260618-010013|1|32.0\nB260620-130022|1|34.0\nB260625-120034|1|26.0\nB260619-030032|2|86.0\nB260614-040039|2|94.0\nB260603-110069|2|381.0\nB260616-020014|1|26.0\nB260618-020042|1|26.0\nB260616-120076|1|32.0\nB260617-010046|1|26.0\nB260617-000064|1|26.0\nB260624-140034|1|32.0\nB260606-130065|1|265.0\nB260616-110020|1|32.0\nB260607-110074|1|26.0\nB260605-060039|1|26.0\nB260617-060030|1|26.0\nB260622-070017|1|32.0\nB260612-080005|1|349.0\nB260602-110093|1|58.0\nB260609-110059|2|71.0\nB260628-120112|1|34.0\nB260623-060027|1|26.0\nB260608-060020|2|79.0\nB260606-010052|1|34.0\nB260618-010039|2|77.0\nB260620-090003|2|77.0\nB26"
+    },
+    {
+     "sql": "SELECT \n    SUM(pl.line_amount) as total_revenue, \n    SUM(pl.qty * p.cost_inr) as total_cost,\n    SUM(pl.line_amount) - SUM(pl.qty * p.cost_inr) as total_profit\nFROM store.pos_lines pl\nJOIN store.products p ON pl.gtin_scanned = p.gtin\nWHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01';",
+     "result": "1243937.0|1107731.1|136205.9"
+    },
+    {
+     "sql": "SELECT \n    bill_id, \n    bill_ts, \n    line, \n    gtin_scanned, \n    sku_scanned, \n    qty, \n    unit_price, \n    line_amount \nFROM store.pos_lines \nLIMIT 1;",
+     "result": "B260504-000000|2026-05-04 07:00:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0"
+    }
+   ],
+   "final": "Since the `pos_lines` table does not contain cashier IDs and there are no other tables providing cashier performance data, and since there are no records for supplier payment terms, working capital, or price change history for the 5kg atta, those questions cannot be answered.\n\n1. **Range**: Based on June 2026 data, all 11 products are profitable. The lowest profit contributor is Sugar 1kg (3,054 INR), while Rice 5kg (29,232 INR) and Atta 5kg (20,979 INR) are strong. No product shows a loss, so none are strictly required to be dropped based on profit.\n2. **Payment Terms/Working Capital**: No records available.\n3. **Complaints**: 26 complaints were logged in June 2026.\n4. **Profitability**: Yes, Store 014 is profitable in June 2026 with a total gross profit of 136,205.9 INR.\n5. **Empty Shelves**: 3 shelf-audit rows in June 2026 show a product as empty.\n6. **Product Count**: Store 014 sells 11 products.\n7. **Cashier Productivity**: No records available.\n8. **Price Elasticity**: No records available.\n\n```json\n{\"answers\":[{\"id\":\"q1\",\"verdict\":\"answer\",\"value\":null,\"answer\":\"All 11 products are profitable; none are strictly candidates for dropping based on profit.\",\"sql\":\"SELECT p.sku, p.name, SUM(pl.line_amount) - SUM(pl.qty * p.cost_inr) as profit FROM store.products p JOIN store.pos_lines pl ON p.gtin = pl.gtin_scanned WHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01' GROUP BY p.sku, p.name;\",\"basis\":\"Based on product-level gross profit for June 2026.\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"No records available.\",\"sql\":\"none\",\"basis\":\"No supplier or payment terms tables found.\"},{\"id\":\"q3\",\"verdict\":\"answer\",\"value\":26,\"answer\":\"26\",\"sql\":\"SELECT COUNT(*) FROM payments.customer_complaints WHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01';\",\"basis\":\"Count of rows in customer_complaints for June 2026.\"},{\"id\":\"q4\",\"verdict\":\"answer\",\"value\":136205.9,\"answer\":\"Yes, profitable with 136,205.9 INR gross profit.\",\"sql\":\"SELECT SUM(pl.line_amount) - SUM(pl.qty * p.cost_inr) FROM store.pos_lines pl JOIN store.products p ON pl.gtin_scanned = p.gtin WHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01';\",\"basis\":\"Total revenue minus total cost of goods sold for June 2026.\"},{\"id\":\"q5\",\"verdict\":\"answer\",\"value\":3,\"answer\":\"3\",\"sql\":\"SELECT COUNT(*) FROM store.shelf_audits WHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01' AND status = 'empty';\",\"basis\":\"Count of 'empty' status in shelf_audits for June 2026.\"},{\"id\":\"q6\",\"verdict\":\"answer\",\"value\":11,\"answer\":\"11\",\"sql\":\"SELECT COUNT(*) FROM store.products;\",\"basis\":\"Total count of products in the products table.\"},{\"id\":\"q7\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"No records available.\",\"sql\":\"none\",\"basis\":\"pos_lines table does not contain cashier identifiers.\"},{\"id\":\"q8\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"No records available.\",\"sql\":\"none\",\"basis\":\"No price history or time-series price changes available for 5kg atta.\"}]}\n```"
+  }
+ ],
+ "error": "batch 2: model call failed: 410 {\"type\":\"about:blank\",\"title\":\"Gone\",\"status\":410,\"detail\":\"The model 'google/gemma-4-31b-it' has reached its end of life on 2026-11-24T09:00:00Z and is no longer available.\"}\n"
+}
