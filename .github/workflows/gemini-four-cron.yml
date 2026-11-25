@@ -1,0 +1,57 @@
+name: Gemini four questions, every 3 hours (20 runs)
+# Scheduled workflows only run from the default branch, so this file lives on main. The code and the state live on the
+# branch gemini-four-questions: each run makes at most 2 Gemini requests on the next unfinished condition (gemini-four/run.py)
+# and commits the conversation to gemini-four/state/. It does nothing once 20 runs have counted.
+# Plan: project doc "gemini-four-questions-3-hourly-plan-2026-11-25". Times: 01:35, 04:35, ... 22:35 IST.
+on:
+  schedule:
+    - cron: "5 2,5,8,11,14,17,20,23 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: gemini-four
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      MODEL: gemini-3.8-flash
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: gemini-four-questions }
+      - name: Stop after 20 counted runs
+        id: gate
+        run: |
+          n=$(python3 -c "import json,os;p='gemini-four/state/runs.json';print(json.load(open(p))['completed'] if os.path.exists(p) else 0)")
+          echo "completed runs: $n"
+          if [ "$n" -ge 20 ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; fi
+      - name: Load Store 014
+        if: steps.gate.outputs.skip != 'true'
+        run: |
+          [ -n "$GEMINI_API_KEY" ] || { echo "::error::no GEMINI_API_KEY_DOMAIN_SERIES secret"; exit 1; }
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          pip install --quiet requests psycopg2-binary
+      - name: Run (at most 2 requests)
+        if: steps.gate.outputs.skip != 'true'
+        run: python3 gemini-four/run.py
+      - name: Save state
+        if: always() && steps.gate.outputs.skip != 'true'
+        run: |
+          python3 auto-ontology-demo/scrub.py gemini-four/state || true
+          if grep -rEq "AIza[0-9A-Za-z_-]{30,}" gemini-four/state; then echo "::error::key in state"; exit 1; fi
+          git config user.name github-actions; git config user.email actions@github.com
+          git add gemini-four/state; git commit -q -m "Gemini four questions: run state" || exit 0
+          for i in 1 2 3 4 5 6; do git pull -q --rebase origin gemini-four-questions && git push -q origin HEAD:gemini-four-questions && break; sleep $((RANDOM % 10 + 3)); done
