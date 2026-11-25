@@ -1,0 +1,59 @@
+name: Gemini on the four Store 014 questions
+on:
+  push:
+    branches: [gemini-four-questions]
+    paths: ["gemini-four/**", ".github/workflows/gemini-four.yml"]
+  workflow_dispatch:
+permissions:
+  contents: write
+env:
+  RESULTS: gemini-four/results/run-${{ github.run_number }}
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        condition: [schema, autoont, ontop, sonnet, opus]
+    env:
+      CONDITION: ${{ matrix.condition }}
+      MODEL: gemini-3.8-flash
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          pip install --quiet requests psycopg2-binary
+      - name: Probe the model
+        run: |
+          [ -n "$GEMINI_API_KEY" ] || { echo "::error::no GEMINI_API_KEY_DOMAIN_SERIES secret"; exit 1; }
+          code=$(curl -s -o "$RESULTS/probe-$CONDITION.json" -w '%{http_code}' -H "Authorization: Bearer $GEMINI_API_KEY" -H "Content-Type: application/json" \
+            -d "{\"model\":\"$MODEL\",\"messages\":[{\"role\":\"user\",\"content\":\"Say hi\"}],\"max_tokens\":200}" \
+            https://generativelanguage.googleapis.com/v1beta/openai/chat/completions)
+          echo "$MODEL -> $code"; head -c 1500 "$RESULTS/probe-$CONDITION.json"; echo
+      - name: Run
+        run: python3 gemini-four/run.py "$RESULTS" "$CONDITION"
+      - name: Commit results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS" || true
+          if grep -rEq "AIza[0-9A-Za-z_-]{30,}" "$RESULTS"; then echo "::error::key in results"; exit 1; fi
+          git config user.name github-actions; git config user.email actions@github.com
+          git add "$RESULTS"; git commit -q -m "Gemini four questions: $CONDITION (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3 4 5 6 7 8; do git pull -q --rebase origin gemini-four-questions && git push -q origin HEAD:gemini-four-questions && break; sleep $((RANDOM % 10 + 3)); done
