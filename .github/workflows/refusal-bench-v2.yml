@@ -34,16 +34,17 @@ jobs:
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
           import json
-          nem = ["nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3-ultra-550b-a55b"]
-          new = ["minimaxai/minimax-m3.1-flash", "meta/muse-glimmer-30b"]
+          ultra, lite, mini = "nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3.5-lightning-30b-a3b", "minimaxai/minimax-m3.1-flash"
           orig = ["schema", "schema-rule", "pack", "pack-rule"]
           gaps = ["schema-gaps", "pack-gaps"]
+          # Round 2b: the cells that did not finish in round 2 (Ultra and MiniMax stopped on rate limits or overload,
+          # Lightning had batches with an empty reply), rerun with a runner that waits out 429/503/529 and retries empty replies.
           jobs = []
-          for m in nem:
-              jobs += [{"model": m, "condition": c, "rep": r} for c in orig for r in (2, 3)]
-              jobs += [{"model": m, "condition": c, "rep": r} for c in gaps for r in (1, 2, 3)]
-          for m in new:
-              jobs += [{"model": m, "condition": c, "rep": 1} for c in orig + gaps]
+          jobs += [{"model": ultra, "condition": c, "rep": r} for c in orig for r in (2, 3)]
+          jobs += [{"model": ultra, "condition": c, "rep": r} for c in gaps for r in (1, 2, 3)]
+          jobs += [{"model": mini, "condition": c, "rep": 1} for c in orig + gaps]
+          jobs += [{"model": lite, "condition": c, "rep": r} for c, r in
+                   [("schema", 1), ("schema", 3), ("schema-rule", 3), ("pack-rule", 2), ("pack-gaps", 1), ("pack-gaps", 2), ("pack-gaps", 3), ("schema-gaps", 3)]]
           print("matrix=" + json.dumps({"include": jobs}))
           PY
 
@@ -53,7 +54,7 @@ jobs:
     timeout-minutes: 340
     strategy:
       fail-fast: false
-      max-parallel: 10
+      max-parallel: 6
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     env:
       MODEL: ${{ matrix.model }}

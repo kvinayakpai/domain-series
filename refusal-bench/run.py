@@ -99,22 +99,36 @@ def sql(query: str) -> str:
 
 
 def chat(messages: list) -> str:
-    last = ""
-    for _ in range(6):
+    """One model call. A rate limit or an overloaded server (429, 503, 529) is waited out for as long as the API asks and is
+    not counted as a failed try; any other failure is tried 6 times; 400, 404 and 410 mean the model is not served."""
+    last, tries, waited = "", 0, 0
+    while tries < 6 and waited < 40:
         if (time.time() - STARTED) / 60 > DEADLINE_MIN:
             raise TimeoutError("run deadline reached")
+        wait = 30
         try:
             r = requests.post(f"{BASE}/chat/completions", timeout=900,
                               headers={"Authorization": f"Bearer {KEY}"},
                               json={"model": MODEL, "messages": messages, "temperature": 0.2, "max_tokens": 16000})
             if r.status_code < 300:
                 return r.json()["choices"][0]["message"].get("content") or ""
-            last = f"{r.status_code} {r.text[:200]}"
-            if r.status_code in (400, 404):  # not a transient failure: the model is not served or rejects the request
+            last = f"{r.status_code} {r.text[:1500]}"
+            if r.status_code in (400, 404, 410):
                 break
+            if r.status_code in (429, 503, 529):
+                m = re.search(r"retry[- ]after\D+([\d.]+)|retry in ([\d.]+)s|\"retryDelay\":\s*\"([\d.]+)s\"", r.text + " " + str(r.headers.get("Retry-After", "")), re.I)
+                hint = next((g for g in m.groups() if g), None) if m else (r.headers.get("Retry-After") or None)
+                try:
+                    wait = min(180, float(hint) + 2) if hint else 60
+                except ValueError:
+                    wait = 60
+                waited += 1
+                time.sleep(wait)
+                continue
         except requests.RequestException as e:
-            last = str(e)[:200]
-        time.sleep(30)
+            last = str(e)[:300]
+        tries += 1
+        time.sleep(wait)
     raise RuntimeError(f"model call failed: {last}")
 
 
@@ -127,6 +141,14 @@ def run_batch(items: list[dict]) -> dict:
     calls, final, started = [], "", time.time()
     for turn in range(MAX_TURNS):
         content = chat(messages)
+        if not content.strip():  # an empty reply (often a reasoning model that ran out of tokens): ask again, up to 3 times in a row
+            empties = locals().get("empties", 0) + 1
+            if empties <= 3:
+                messages.append({"role": "assistant", "content": "(empty reply)"})
+                messages.append({"role": "user", "content": "Your last reply was empty. Continue: run your next query in a ```sql block, or give your final answers with the JSON block."})
+                continue
+        else:
+            empties = 0
         messages.append({"role": "assistant", "content": content})
         block = re.search(r"```sql\s*(.*?)```", content, re.S)
         if block and '"answers"' not in content:
@@ -163,7 +185,7 @@ def main() -> None:
         try:
             rec["batches"].append(run_batch(batches[b]))
         except Exception as e:
-            rec["error"] = f"batch {b + 1}: {str(e)[:300]}"
+            rec["error"] = f"batch {b + 1}: {str(e)[:1600]}"
             print("stopped:", rec["error"], flush=True)
             break
         path.write_text(json.dumps(rec, indent=1))
