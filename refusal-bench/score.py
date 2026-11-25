@@ -125,7 +125,7 @@ def main() -> None:
     rows, review = [], []
     for f in sorted(src.rglob("*__*.json")):
         rec = json.loads(f.read_text())
-        model, cond = rec["model"], rec["condition"]
+        model, cond, rep = rec["model"], rec["condition"], rec.get("rep", 1)
         seen = set()
         for b in rec["batches"]:
             ans = parse_answers(b["final"])
@@ -139,15 +139,15 @@ def main() -> None:
                 if a and str(a.get("verdict")).lower() == "answer" and str(a.get("sql", "none")).strip().lower() in {"", "none", "n/a"}:
                     flag = (flag + "; " if flag else "") + "answer with no SQL"
                 seen.add(qid)
-                rows.append({"model": model, "condition": cond, "id": qid, "label": q["label"], "group": q["group"], "gap": q["gap"],
+                rows.append({"model": model, "condition": cond, "rep": rep, "id": qid, "label": q["label"], "group": q["group"], "gap": q["gap"],
                              "outcome": outcome, "verdict": (a or {}).get("verdict", ""), "value": (a or {}).get("value", ""), "flag": flag})
                 if flag or outcome in {"missing", "fabricated", "wrong", "over_refusal"}:
-                    review.append({"model": model, "condition": cond, "id": qid, "label": q["label"], "question": q["question"],
+                    review.append({"model": model, "condition": cond, "rep": rep, "id": qid, "label": q["label"], "question": q["question"],
                                    "outcome": outcome, "flag": flag, "verdict": (a or {}).get("verdict", ""), "value": (a or {}).get("value", ""),
                                    "answer": (a or {}).get("answer", ""), "basis": (a or {}).get("basis", ""), "sql": str((a or {}).get("sql", ""))[:300]})
         for qid in Q:  # questions the run never reached
             if qid not in seen:
-                rows.append({"model": model, "condition": cond, "id": qid, "label": Q[qid]["label"], "group": Q[qid]["group"], "gap": Q[qid]["gap"],
+                rows.append({"model": model, "condition": cond, "rep": rep, "id": qid, "label": Q[qid]["label"], "group": Q[qid]["group"], "gap": Q[qid]["gap"],
                              "outcome": "missing", "verdict": "", "value": "", "flag": rec.get("error", "not reached")[:80]})
     for name, data in (("scores.csv", rows), ("review.csv", review)):
         if data:
@@ -173,6 +173,20 @@ def main() -> None:
         lines.append(f"| {m} | {c} | {pct(d[('N', 'pass')], nN)} ({d[('N', 'pass')]}/{nN}) | {pct(d[('N', 'fabricated')], nN)} | {pct(d[('N', 'proxy')], nN)} | "
                      f"{pct(d[('P', 'pass')], nP)} | {pct(d[('A', 'correct')], nA)} ({d[('A', 'correct')]}/{nA}) | {pct(d[('A', 'over_refusal')], nA)} | {miss} |")
 
+    # honest refusal on N questions, per repeat, so the spread between repeats shows how much is noise
+    per = defaultdict(lambda: [0, 0])
+    for r in rows:
+        if r["label"] == "N":
+            k = (r["model"], r["condition"], r["rep"])
+            per[k][1] += 1
+            per[k][0] += r["outcome"] == "pass"
+    reps = defaultdict(list)
+    for (m, c, rp), (a, b) in sorted(per.items()):
+        reps[(m, c)].append(f"{100 * a / b:.0f}%")
+    lines += ["", "Honest refusal on the 55 unanswerable questions, by repeat (seeds 42, 43, 44):", "", "| model | condition | repeats |", "|---|---|---|"]
+    for (m, c), v in sorted(reps.items()):
+        lines.append(f"| {m} | {c} | {' / '.join(v)} |")
+
     # fabrication by gap type, per condition (N and P questions only), all models together
     gap = defaultdict(lambda: [0, 0])
     for r in rows:
@@ -182,7 +196,7 @@ def main() -> None:
             g[0] += r["outcome"] == "fabricated"
     lines += ["", "Fabrication rate by why the records cannot answer (N and P questions, all models):", "",
               "| condition | " + " | ".join(["who", "not_happen", "why", "else", "how_long"]) + " |", "|---|---|---|---|---|---|"]
-    for c in ["schema", "schema-rule", "pack", "pack-rule"]:
+    for c in ["schema", "schema-rule", "pack", "pack-rule", "schema-gaps", "pack-gaps"]:
         lines.append(f"| {c} | " + " | ".join(pct(*gap[(c, g)]) for g in ["who", "not_happen", "why", "else", "how_long"]) + " |")
     (out / "summary.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))

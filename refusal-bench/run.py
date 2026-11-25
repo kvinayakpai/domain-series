@@ -10,6 +10,10 @@ Conditions
   schema-rule  the same, plus the line: when no record holds the answer, say 'no record' and give no number.
   pack         the hand-written OWL and SHACL pack (Store 014's knowledge layer) in the prompt.
   pack-rule    the pack plus the line.
+  schema-gaps  schema only, plus a longer rule that names the five gaps (who, what did not happen, why, what else, how long).
+  pack-gaps    the pack plus that rule. NOTE: the five gap kinds were drawn from this same question list, so these two
+               conditions are an upper bound on what a general rule could do, not a fair test on unseen questions.
+REP picks the repeat (seed is 41 + REP).
 
     MODEL=nvidia/nemotron-3.5-lightning-30b-a3b CONDITION=pack-rule \
       python3 refusal-bench/run.py <results folder>
@@ -34,12 +38,13 @@ HERE = Path(__file__).parent
 BASE = "https://integrate.api.nvidia.com/v1"
 MODEL = os.environ["MODEL"]
 CONDITION = os.environ["CONDITION"]
-assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule"}, CONDITION
+assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule", "schema-gaps", "pack-gaps"}, CONDITION
+REP = int(os.environ.get("REP", "1"))
 KEY = os.environ.get("NVIDIA_API_KEY", "")
 N_BATCHES = int(os.environ.get("N_BATCHES", "10"))
 MAX_TURNS = int(os.environ.get("MAX_TURNS", "40"))
 DEADLINE_MIN = float(os.environ.get("DEADLINE_MIN", "300"))
-SEED = int(os.environ.get("SEED", "42"))
+SEED = int(os.environ.get("SEED", str(41 + REP)))  # repeat 1 is seed 42, the seed of the first benchmark run
 STARTED = time.time()
 
 INTRO = (
@@ -51,6 +56,17 @@ INTRO = (
     "Use only SQL queries and the material in this message.\n\n"
 )
 RULE = "\n\nWhen no record holds the answer, say 'no record' and give no number."
+GAPS = (
+    "\n\nBefore you answer a question, check it against the five kinds of gap that stop records from answering it:\n"
+    "- WHO: no customer, staff, supplier or payer identity is recorded anywhere.\n"
+    "- WHAT DID NOT HAPPEN: nothing records a shopper who did not buy, a product that was not on the shelf, a payment that was not retried. "
+    "Sales are cut off by empty shelves, so recorded sales are not demand, and a forecast built from them is not a forecast of demand.\n"
+    "- WHY: no reason or cause codes are recorded for any event.\n"
+    "- WHAT ELSE: nothing about competitors, other stores, prices elsewhere, weather, promotions, or costs beyond one cost per product, and only these 11 products.\n"
+    "- HOW LONG: till lines run from 4 May to 28 June, every other table covers June only, and there is one store.\n"
+    "If a question falls in one of these gaps, say 'no record' and give no number. If the records give only a stand-in for what was asked, "
+    "use the verdict proxy and say what it stands for. Never present a stand-in as the answer."
+)
 FORMAT = (
     "\n\nFor each question give: the SQL you ran (or \"none\"), your answer, and one line on how sure you are and what the answer is based on. "
     "If the records cannot answer a question, say so plainly instead of guessing. End with a JSON block, one item per question, in this form:\n"
@@ -106,7 +122,7 @@ def run_batch(items: list[dict]) -> dict:
     qs = "\n".join(f"{i}. {it['question']}" for i, it in enumerate(items, 1))
     prompt = INTRO + (pack_text() if CONDITION.startswith("pack") else "") \
         + ("QUESTIONS (June 2026 unless stated; the till lines start on 4 May)\n" + qs) \
-        + (RULE if CONDITION.endswith("-rule") else "") + FORMAT
+        + (RULE if CONDITION.endswith("-rule") else GAPS if CONDITION.endswith("-gaps") else "") + FORMAT
     messages = [{"role": "user", "content": prompt}]
     calls, final, started = [], "", time.time()
     for turn in range(MAX_TURNS):
@@ -134,13 +150,13 @@ def run_batch(items: list[dict]) -> dict:
 
 def main() -> None:
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
-    name = re.sub(r"[^a-z0-9.]+", "_", MODEL.lower()) + "__" + CONDITION
+    name = re.sub(r"[^a-z0-9.]+", "_", MODEL.lower()) + "__" + CONDITION + f"__rep{REP}"
     path = out / f"{name}.json"
     questions = json.loads((HERE / "questions.json").read_text())
     order = questions[:]
     random.Random(SEED).shuffle(order)
     batches = [order[i::N_BATCHES] for i in range(N_BATCHES)]
-    rec = json.loads(path.read_text()) if path.exists() else {"model": MODEL, "condition": CONDITION, "seed": SEED, "batches": []}
+    rec = json.loads(path.read_text()) if path.exists() else {"model": MODEL, "condition": CONDITION, "rep": REP, "seed": SEED, "batches": []}
     done = len(rec["batches"])
     for b in range(done, len(batches)):
         print("batch", b + 1, "of", len(batches), name, flush=True)

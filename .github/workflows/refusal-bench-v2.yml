@@ -1,0 +1,118 @@
+name: Refusal benchmark round 2, repeats, a gaps rule and two more models
+
+# Round 2 of the Store 014 refusal benchmark (see refusal-bench/README.md). Three things:
+#  1. Nemotron Lightning and Ultra, repeated three times (seeds 42, 43, 44) on the four original conditions
+#     (repeat 1 of those is already in results/run-2, so only repeats 2 and 3 run here).
+#  2. A new rule that names the five gaps (who, what did not happen, why, what else, how long), on schema and on the pack,
+#     for Lightning and Ultra with three repeats. The five kinds were drawn from this same question list, so this is an upper bound.
+#  3. MiniMax M3.1 Flash and Meta Muse Glimmer 30B (both finished in the earlier NVIDIA sweep) on all six conditions, one repeat.
+# Needs the NVIDIA_API_KEY secret. Results go to refusal-bench/results/v2-run-N with the key taken out first, and the last job scores them.
+# Starts on a push to the refusal-bench-v2 branch that changes refusal-bench/ (not its results) or this file.
+
+on:
+  push:
+    branches: [refusal-bench-v2]
+    paths:
+      - "refusal-bench/**"
+      - "!refusal-bench/results/**"
+      - ".github/workflows/refusal-bench-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RESULTS: refusal-bench/results/v2-run-${{ github.run_number }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          nem = ["nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3-ultra-550b-a55b"]
+          new = ["minimaxai/minimax-m3.1-flash", "meta/muse-glimmer-30b"]
+          orig = ["schema", "schema-rule", "pack", "pack-rule"]
+          gaps = ["schema-gaps", "pack-gaps"]
+          jobs = []
+          for m in nem:
+              jobs += [{"model": m, "condition": c, "rep": r} for c in orig for r in (2, 3)]
+              jobs += [{"model": m, "condition": c, "rep": r} for c in gaps for r in (1, 2, 3)]
+          for m in new:
+              jobs += [{"model": m, "condition": c, "rep": 1} for c in orig + gaps]
+          print("matrix=" + json.dumps({"include": jobs}))
+          PY
+
+  test:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      MODEL: ${{ matrix.model }}
+      CONDITION: ${{ matrix.condition }}
+      REP: ${{ matrix.rep }}
+      DEADLINE_MIN: "300"
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Load Store 014
+        run: |
+          mkdir -p "$RESULTS"
+          python3 auto-ontology-demo/seed_store014.py > /tmp/store014.sql
+          psql -h localhost -U postgres -q -c "CREATE DATABASE store014"
+          psql -h localhost -U postgres -d store014 -v ON_ERROR_STOP=1 -q -f /tmp/store014.sql
+          pip install --quiet requests psycopg2-binary
+
+      - name: Check the questions match the data
+        run: python3 -I refusal-bench/build_questions.py && git diff --exit-code refusal-bench/questions.json
+
+      - name: Run the model
+        run: |
+          if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
+          python3 refusal-bench/run.py "$RESULTS"
+
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "Refusal benchmark round 2: $MODEL, $CONDITION, repeat $REP (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3 4 5 6 7 8 9 10; do git pull -q --rebase origin refusal-bench-v2 && git push -q origin HEAD:refusal-bench-v2 && break; sleep $((RANDOM % 15 + 3)); done
+
+  score:
+    needs: test
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refusal-bench-v2
+      - name: Score and commit the summary
+        run: |
+          git pull -q origin refusal-bench-v2
+          python3 -I refusal-bench/score.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "Refusal benchmark round 2: scores for run ${{ github.run_number }}" || exit 0
+          for i in 1 2 3 4 5 6; do git pull -q --rebase origin refusal-bench-v2 && git push -q origin HEAD:refusal-bench-v2 && break; sleep $((RANDOM % 10 + 3)); done
