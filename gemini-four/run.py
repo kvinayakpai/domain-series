@@ -1,4 +1,4 @@
-"""The four Store 014 questions on Gemini, five conditions. Usage: run.py OUTDIR CONDITION"""
+"""Resumable: each call makes at most BUDGET requests on the next unfinished condition. Usage: run.py"""
 import json, os, re, sys, time
 from pathlib import Path
 import psycopg2, requests
@@ -41,41 +41,55 @@ def sql(q):
 
 class Blocked(Exception): pass
 
+BUDGET, MAX_RUNS, ORDER = 2, 20, ["schema", "autoont", "ontop", "sonnet", "opus"]
+ST = ROOT / "gemini-four/state"
+
 def chat(messages):
-    last = ""
-    for attempt in range(8):
-        r = requests.post(f"{BASE}/chat/completions", timeout=600, headers={"Authorization": f"Bearer {KEY}"},
-                          json={"model": MODEL, "messages": messages, "tools": TOOL, "max_tokens": 16000})
-        if r.status_code < 300:
-            return r.json()["choices"][0]["message"]
-        last = f"{r.status_code} {r.text}"          # full body kept
-        if r.status_code == 429 and "limit: 0" in r.text:
-            raise Blocked(last)                      # a zero quota will not clear by waiting
-        time.sleep(30 if r.status_code == 429 else 20)
-    raise RuntimeError("model call failed 8 times: " + last)
+    r = requests.post(f"{BASE}/chat/completions", timeout=600, headers={"Authorization": f"Bearer {KEY}"},
+                      json={"model": MODEL, "messages": messages, "tools": TOOL, "max_tokens": 16000})
+    if r.status_code < 300:
+        return r.json()["choices"][0]["message"]
+    raise Blocked(f"{r.status_code} {r.text}")      # full body kept; no waiting, the next slot tries again
 
 def main():
-    out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True); cond = sys.argv[2]
+    ST.mkdir(parents=True, exist_ok=True)
+    rf = ST / "runs.json"
+    runs = json.loads(rf.read_text()) if rf.exists() else {"completed": 0, "log": []}
+    if runs["completed"] >= MAX_RUNS:
+        print("20 runs done"); return
+    def load(c):
+        f = ST / f"{c}.json"
+        return json.loads(f.read_text()) if f.exists() else None
+    pending = [c for c in ORDER if not (load(c) or {}).get("done")]
+    stamp = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime())
+    if not pending:
+        runs["log"].append({"at": stamp, "note": "all conditions finished"}); rf.write_text(json.dumps(runs, indent=1)); return
+    cond = pending[runs["completed"] % len(pending)]
     head, body = CONDITIONS[cond]
     prompt = INTRO + (head + body() if body else "") + QUESTIONS
-    messages = [{"role": "user", "content": prompt}]
-    calls, final, started, err = [], "", time.time(), ""
+    st = load(cond) or {"model": MODEL, "condition": cond, "prompt_chars": len(prompt), "messages": [{"role": "user", "content": prompt}],
+                        "sql_calls": [], "requests": 0, "final": "", "done": False}
+    used, note = 0, ""
     try:
-        for _ in range(30):
-            msg = chat(messages)
-            messages.append({k: v for k, v in msg.items() if k in ("role", "content", "tool_calls") and v is not None})
+        while used < BUDGET and not st["done"]:
+            msg = chat(st["messages"]); used += 1; st["requests"] += 1
+            st["messages"].append({k: v for k, v in msg.items() if k in ("role", "content", "tool_calls") and v is not None})
             if not msg.get("tool_calls"):
-                final = msg.get("content") or ""; break
+                st["final"] = msg.get("content") or ""; st["done"] = True; break
             for tc in msg["tool_calls"]:
                 try: q = json.loads(tc["function"]["arguments"]).get("query", "")
                 except Exception: q = ""
-                res = sql(q); calls.append({"sql": q, "result": res[:600]})
-                messages.append({"role": "tool", "tool_call_id": tc["id"], "content": res})
-    except Exception as e:
-        err = str(e)
-    rec = {"model": MODEL, "condition": cond, "prompt_chars": len(prompt), "seconds": round(time.time()-started),
-           "sql_calls": calls, "final": final, "error": err}
-    (out / f"{cond}.json").write_text(json.dumps(rec, indent=2))
-    print(cond, "done", rec["seconds"], "s", err[:300])
+                res = sql(q); st["sql_calls"].append({"sql": q, "result": res[:600]})
+                st["messages"].append({"role": "tool", "tool_call_id": tc["id"], "content": res})
+            if st["requests"] >= 30:
+                st["done"] = True; st["final"] = "(no final answer in 30 requests)"
+    except Blocked as e:
+        note = "BLOCKED " + str(e)
+    (ST / f"{cond}.json").write_text(json.dumps(st, indent=1))
+    counted = not note
+    if counted: runs["completed"] += 1
+    runs["log"].append({"at": stamp, "condition": cond, "requests_made": used, "counted": counted, "done": st["done"], "note": note[:1500]})
+    rf.write_text(json.dumps(runs, indent=1))
+    print(cond, "requests", used, "done", st["done"], note[:300])
 
 main()
