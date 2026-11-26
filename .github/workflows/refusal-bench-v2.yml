@@ -30,6 +30,7 @@ jobs:
     outputs:
       matrix: ${{ steps.m.outputs.matrix }}
     steps:
+      - uses: actions/checkout@v4
       - id: m
         run: |
           python3 - <<'PY' >> "$GITHUB_OUTPUT"
@@ -40,11 +41,12 @@ jobs:
           # Round 2b: the cells that did not finish in round 2 (Ultra and MiniMax stopped on rate limits or overload,
           # Lightning had batches with an empty reply), rerun with a runner that waits out 429/503/529 and retries empty replies.
           jobs = []
-          jobs += [{"model": ultra, "condition": c, "rep": r} for c in orig for r in (2, 3)]
-          jobs += [{"model": ultra, "condition": c, "rep": r} for c in gaps for r in (1, 2, 3)]
-          jobs += [{"model": mini, "condition": c, "rep": 1} for c in orig + gaps]
-          jobs += [{"model": lite, "condition": c, "rep": r} for c, r in
-                   [("schema", 1), ("schema", 3), ("schema-rule", 3), ("pack-rule", 2), ("pack-gaps", 1), ("pack-gaps", 2), ("pack-gaps", 3), ("schema-gaps", 3)]]
+          # Round 2c: finish the cells that stopped part-way (Ultra and MiniMax hit the 5 hour cap). The batches already done
+          # are in refusal-bench/seed and are copied in first, so each job carries on from the next batch.
+          import glob, os
+          for path in sorted(glob.glob("refusal-bench/seed/*.json")):
+              r = json.load(open(path))
+              jobs.append({"model": r["model"], "condition": r["condition"], "rep": r["rep"]})
           print("matrix=" + json.dumps({"include": jobs}))
           PY
 
@@ -87,8 +89,17 @@ jobs:
       - name: Check the questions match the data
         run: python3 -I refusal-bench/build_questions.py && git diff --exit-code refusal-bench/questions.json
 
-      - name: Run the model
+      - name: Carry on from seeded batches
         run: |
+          python3 - <<'PY'
+          import os, re, shutil
+          name = re.sub(r"[^a-z0-9.]+", "_", os.environ["MODEL"].lower()) + "__" + os.environ["CONDITION"] + "__rep" + os.environ["REP"] + ".json"
+          src = os.path.join("refusal-bench/seed", name)
+          if os.path.exists(src):
+              os.makedirs(os.environ["RESULTS"], exist_ok=True); shutil.copy(src, os.path.join(os.environ["RESULTS"], name)); print("seeded", name)
+          PY
+
+      - name: Run the model
           if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
           python3 refusal-bench/run.py "$RESULTS"
 
