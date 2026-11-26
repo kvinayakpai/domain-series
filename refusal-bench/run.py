@@ -11,6 +11,7 @@ Conditions
   pack         the hand-written OWL and SHACL pack (Store 014's knowledge layer) in the prompt.
   pack-rule    the pack plus the line.
   schema-gaps  schema only, plus a longer rule that names the five gaps (who, what did not happen, why, what else, how long).
+  schema-gaps2 / pack-gaps2  the same, with a stricter HOW LONG line: an answer for a narrower window than the question asks is a proxy or no record.
   pack-gaps    the pack plus that rule. NOTE: the five gap kinds were drawn from this same question list, so these two
                conditions are an upper bound on what a general rule could do, not a fair test on unseen questions.
 REP picks the repeat (seed is 41 + REP).
@@ -38,7 +39,7 @@ HERE = Path(__file__).parent
 BASE = "https://integrate.api.nvidia.com/v1"
 MODEL = os.environ["MODEL"]
 CONDITION = os.environ["CONDITION"]
-assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule", "schema-gaps", "pack-gaps"}, CONDITION
+assert CONDITION in {"schema", "schema-rule", "pack", "pack-rule", "schema-gaps", "pack-gaps", "schema-gaps2", "pack-gaps2"}, CONDITION
 REP = int(os.environ.get("REP", "1"))
 KEY = os.environ.get("NVIDIA_API_KEY", "")
 N_BATCHES = int(os.environ.get("N_BATCHES", "10"))
@@ -67,6 +68,12 @@ GAPS = (
     "If a question falls in one of these gaps, say 'no record' and give no number. If the records give only a stand-in for what was asked, "
     "use the verdict proxy and say what it stands for. Never present a stand-in as the answer."
 )
+GAPS2 = GAPS.replace(
+    "- HOW LONG: till lines run from 4 May to 28 June, every other table covers June only, and there is one store.\n",
+    "- HOW LONG: till lines run from 4 May to 28 June, every other table covers June only, and there is one store. "
+    "If a question asks about dates, a period or a number of days that a table does not cover (a year, a month before June, a month before 4 May, "
+    "'ever', 'best of the year'), the answer for the shorter window is not the answer. A count of zero for a period the table does not cover is not an answer either. "
+    "Say 'no record', or use the verdict proxy and name the window you used.\n")
 FORMAT = (
     "\n\nFor each question give: the SQL you ran (or \"none\"), your answer, and one line on how sure you are and what the answer is based on. "
     "If the records cannot answer a question, say so plainly instead of guessing. End with a JSON block, one item per question, in this form:\n"
@@ -136,7 +143,7 @@ def run_batch(items: list[dict]) -> dict:
     qs = "\n".join(f"{i}. {it['question']}" for i, it in enumerate(items, 1))
     prompt = INTRO + (pack_text() if CONDITION.startswith("pack") else "") \
         + ("QUESTIONS (June 2026 unless stated; the till lines start on 4 May)\n" + qs) \
-        + (RULE if CONDITION.endswith("-rule") else GAPS if CONDITION.endswith("-gaps") else "") + FORMAT
+        + (RULE if CONDITION.endswith("-rule") else GAPS2 if CONDITION.endswith("-gaps2") else GAPS if CONDITION.endswith("-gaps") else "") + FORMAT
     messages = [{"role": "user", "content": prompt}]
     calls, final, started = [], "", time.time()
     for turn in range(MAX_TURNS):
