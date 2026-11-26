@@ -1,0 +1,967 @@
+{
+ "model": "nvidia/nemotron-3-ultra-550b-a55b",
+ "condition": "schema-gaps",
+ "rep": 2,
+ "seed": 43,
+ "batches": [
+  {
+   "ids": [
+    "A03",
+    "N09",
+    "N26",
+    "N20",
+    "N10"
+   ],
+   "seconds": 269,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'pos_lines'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT MIN(bill_ts) AS min_date, MAX(bill_ts) AS max_date, COUNT(DISTINCT bill_id) AS distinct_bills\nFROM store.pos_lines\nWHERE bill_ts >= '2026-05-04' AND bill_ts <= '2026-05-31';",
+     "result": "2026-05-04 07:00:00|2026-05-30 21:54:00|13437"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints'\nORDER BY ordinal_position;",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT COUNT(*) AS queue_complaints\nFROM payments.customer_complaints\nWHERE kind ILIKE '%queue%' OR kind ILIKE '%wait%' OR kind ILIKE '%long%'\n  AND complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01';",
+     "result": "0"
+    },
+    {
+     "sql": "SELECT DISTINCT kind, COUNT(*) AS cnt\nFROM payments.customer_complaints\nWHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01'\nGROUP BY kind\nORDER BY cnt DESC;",
+     "result": "charged twice|23\ndebited but the till said failed|3"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'products'\nORDER BY ordinal_position;",
+     "result": "sku|text\ngtin|text\nname|text\npack|text\ncase_units|integer\ncase_kg|numeric\nflow|text\ndc_slot|text\nprice_inr|numeric\ncost_inr|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'daily_sales'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+     "sql": "SELECT sku, name\nFROM store.products\nWHERE name ILIKE '%toned%milk%' OR name ILIKE '%milk%toned%';",
+     "result": "MILK-TONED-500ML|Toned milk 500 ml pouch"
+    },
+    {
+     "sql": "SELECT MIN(date) AS min_date, MAX(date) AS max_date\nFROM store.daily_sales;",
+     "result": "2026-06-01|2026-06-28"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'shelf_audits'\nORDER BY ordinal_position;",
+     "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+     "sql": "SELECT DISTINCT status, COUNT(*) AS cnt\nFROM store.shelf_audits\nWHERE audit_ts >= '2026-06-01' AND audit_ts < '2026-07-01'\nGROUP BY status\nORDER BY cnt DESC;",
+     "result": "on shelf|85\nempty|3"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'inventory_book'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nbook_on_hand_close|integer"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'stock_counts'\nORDER BY ordinal_position;",
+     "result": "count_ts|timestamp without time zone\nsku|text\nbook_before|integer\ncounted|integer\nadjustment|integer\ntrigger|text"
+    },
+    {
+     "sql": "SELECT DISTINCT trigger, COUNT(*) AS cnt\nFROM store.stock_counts\nWHERE count_ts >= '2026-06-01' AND count_ts < '2026-07-01'\nGROUP BY trigger\nORDER BY cnt DESC;",
+     "result": "scheduled full count|22\nmanager request after complaints|3"
+    },
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nAND table_name ILIKE '%weather%' OR table_name ILIKE '%rain%' OR table_name ILIKE '%footfall%' OR table_name ILIKE '%traffic%' OR table_name ILIKE '%shoppers%';",
+     "result": "pg_catalog|pg_constraint\ninformation_schema|domain_constraints\ninformation_schema|check_constraint_routine_usage\ninformation_schema|check_constraints\ninformation_schema|constraint_table_usage\ninformation_schema|constraint_column_usage\ninformation_schema|referential_constraints\ninformation_schema|table_constraints"
+    },
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nAND (table_name ILIKE '%weather%' OR table_name ILIKE '%rain%' OR table_name ILIKE '%footfall%' OR table_name ILIKE '%traffic%' OR table_name ILIKE '%shoppers%' OR table_name ILIKE '%customer%');",
+     "result": "payments|customer_complaints"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'forecasts'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nforecast_units_per_day|numeric\nsigma|numeric\nreorder_point|integer\norder_up_to|integer\nbook_on_hand|integer\non_order|integer\nordered_units|integer\nmethod|text"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"answer\",\"value\":13437,\"answer\":\"13,437 distinct bills\",\"sql\":\"SELECT COUNT(DISTINCT bill_id) FROM store.pos_lines WHERE bill_ts >= '2026-05-04' AND bill_ts <= '2026-05-31';\",\"basis\":\"pos_lines covers 4 May\u201330 May 2026 (no data for 31 May); each bill_id is a distinct till transaction.\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"customer_complaints for June 2026 show only 'charged twice' and 'debited but the till said failed'; no queue/wait complaints exist, and no table records shoppers who left without buying (WHAT DID NOT HAPPEN, WHO).\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"daily_sales only covers 1\u201328 June 2026 (28 days), not the last twelve months (HOW LONG).\"},{\"id\":\"q4\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No weather/rainfall table and no footfall/shoppers table exist (WHAT ELSE, WHAT DID NOT HAPPEN).\"},{\"id\":\"q5\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"No table captures products picked up and returned; shelf_audits, stock_counts, inventory_book only show on-shelf/empty/counted states, not put-back events (WHAT DID NOT HAPPEN, WHY).\"}]}"
+  },
+  {
+   "ids": [
+    "N11",
+    "A08",
+    "N23",
+    "A06",
+    "N19"
+   ],
+   "seconds": 475,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT * FROM payments.customer_complaints LIMIT 10;",
+     "result": "2026-06-04 10:00:00|debited but the till said failed|73.65|B260603-090023|615416001875|2026-06-06 11:00:00|customer's bank returned the money\n2026-06-05 12:00:00|charged twice|143.11|B260604-140026|615521002766|2026-06-10 12:00:00|refunded after the store matched the credit by hand\n2026-06-06 13:00:00|charged twice|224.51|B260605-120088|615619003319|2026-06-08 13:00:00|refunded after the store matched the credit by hand\n2026-06-10 10:00:00|charged twice|532.71|B260609-040018|616011005544|2026-06-14 10:00:00|refunded after the store matched the credit by hand\n2026-06-11 10:00:00|debited but the"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints'\nORDER BY ordinal_position;",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT * FROM payments.pos_payments LIMIT 10;",
+     "result": "B260601-000000|1|2026-06-01 07:00:07|cash|128.4|approved||\nB260601-000001|1|2026-06-01 07:00:34|cash|51.18|approved||\nB260601-000002|1|2026-06-01 07:01:40|card|571.97|approved||\nB260601-000003|1|2026-06-01 07:01:03|UPI|161.31|approved|615207000001|\nB260601-000004|1|2026-06-01 07:01:17|cash|183.14|approved||\nB260601-000005|1|2026-06-01 07:01:36|UPI|1404.32|approved|615207000002|\nB260601-000006|1|2026-06-01 07:01:39|UPI|120.45|approved|615207000003|\nB260601-000007|1|2026-06-01 07:02:41|UPI|955.86|approved|615207000004|\nB260601-000008|1|2026-06-01 07:02:37|UPI|344.92|declined|615207000005|\nB26060"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT * FROM warehouse.pallets LIMIT 10;",
+     "result": "029000010000010320|SHP-260601|18|337.4|not weighed\n029000010000010337|SHP-260602|5|73.5|not weighed\n029000010000010344|SHP-260603|24|429.2|not weighed\n029000010000010351|SHP-260603|39|738.1|not weighed\n029000010000010368|SHP-260604|7|94.1|not weighed\n029000010000010375|SHP-260605|25|399.5|not weighed\n029000010000010382|SHP-260606|35|732.5|not weighed\n029000010000010399|SHP-260606|15|169.3|not weighed\n029000010000010405|SHP-260607|23|408.9|not weighed\n029000010000010412|SHP-260608|38|717.8|not weighed"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'pallets'\nORDER BY ordinal_position;",
+     "result": "sscc|text\nshipment_id|text\ncases|integer\nnotice_kg|numeric\nweight_check|text"
+    },
+    {
+     "sql": "SELECT * FROM warehouse.shipments LIMIT 10;",
+     "result": "SHP-260601|TRK-07|2026-06-01 04:30:00|2026-06-01 06:00:00|2026-06-01 06:30:00|2026-06-01 06:20:00|1\nSHP-260602|TRK-07|2026-06-02 04:30:00|2026-06-02 06:00:00|2026-06-02 06:30:00|2026-06-02 06:00:00|1\nSHP-260603|TRK-07|2026-06-03 04:30:00|2026-06-03 06:00:00|2026-06-03 06:30:00|2026-06-03 06:16:00|2\nSHP-260604|TRK-07|2026-06-04 04:30:00|2026-06-04 06:00:00|2026-06-04 06:30:00|2026-06-04 06:00:00|1\nSHP-260605|TRK-07|2026-06-05 04:30:00|2026-06-05 06:00:00|2026-06-05 06:30:00|2026-06-05 06:21:00|1\nSHP-260606|TRK-07|2026-06-06 04:30:00|2026-06-06 06:00:00|2026-06-06 06:30:00|2026-06-06 06:12:00|2\n"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'shipments'\nORDER BY ordinal_position;",
+     "result": "shipment_id|text\nvehicle|text\ndispatched_ts|timestamp without time zone\nslot_start|timestamp without time zone\nslot_end|timestamp without time zone\narrived_ts|timestamp without time zone\npallets|integer"
+    },
+    {
+     "sql": "SELECT * FROM store.products LIMIT 20;",
+     "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|20.3|DC|A-09-01|349.0|301.0\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0\nOIL-SUN-1L|2900001001311|Sunflower oil 1 L pouch|1 L|10|9.5|DC|B-05-01|152.0|134.0\nSUGAR-1KG|2900001001410|Sugar 1 kg|1 kg|10|10.3|DC|B-03-04|48.0|42.0\nMILK-TONED-500ML|2900001002011|Toned"
+    },
+    {
+     "sql": "SELECT * FROM warehouse.stock_adjustments LIMIT 10;",
+     "result": "2026-06-23 14:20:00|ATTA-WW-1KG|A-07-04|-16|-160|-7920.0|short pick: slot count variance\n2026-06-25 10:00:00|ATTA-WW-5KG|A-07-03|16|64|14592.0|cycle count variance"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'stock_adjustments'\nORDER BY ordinal_position;",
+     "result": "adjusted_ts|timestamp without time zone\nsku|text\nslot|text\ncases|integer\nunits|integer\nvalue_at_cost_inr|numeric\nreason|text"
+    },
+    {
+     "sql": "SELECT * FROM warehouse.shipping_notice_lines LIMIT 10;",
+     "result": "SHP-260601|029000010000010320|1|SO-260531|ATTA-WW-5KG|2900001001014|13|52\nSHP-260601|029000010000010320|2|SO-260531|DAL-TOOR-1KG|2900001001212|5|50\nSHP-260602|029000010000010337|1|SO-260601|SUGAR-1KG|2900001001410|5|50\nSHP-260603|029000010000010344|1|SO-260602|ATTA-WW-5KG|2900001001014|16|64\nSHP-260603|029000010000010344|2|SO-260602|ATTA-WW-1KG|2900001001021|8|80\nSHP-260603|029000010000010351|3|SO-260602|ATTA-WW-10KG|2900001001038|17|34\nSHP-260603|029000010000010351|4|SO-260602|RICE-SM-5KG|2900001001113|15|60\nSHP-260603|029000010000010351|5|SO-260602|OIL-SUN-1L|2900001001311|7|70\nSHP-260604|02"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'shipping_notice_lines'\nORDER BY ordinal_position;",
+     "result": "shipment_id|text\nsscc|text\nline|integer\norder_id|text\nsku|text\ngtin|text\ncases|integer\nunits|integer"
+    },
+    {
+     "sql": "SELECT COUNT(*) AS declined_count\nFROM payments.pos_payments\nWHERE till_status = 'declined'\n  AND ts >= '2026-06-01' AND ts < '2026-07-01';",
+     "result": "679"
+    },
+    {
+     "sql": "SELECT * FROM warehouse.pick_confirmations LIMIT 10;",
+     "result": "2026-06-01 03:00:00|SO-260531|SHP-260601|1|ATTA-WW-5KG|A-07-03|13|13|slot label scan\n2026-06-01 03:08:00|SO-260531|SHP-260601|2|DAL-TOOR-1KG|B-02-02|5|5|slot label scan\n2026-06-02 03:00:00|SO-260601|SHP-260602|1|SUGAR-1KG|B-03-04|5|5|slot label scan\n2026-06-03 03:00:00|SO-260602|SHP-260603|1|ATTA-WW-5KG|A-07-03|16|16|slot label scan\n2026-06-03 03:08:00|SO-260602|SHP-260603|2|ATTA-WW-1KG|A-07-04|8|8|slot label scan\n2026-06-03 03:16:00|SO-260602|SHP-260603|3|ATTA-WW-10KG|A-07-05|17|17|slot label scan\n2026-06-03 03:24:00|SO-260602|SHP-260603|4|RICE-SM-5KG|A-09-01|15|15|slot label scan\n2026-06-03 "
+    },
+    {
+     "sql": "SELECT * FROM warehouse.stock_adjustments;",
+     "result": "2026-06-23 14:20:00|ATTA-WW-1KG|A-07-04|-16|-160|-7920.0|short pick: slot count variance\n2026-06-25 10:00:00|ATTA-WW-5KG|A-07-03|16|64|14592.0|cycle count variance"
+    },
+    {
+     "sql": "SELECT * FROM store.store_orders LIMIT 10;",
+     "result": "SO-260601|SUGAR-1KG|50|5|2026-06-01 22:00:00|auto\nSO-260602|ATTA-WW-5KG|64|16|2026-06-02 22:00:00|auto\nSO-260602|ATTA-WW-1KG|80|8|2026-06-02 22:00:00|auto\nSO-260602|ATTA-WW-10KG|34|17|2026-06-02 22:00:00|auto\nSO-260602|RICE-SM-5KG|60|15|2026-06-02 22:00:00|auto\nSO-260602|OIL-SUN-1L|70|7|2026-06-02 22:00:00|auto\nSO-260603|DAL-TOOR-1KG|70|7|2026-06-03 22:00:00|auto\nSO-260604|ATTA-WW-5KG|48|12|2026-06-04 22:00:00|auto\nSO-260604|ATTA-WW-1KG|60|6|2026-06-04 22:00:00|auto\nSO-260604|SUGAR-1KG|70|7|2026-06-04 22:00:00|auto"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'store_orders'\nORDER BY ordinal_position;",
+     "result": "order_id|text\nsku|text\nunits|integer\ncases|integer\ncreated_ts|timestamp without time zone\nreason|text"
+    },
+    {
+     "sql": "SELECT DISTINCT kind, resolution FROM payments.customer_complaints;",
+     "result": "charged twice|refunded after the store matched the credit by hand\ndebited but the till said failed|customer's bank returned the money"
+    },
+    {
+     "sql": "SELECT * FROM store.inventory_book LIMIT 10;",
+     "result": "2026-06-01|ATTA-WW-5KG|58\n2026-06-02|ATTA-WW-5KG|22\n2026-06-03|ATTA-WW-5KG|64\n2026-06-04|ATTA-WW-5KG|36\n2026-06-05|ATTA-WW-5KG|52\n2026-06-06|ATTA-WW-5KG|27\n2026-06-07|ATTA-WW-5KG|43\n2026-06-08|ATTA-WW-5KG|34\n2026-06-09|ATTA-WW-5KG|78\n2026-06-10|ATTA-WW-5KG|56"
+    },
+    {
+     "sql": "SELECT * FROM store.shelf_audits LIMIT 10;",
+     "result": "2026-06-02 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-02 11:00:00|ATTA-WW-1KG|on shelf\n2026-06-02 11:00:00|ATTA-WW-10KG|on shelf\n2026-06-02 11:00:00|RICE-SM-5KG|on shelf\n2026-06-02 11:00:00|DAL-TOOR-1KG|on shelf\n2026-06-02 11:00:00|OIL-SUN-1L|on shelf\n2026-06-02 11:00:00|SUGAR-1KG|on shelf\n2026-06-02 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-02 11:00:00|MILK-FC-500ML|on shelf\n2026-06-02 11:00:00|CURD-500G|on shelf"
+    },
+    {
+     "sql": "SELECT * FROM store.fresh_deliveries LIMIT 10;",
+     "result": "2026-06-01 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-02\n2026-06-01 05:30:00|R-07|MILK-FC-500ML|109|5|2026-06-02\n2026-06-01 05:30:00|R-07|CURD-500G|69|3|2026-06-04\n2026-06-01 05:30:00|R-12|BREAD-WHITE-400G|59|5|2026-06-04\n2026-06-02 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-03\n2026-06-02 05:30:00|R-07|MILK-FC-500ML|108|5|2026-06-03\n2026-06-02 05:30:00|R-07|CURD-500G|69|3|2026-06-05\n2026-06-02 05:30:00|R-12|BREAD-WHITE-400G|59|5|2026-06-05\n2026-06-03 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-04\n2026-06-03 05:30:00|R-07|MILK-FC-500ML|109|5|2026-06-04"
+    },
+    {
+     "sql": "SELECT * FROM store.daily_sales LIMIT 5;",
+     "result": "2026-06-01|ATTA-WW-5KG|30|7950.0\n2026-06-02|ATTA-WW-5KG|36|9540.0\n2026-06-03|ATTA-WW-5KG|22|5830.0\n2026-06-04|ATTA-WW-5KG|28|7420.0\n2026-06-05|ATTA-WW-5KG|32|8480.0"
+    },
+    {
+     "sql": "SELECT SUM(pallets) AS total_pallets\nFROM warehouse.shipments\nWHERE arrived_ts >= '2026-06-01' AND arrived_ts < '2026-07-01';",
+     "result": "30"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT COUNT(*) FROM payments.customer_complaints WHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01' AND kind ILIKE '%cash refund%' AND resolution ILIKE '%refused%';\",\"basis\":\"customer_complaints only records UPI/card disputes (charged twice, debited but till said failed) and their resolutions (refunded by store or bank); no rows mention cash refund requests or refusals, and no table captures refused cash refunds (WHY, WHAT DID NOT HAPPEN)\"},{\"id\":\"q2\",\"verdict\":\"answer\",\"value\":679,\"answer\":\"679\",\"sql\":\"SELECT COUNT(*) FROM payments.pos_payments WHERE till_status = 'declined' AND ts >= '2026-06-01' AND ts < '2026-07-01';\",\"basis\":\"pos_payments records every till payment attempt with till_status; 679 rows have status 'declined' in June 2026\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"warehouse tables (pallets, shipments, shipping_notice_lines, pick_confirmations, stock_adjustments) track movements to this store only via store_orders; no table records warehouse inventory allocated to other stores (WHAT ELSE, WHO)\"},{\"id\":\"q4\",\"verdict\":\"answer\",\"value\":30,\"answer\":\"30\",\"sql\":\"SELECT SUM(pallets) FROM warehouse.shipments WHERE arrived_ts >= '2026-06-01' AND arrived_ts < '2026-07-01';\",\"basis\":\"shipments.arrived_ts marks when each delivery reached the store; summing pallets for June 2026 gives 30 pallets\"},{\"id\":\"q5\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"no table in store, warehouse, or payments schemas contains fridge temperature readings; fresh_deliveries logs milk deliveries but not equipment temperatures (WHAT ELSE)\"}]}"
+  },
+  {
+   "ids": [
+    "A09",
+    "A05",
+    "N04",
+    "N28",
+    "N03"
+   ],
+   "seconds": 2308,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'write_offs'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nunits|integer\nreason|text"
+    },
+    {
+     "sql": "SELECT min(date) as min_date, max(date) as max_date, count(*) as total_rows\nFROM store.write_offs;",
+     "result": "2026-06-01|2026-06-28|34"
+    },
+    {
+     "sql": "SELECT count(DISTINCT date) as days_with_writeoffs\nFROM store.write_offs\nWHERE date >= '2026-06-01' AND date <= '2026-06-30';",
+     "result": "22"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'goods_receipts'\nORDER BY ordinal_position;",
+     "result": "grn_id|text\nshipment_id|text\nsscc|text\nline|integer\nreceived_ts|timestamp without time zone\nasn_sku|text\nasn_units|integer\nsku_booked|text\nunits_booked|integer\nreceipt_method|text"
+    },
+    {
+     "sql": "SELECT min(received_ts) as min_ts, max(received_ts) as max_ts, count(*) as total_rows\nFROM store.goods_receipts;",
+     "result": "2026-06-01 06:20:00|2026-06-28 06:07:00|70"
+    },
+    {
+     "sql": "SELECT count(*) as grn_lines_june\nFROM store.goods_receipts\nWHERE received_ts >= '2026-06-01' AND received_ts < '2026-07-01';",
+     "result": "70"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints'\nORDER BY ordinal_position;",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT min(complaint_ts) as min_ts, max(complaint_ts) as max_ts, count(*) as total_rows\nFROM payments.customer_complaints;",
+     "result": "2026-06-04 10:00:00|2026-06-26 17:00:00|26"
+    },
+    {
+     "sql": "SELECT complaint_ts, kind, amount_inr, bill_id, rrn, resolved_ts, resolution\nFROM payments.customer_complaints\nWHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01'\nORDER BY complaint_ts;",
+     "result": "2026-06-04 10:00:00|debited but the till said failed|73.65|B260603-090023|615416001875|2026-06-06 11:00:00|customer's bank returned the money\n2026-06-05 12:00:00|charged twice|143.11|B260604-140026|615521002766|2026-06-10 12:00:00|refunded after the store matched the credit by hand\n2026-06-06 13:00:00|charged twice|224.51|B260605-120088|615619003319|2026-06-08 13:00:00|refunded after the store matched the credit by hand\n2026-06-10 10:00:00|charged twice|532.71|B260609-040018|616011005544|2026-06-14 10:00:00|refunded after the store matched the credit by hand\n2026-06-11 10:00:00|debited but the"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'shipments'\nORDER BY ordinal_position;",
+     "result": "shipment_id|text\nvehicle|text\ndispatched_ts|timestamp without time zone\nslot_start|timestamp without time zone\nslot_end|timestamp without time zone\narrived_ts|timestamp without time zone\npallets|integer"
+    },
+    {
+     "sql": "SELECT min(arrived_ts) as min_ts, max(arrived_ts) as max_ts, count(*) as total_rows\nFROM warehouse.shipments;",
+     "result": "2026-06-01 06:20:00|2026-06-28 06:07:00|25"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT min(ts) as min_ts, max(ts) as max_ts, count(*) as total_rows, count(DISTINCT tender) as tender_types\nFROM payments.pos_payments;",
+     "result": "2026-06-01 07:00:07|2026-06-28 21:56:21|30949|3"
+    },
+    {
+     "sql": "SELECT DISTINCT tender, count(*) as cnt\nFROM payments.pos_payments\nGROUP BY tender\nORDER BY cnt DESC;",
+     "result": "UPI|19166\ncash|7829\ncard|3954"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'pos_lines'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'daily_sales'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'psp_upi_report'\nORDER BY ordinal_position;",
+     "result": "rrn|text\ninitiated_ts|timestamp without time zone\namount_inr|numeric\nstatus|text\nstatus_ts|timestamp without time zone\nbill_ref|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'upi_refunds'\nORDER BY ordinal_position;",
+     "result": "refund_id|text\nrrn|text\nbill_id|text\namount_inr|numeric\ntrigger|text\nrequested_ts|timestamp without time zone\ncompleted_ts|timestamp without time zone"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'upi_settlements'\nORDER BY ordinal_position;",
+     "result": "settlement_date|date\nupi_credits|integer\ngross_inr|numeric\nrefunds_inr|numeric\nmdr_inr|numeric\nnet_inr|numeric"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"answer\",\"value\":22,\"answer\":\"22\",\"sql\":\"SELECT count(DISTINCT date) as days_with_writeoffs FROM store.write_offs WHERE date >= '2026-06-01' AND date <= '2026-06-30';\",\"basis\":\"write_offs table covers 2026-06-01 to 2026-06-28 with 34 rows across 22 distinct dates\"},{\"id\":\"q2\",\"verdict\":\"answer\",\"value\":70,\"answer\":\"70\",\"sql\":\"SELECT count(*) as grn_lines_june FROM store.goods_receipts WHERE received_ts >= '2026-06-01' AND received_ts < '2026-07-01';\",\"basis\":\"goods_receipts table covers 2026-06-01 to 2026-06-28 with 70 receipt lines\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"customer_complaints table has no customer identifier (no customer_id, phone, email); WHO gap - no customer identity recorded anywhere\"},{\"id\":\"q4\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"warehouse.shipments table only covers June 2026 (2026-06-01 to 2026-06-28); HOW LONG gap - every table except till lines covers June only\"},{\"id\":\"q5\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"pos_payments and all payment tables have no customer identifier; WHO gap - no payer identity recorded for UPI or any tender type\"}]}"
+  },
+  {
+   "ids": [
+    "N29",
+    "N21",
+    "A02",
+    "P33"
+   ],
+   "seconds": 1395,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT * FROM store.products;",
+     "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|20.3|DC|A-09-01|349.0|301.0\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0\nOIL-SUN-1L|2900001001311|Sunflower oil 1 L pouch|1 L|10|9.5|DC|B-05-01|152.0|134.0\nSUGAR-1KG|2900001001410|Sugar 1 kg|1 kg|10|10.3|DC|B-03-04|48.0|42.0\nMILK-TONED-500ML|2900001002011|Toned"
+    },
+    {
+     "sql": "SELECT * FROM store.daily_sales LIMIT 20;",
+     "result": "2026-06-01|ATTA-WW-5KG|30|7950.0\n2026-06-02|ATTA-WW-5KG|36|9540.0\n2026-06-03|ATTA-WW-5KG|22|5830.0\n2026-06-04|ATTA-WW-5KG|28|7420.0\n2026-06-05|ATTA-WW-5KG|32|8480.0\n2026-06-06|ATTA-WW-5KG|25|6625.0\n2026-06-07|ATTA-WW-5KG|44|11660.0\n2026-06-08|ATTA-WW-5KG|9|2385.0\n2026-06-09|ATTA-WW-5KG|11|2915.0\n2026-06-10|ATTA-WW-5KG|22|5830.0\n2026-06-11|ATTA-WW-5KG|1|265.0\n2026-06-12|ATTA-WW-5KG|0|0.0\n2026-06-13|ATTA-WW-5KG|22|5830.0\n2026-06-14|ATTA-WW-5KG|23|6095.0\n2026-06-15|ATTA-WW-5KG|22|5830.0\n2026-06-16|ATTA-WW-5KG|17|4505.0\n2026-06-17|ATTA-WW-5KG|11|2915.0\n2026-06-18|ATTA-WW-5KG|31|8215.0\n2026-06-19|A"
+    },
+    {
+     "sql": "SELECT sale_date, SUM(units_sold) as total_units, SUM(revenue) as total_revenue\nFROM store.daily_sales\nGROUP BY sale_date\nORDER BY total_revenue DESC\nLIMIT 10;",
+     "result": "ERROR: column \"sale_date\" does not exist\nLINE 1: SELECT sale_date, SUM(units_sold) as total_units, SUM(revenu...\n               ^\n"
+    },
+    {
+     "sql": "SELECT * FROM store.daily_sales LIMIT 5;",
+     "result": "2026-06-01|ATTA-WW-5KG|30|7950.0\n2026-06-02|ATTA-WW-5KG|36|9540.0\n2026-06-03|ATTA-WW-5KG|22|5830.0\n2026-06-04|ATTA-WW-5KG|28|7420.0\n2026-06-05|ATTA-WW-5KG|32|8480.0"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+     "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+     "sql": "SELECT date, SUM(units_sold) as total_units, SUM(revenue_inr) as total_revenue\nFROM store.daily_sales\nGROUP BY date\nORDER BY total_revenue DESC\nLIMIT 10;",
+     "result": "2026-06-06|846|60629.0\n2026-06-07|744|57355.0\n2026-06-05|672|54183.0\n2026-06-21|756|52133.0\n2026-06-28|944|51765.0\n2026-06-20|908|50831.0\n2026-06-27|770|49375.0\n2026-06-02|768|49259.0\n2026-06-03|666|47526.0\n2026-06-19|727|47456.0"
+    },
+    {
+     "sql": "SELECT MIN(date), MAX(date) FROM store.daily_sales;",
+     "result": "2026-06-01|2026-06-28"
+    },
+    {
+     "sql": "SELECT MIN(created_at), MAX(created_at) FROM store.pos_lines;",
+     "result": "ERROR: column \"created_at\" does not exist\nLINE 1: SELECT MIN(created_at), MAX(created_at) FROM store.pos_lines...\n                   ^\n"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'pos_lines';",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT MIN(bill_ts), MAX(bill_ts) FROM store.pos_lines;",
+     "result": "2026-05-04 07:00:00|2026-06-28 21:55:00"
+    },
+    {
+     "sql": "SELECT SUM(revenue_inr) as total_revenue\nFROM store.daily_sales\nWHERE sku = 'ATTA-WW-5KG' AND date >= '2026-06-01' AND date <= '2026-06-28';",
+     "result": "150255.0"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+     "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+     "sql": "SELECT * FROM store.shelf_audits\nWHERE sku = 'ATTA-WW-5KG'\nORDER BY audit_ts;",
+     "result": "2026-06-02 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-05 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-09 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-12 11:00:00|ATTA-WW-5KG|empty\n2026-06-16 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-19 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-23 11:00:00|ATTA-WW-5KG|on shelf\n2026-06-26 11:00:00|ATTA-WW-5KG|empty"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'stock_counts';",
+     "result": "count_ts|timestamp without time zone\nsku|text\nbook_before|integer\ncounted|integer\nadjustment|integer\ntrigger|text"
+    },
+    {
+     "sql": "SELECT * FROM store.stock_counts\nWHERE sku = 'ATTA-WW-5KG'\nORDER BY count_ts;",
+     "result": "2026-06-01 05:45:00|ATTA-WW-5KG|36|36|0|scheduled full count\n2026-06-26 09:00:00|ATTA-WW-5KG|63|0|-63|manager request after complaints\n2026-06-28 22:30:00|ATTA-WW-5KG|63|62|-1|scheduled full count"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'inventory_book';",
+     "result": "date|date\nsku|text\nbook_on_hand_close|integer"
+    },
+    {
+     "sql": "SELECT * FROM store.inventory_book\nWHERE sku = 'ATTA-WW-5KG'\nORDER BY date;",
+     "result": "2026-06-01|ATTA-WW-5KG|58\n2026-06-02|ATTA-WW-5KG|22\n2026-06-03|ATTA-WW-5KG|64\n2026-06-04|ATTA-WW-5KG|36\n2026-06-05|ATTA-WW-5KG|52\n2026-06-06|ATTA-WW-5KG|27\n2026-06-07|ATTA-WW-5KG|43\n2026-06-08|ATTA-WW-5KG|34\n2026-06-09|ATTA-WW-5KG|78\n2026-06-10|ATTA-WW-5KG|56\n2026-06-11|ATTA-WW-5KG|55\n2026-06-12|ATTA-WW-5KG|55\n2026-06-13|ATTA-WW-5KG|33\n2026-06-14|ATTA-WW-5KG|66\n2026-06-15|ATTA-WW-5KG|44\n2026-06-16|ATTA-WW-5KG|27\n2026-06-17|ATTA-WW-5KG|76\n2026-06-18|ATTA-WW-5KG|45\n2026-06-19|ATTA-WW-5KG|17\n2026-06-20|ATTA-WW-5KG|68\n2026-06-21|ATTA-WW-5KG|25\n2026-06-22|ATTA-WW-5KG|68\n2026-06-23|ATTA-WW-5KG|63\n20"
+    },
+    {
+     "sql": "SELECT bill_ts, qty\nFROM store.pos_lines\nWHERE sku_scanned = 'ATTA-WW-5KG' \n  AND bill_ts >= '2026-06-10 00:00:00' \n  AND bill_ts <= '2026-06-10 15:00:00'\nORDER BY bill_ts;",
+     "result": "2026-06-10 08:26:00|1\n2026-06-10 08:32:00|1\n2026-06-10 09:11:00|1\n2026-06-10 09:20:00|2\n2026-06-10 10:01:00|1\n2026-06-10 11:07:00|1\n2026-06-10 11:08:00|1\n2026-06-10 11:22:00|1\n2026-06-10 12:15:00|1\n2026-06-10 12:22:00|1\n2026-06-10 12:46:00|1\n2026-06-10 13:10:00|1\n2026-06-10 13:19:00|1\n2026-06-10 13:22:00|1\n2026-06-10 13:47:00|1\n2026-06-10 13:55:00|1\n2026-06-10 14:49:00|1"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"answer\",\"value\":60629,\"answer\":\"2026-06-06 (revenue \u20b960,629)\",\"sql\":\"SELECT date, SUM(revenue_inr) as total_revenue FROM store.daily_sales GROUP BY date ORDER BY total_revenue DESC LIMIT 1;\",\"basis\":\"daily_sales covers June 1\u201328 2026; highest single-day revenue in that period is 2026-06-06\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"WHAT ELSE gap: no competitor, other-store, or external price data exists in any table\"},{\"id\":\"q3\",\"verdict\":\"answer\",\"value\":150255,\"answer\":\"\u20b9150,255\",\"sql\":\"SELECT SUM(revenue_inr) FROM store.daily_sales WHERE sku='ATTA-WW-5KG' AND date BETWEEN '2026-06-01' AND '2026-06-28';\",\"basis\":\"daily_sales records revenue for ATTA-WW-5KG for each day in June 2026; sum is \u20b9150,255\"},{\"id\":\"q4\",\"verdict\":\"proxy\",\"value\":61,\"answer\":\"~61 units (book estimate)\",\"sql\":\"SELECT ib.book_on_hand_close - COALESCE((SELECT SUM(qty) FROM store.pos_lines WHERE sku_scanned='ATTA-WW-5KG' AND bill_ts >= '2026-06-10 00:00:00' AND bill_ts <= '2026-06-10 15:00:00'),0) FROM store.inventory_book ib WHERE ib.sku='ATTA-WW-5KG' AND ib.date='2026-06-09';\",\"basis\":\"proxy: inventory_book closing 78 on 9 Jun minus 17 POS units sold by 14:49 on 10 Jun = 61; no physical shelf count exists at 15:00 (shelf_audits only record on-shelf/empty status, not quantity)\"]}"
+  },
+  {
+   "ids": [
+    "N12",
+    "A10",
+    "N06",
+    "N02"
+   ],
+   "seconds": 3135,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT DISTINCT tender, till_status\nFROM payments.pos_payments\nORDER BY tender, till_status;",
+     "result": "card|approved\ncard|declined\ncash|approved\nUPI|approved\nUPI|declined\nUPI|failed\nUPI|failed: no response"
+    },
+    {
+     "sql": "SELECT note, count(*)\nFROM payments.pos_payments\nWHERE tender = 'card'\nGROUP BY note\nORDER BY count(*) DESC;",
+     "result": "|3954"
+    },
+    {
+     "sql": "SELECT note, count(*)\nFROM payments.pos_payments\nWHERE tender = 'card' AND till_status = 'declined'\nGROUP BY note\nORDER BY count(*) DESC;",
+     "result": "|90"
+    },
+    {
+     "sql": "SELECT note, count(*)\nFROM payments.pos_payments\nWHERE tender = 'card' AND till_status = 'declined' AND note IS NOT NULL\nGROUP BY note\nORDER BY count(*) DESC;",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT note, count(*)\nFROM payments.pos_payments\nWHERE tender = 'card' AND till_status = 'declined'\nGROUP BY note\nORDER BY count(*) DESC;",
+     "result": "|90"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'psp_upi_report'\nORDER BY ordinal_position;",
+     "result": "rrn|text\ninitiated_ts|timestamp without time zone\namount_inr|numeric\nstatus|text\nstatus_ts|timestamp without time zone\nbill_ref|text"
+    },
+    {
+     "sql": "SELECT status, count(*)\nFROM payments.psp_upi_report\nWHERE initiated_ts >= '2026-06-01' AND initiated_ts < '2026-07-01'\nGROUP BY status\nORDER BY count(*) DESC;",
+     "result": "success|18410\nfailed|750\nreturned|6"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'fresh_deliveries'\nORDER BY ordinal_position;",
+     "result": "delivery_ts|timestamp without time zone\nroute|text\nsku|text\nunits|integer\ncrates|integer\nuse_by|date"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'store_orders'\nORDER BY ordinal_position;",
+     "result": "order_id|text\nsku|text\nunits|integer\ncases|integer\ncreated_ts|timestamp without time zone\nreason|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'shipments'\nORDER BY ordinal_position;",
+     "result": "shipment_id|text\nvehicle|text\ndispatched_ts|timestamp without time zone\nslot_start|timestamp without time zone\nslot_end|timestamp without time zone\narrived_ts|timestamp without time zone\npallets|integer"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'shipping_notice_lines'\nORDER BY ordinal_position;",
+     "result": "shipment_id|text\nsscc|text\nline|integer\norder_id|text\nsku|text\ngtin|text\ncases|integer\nunits|integer"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'products'\nORDER BY ordinal_position;",
+     "result": "sku|text\ngtin|text\nname|text\npack|text\ncase_units|integer\ncase_kg|numeric\nflow|text\ndc_slot|text\nprice_inr|numeric\ncost_inr|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'pallets'\nORDER BY ordinal_position;",
+     "result": "sscc|text\nshipment_id|text\ncases|integer\nnotice_kg|numeric\nweight_check|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'pick_confirmations'\nORDER BY ordinal_position;",
+     "result": "pick_ts|timestamp without time zone\norder_id|text\nshipment_id|text\nline|integer\nsku|text\nslot|text\ncases_ordered|integer\ncases_confirmed|integer\nconfirmed_by|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'goods_receipts'\nORDER BY ordinal_position;",
+     "result": "grn_id|text\nshipment_id|text\nsscc|text\nline|integer\nreceived_ts|timestamp without time zone\nasn_sku|text\nasn_units|integer\nsku_booked|text\nunits_booked|integer\nreceipt_method|text"
+    },
+    {
+     "sql": "SELECT count(*)\nFROM payments.psp_upi_report\nWHERE initiated_ts >= '2026-06-01' AND initiated_ts < '2026-07-01'\n  AND status = 'failed';",
+     "result": "750"
+    },
+    {
+     "sql": "SELECT *\nFROM store.fresh_deliveries\nWHERE route = 'R-07' AND delivery_ts::date = '2026-06-10';",
+     "result": "2026-06-10 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-11\n2026-06-10 05:30:00|R-07|MILK-FC-500ML|109|5|2026-06-11\n2026-06-10 05:30:00|R-07|CURD-500G|69|3|2026-06-13"
+    },
+    {
+     "sql": "SELECT DISTINCT s.supplier_name\nFROM warehouse.shipments sh\nJOIN warehouse.shipping_notice_lines snl ON sh.shipment_id = snl.shipment_id\nJOIN store.products p ON snl.sku = p.sku\nJOIN store.store_orders so ON snl.order_id = so.order_id\n-- Need to find supplier info. Let me check if products has supplier or if there's another table\nWHERE sh.arrived_ts >= '2026-06-01' AND sh.arrived_ts < '2026-07-01';",
+     "result": "ERROR: missing FROM-clause entry for table \"s\"\nLINE 1: SELECT DISTINCT s.supplier_name\n                        ^\n"
+    },
+    {
+     "sql": "SELECT DISTINCT p.sku, p.name, p.flow\nFROM store.products p\nORDER BY p.sku;",
+     "result": "ATTA-WW-10KG|Whole wheat atta 10 kg|DC\nATTA-WW-1KG|Whole wheat atta 1 kg|DC\nATTA-WW-5KG|Whole wheat atta 5 kg|DC\nBREAD-WHITE-400G|White bread 400 g|DSD\nCURD-500G|Curd 500 g pouch|DSD\nDAL-TOOR-1KG|Toor dal 1 kg|DC\nMILK-FC-500ML|Full cream milk 500 ml pouch|DSD\nMILK-TONED-500ML|Toned milk 500 ml pouch|DSD\nOIL-SUN-1L|Sunflower oil 1 L pouch|DC\nRICE-SM-5KG|Sona masoori rice 5 kg|DC\nSUGAR-1KG|Sugar 1 kg|DC"
+    },
+    {
+     "sql": "SELECT DISTINCT reason, count(*)\nFROM store.store_orders\nGROUP BY reason\nORDER BY count(*) DESC;",
+     "result": "auto|68"
+    },
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\n  AND table_name LIKE '%supplier%';",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT DISTINCT p.flow, p.sku, p.name\nFROM store.products p\nORDER BY p.flow, p.sku;",
+     "result": "DC|ATTA-WW-10KG|Whole wheat atta 10 kg\nDC|ATTA-WW-1KG|Whole wheat atta 1 kg\nDC|ATTA-WW-5KG|Whole wheat atta 5 kg\nDC|DAL-TOOR-1KG|Toor dal 1 kg\nDC|OIL-SUN-1L|Sunflower oil 1 L pouch\nDC|RICE-SM-5KG|Sona masoori rice 5 kg\nDC|SUGAR-1KG|Sugar 1 kg\nDSD|BREAD-WHITE-400G|White bread 400 g\nDSD|CURD-500G|Curd 500 g pouch\nDSD|MILK-FC-500ML|Full cream milk 500 ml pouch\nDSD|MILK-TONED-500ML|Toned milk 500 ml pouch"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'goods_receipts'\nORDER BY ordinal_position;",
+     "result": "grn_id|text\nshipment_id|text\nsscc|text\nline|integer\nreceived_ts|timestamp without time zone\nasn_sku|text\nasn_units|integer\nsku_booked|text\nunits_booked|integer\nreceipt_method|text"
+    },
+    {
+     "sql": "SELECT DISTINCT sh.shipment_id, sh.arrived_ts, snl.sku, p.name, p.flow\nFROM warehouse.shipments sh\nJOIN warehouse.shipping_notice_lines snl ON sh.shipment_id = snl.shipment_id\nJOIN store.products p ON snl.sku = p.sku\nWHERE sh.arrived_ts >= '2026-06-01' AND sh.arrived_ts < '2026-07-01'\nORDER BY sh.arrived_ts, sh.shipment_id, snl.sku;",
+     "result": "SHP-260601|2026-06-01 06:20:00|ATTA-WW-5KG|Whole wheat atta 5 kg|DC\nSHP-260601|2026-06-01 06:20:00|DAL-TOOR-1KG|Toor dal 1 kg|DC\nSHP-260602|2026-06-02 06:00:00|SUGAR-1KG|Sugar 1 kg|DC\nSHP-260603|2026-06-03 06:16:00|ATTA-WW-10KG|Whole wheat atta 10 kg|DC\nSHP-260603|2026-06-03 06:16:00|ATTA-WW-1KG|Whole wheat atta 1 kg|DC\nSHP-260603|2026-06-03 06:16:00|ATTA-WW-5KG|Whole wheat atta 5 kg|DC\nSHP-260603|2026-06-03 06:16:00|OIL-SUN-1L|Sunflower oil 1 L pouch|DC\nSHP-260603|2026-06-03 06:16:00|RICE-SM-5KG|Sona masoori rice 5 kg|DC\nSHP-260604|2026-06-04 06:00:00|DAL-TOOR-1KG|Toor dal 1 kg|DC\nSHP-260605|"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT tender, till_status, note FROM payments.pos_payments WHERE tender = 'card' AND ts >= '2026-06-01' AND ts < '2026-07-01';\",\"basis\":\"The pos_payments table records only tender type 'card' (not card brands), and no column captures card-type acceptance or rejection; nothing records a shopper attempting a card type the tills do not accept.\"},{\"id\":\"q2\",\"verdict\":\"answer\",\"value\":750,\"answer\":\"750\",\"sql\":\"SELECT count(*) FROM payments.psp_upi_report WHERE initiated_ts >= '2026-06-01' AND initiated_ts < '2026-07-01' AND status = 'failed';\",\"basis\":\"Direct count from the UPI service provider's report (psp_upi_report) for June 2026 with status 'failed'.\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT * FROM store.fresh_deliveries WHERE route = 'R-07' AND delivery_ts::date = '2026-06-10';\",\"basis\":\"The fresh_deliveries table shows the route, SKUs, units and crates for 10 June 2026, but contains no driver or staff identity column.\"},{\"id\":\"q4\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT DISTINCT sh.shipment_id, sh.arrived_ts, snl.sku, p.name, p.flow FROM warehouse.shipments sh JOIN warehouse.shipping_notice_lines snl ON sh.shipment_id = snl.shipment_id JOIN store.products p ON snl.sku = p.sku WHERE sh.arrived_ts >= '2026-06-01' AND sh.arrived_ts < '2026-07-01' ORDER BY sh.arrived_ts;\",\"basis\":\"Shipments arriving in June 2026 carry only DC-flow products (atta, dal, oil, rice, sugar). No table in the database records supplier names or IDs for these goods.\"}]}"
+  },
+  {
+   "ids": [
+    "N08",
+    "N16",
+    "N13",
+    "P32"
+   ],
+   "seconds": 1272,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'pos_lines'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT DISTINCT till_status\nFROM payments.pos_payments;",
+     "result": "declined\napproved\nfailed\nfailed: no response"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'psp_upi_report'\nORDER BY ordinal_position;",
+     "result": "rrn|text\ninitiated_ts|timestamp without time zone\namount_inr|numeric\nstatus|text\nstatus_ts|timestamp without time zone\nbill_ref|text"
+    },
+    {
+     "sql": "SELECT DISTINCT status\nFROM payments.psp_upi_report;",
+     "result": "returned\nfailed\nsuccess"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints'\nORDER BY ordinal_position;",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT DISTINCT kind\nFROM payments.customer_complaints;",
+     "result": "charged twice\ndebited but the till said failed"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'shelf_audits'\nORDER BY ordinal_position;",
+     "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+     "sql": "SELECT DISTINCT status\nFROM store.shelf_audits;",
+     "result": "on shelf\nempty"
+    },
+    {
+     "sql": "SELECT sku, name\nFROM store.products\nWHERE name ILIKE '%atta%';",
+     "result": "ATTA-WW-5KG|Whole wheat atta 5 kg\nATTA-WW-1KG|Whole wheat atta 1 kg\nATTA-WW-10KG|Whole wheat atta 10 kg"
+    },
+    {
+     "sql": "SELECT audit_ts, status\nFROM store.shelf_audits\nWHERE sku = 'ATTA-WW-5KG'\n  AND audit_ts >= '2026-06-01'\n  AND audit_ts < '2026-07-01'\n  AND EXTRACT(HOUR FROM audit_ts) = 11\n  AND EXTRACT(MINUTE FROM audit_ts) = 0\nORDER BY audit_ts;",
+     "result": "2026-06-02 11:00:00|on shelf\n2026-06-05 11:00:00|on shelf\n2026-06-09 11:00:00|on shelf\n2026-06-12 11:00:00|empty\n2026-06-16 11:00:00|on shelf\n2026-06-19 11:00:00|on shelf\n2026-06-23 11:00:00|on shelf\n2026-06-26 11:00:00|empty"
+    },
+    {
+     "sql": "SELECT COUNT(DISTINCT pl.bill_id) AS bills_started\nFROM store.pos_lines pl\nWHERE pl.bill_ts >= '2026-06-01'\n  AND pl.bill_ts < '2026-07-01'\n  AND NOT EXISTS (\n    SELECT 1 FROM payments.pos_payments pp\n    WHERE pp.bill_id = pl.bill_id\n      AND pp.till_status = 'approved'\n  );",
+     "result": "0"
+    },
+    {
+     "sql": "SELECT COUNT(DISTINCT pl.bill_id) AS total_bills_june\nFROM store.pos_lines pl\nWHERE pl.bill_ts >= '2026-06-01'\n  AND pl.bill_ts < '2026-07-01';",
+     "result": "13851"
+    },
+    {
+     "sql": "SELECT COUNT(DISTINCT pp.bill_id) AS bills_with_approved_payment\nFROM payments.pos_payments pp\nWHERE pp.ts >= '2026-06-01'\n  AND pp.ts < '2026-07-01'\n  AND pp.till_status = 'approved';",
+     "result": "30077"
+    },
+    {
+     "sql": "SELECT COUNT(DISTINCT pl.bill_id) AS bills_no_payment_record\nFROM store.pos_lines pl\nWHERE pl.bill_ts >= '2026-06-01'\n  AND pl.bill_ts < '2026-07-01'\n  AND NOT EXISTS (\n    SELECT 1 FROM payments.pos_payments pp\n    WHERE pp.bill_id = pl.bill_id\n  );",
+     "result": "0"
+    },
+    {
+     "sql": "SELECT pl.bill_id, pl.bill_ts, COUNT(pp.attempt) as payment_attempts,\n       STRING_AGG(pp.till_status, ', ' ORDER BY pp.attempt) as statuses\nFROM store.pos_lines pl\nJOIN payments.pos_payments pp ON pp.bill_id = pl.bill_id\nWHERE pl.bill_ts >= '2026-06-01'\n  AND pl.bill_ts < '2026-07-01'\nGROUP BY pl.bill_id, pl.bill_ts\nHAVING NOT BOOL_OR(pp.till_status = 'approved')\nLIMIT 20;",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT MIN(ts), MAX(ts) FROM payments.pos_payments;",
+     "result": "2026-06-01 07:00:07|2026-06-28 21:56:21"
+    },
+    {
+     "sql": "SELECT MIN(bill_ts), MAX(bill_ts) FROM store.pos_lines;",
+     "result": "2026-05-04 07:00:00|2026-06-28 21:55:00"
+    },
+    {
+     "sql": "SELECT pl.bill_id, pl.bill_ts, COUNT(pp.attempt) as payment_attempts,\n       STRING_AGG(pp.till_status, ', ' ORDER BY pp.attempt) as statuses\nFROM store.pos_lines pl\nLEFT JOIN payments.pos_payments pp ON pp.bill_id = pl.bill_id\nWHERE pl.bill_ts >= '2026-06-01'\n  AND pl.bill_ts < '2026-07-01'\nGROUP BY pl.bill_id, pl.bill_ts\nHAVING NOT BOOL_OR(pp.till_status = 'approved')\nLIMIT 20;",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT COUNT(DISTINCT pl.bill_id) as total_bills,\n       COUNT(DISTINCT pp.bill_id) as bills_with_payments\nFROM store.pos_lines pl\nLEFT JOIN payments.pos_payments pp ON pp.bill_id = pl.bill_id\nWHERE pl.bill_ts >= '2026-06-01'\n  AND pl.bill_ts < '2026-07-01';",
+     "result": "13851|13851"
+    },
+    {
+     "sql": "SELECT tender, till_status, COUNT(*) as cnt\nFROM payments.pos_payments\nWHERE ts >= '2026-06-01'\n  AND ts < '2026-07-01'\nGROUP BY tender, till_status\nORDER BY tender, till_status;",
+     "result": "card|approved|3864\ncard|declined|90\ncash|approved|7829\nUPI|approved|18384\nUPI|declined|589\nUPI|failed|145\nUPI|failed: no response|48"
+    },
+    {
+     "sql": "SELECT MIN(audit_ts), MAX(audit_ts) FROM store.shelf_audits;",
+     "result": "2026-06-02 11:00:00|2026-06-26 11:00:00"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT COUNT(DISTINCT pl.bill_id) FROM store.pos_lines pl WHERE pl.bill_ts >= '2026-06-01' AND pl.bill_ts < '2026-07-01' AND NOT EXISTS (SELECT 1 FROM payments.pos_payments pp WHERE pp.bill_id = pl.bill_id AND pp.till_status = 'approved');\",\"basis\":\"Every bill in pos_lines for June has at least one approved payment in pos_payments; no till_status value indicates cancellation before payment, and nothing records a bill that was started then abandoned without any payment attempt (WHAT DID NOT HAPPEN gap).\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT DISTINCT status FROM payments.psp_upi_report;\",\"basis\":\"psp_upi_report shows only status (returned/failed/success) with no reason codes; pos_payments shows UPI failed/failed:no_response counts but no attribution to bank, network, or customer (WHY gap).\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT table_name FROM information_schema.tables WHERE table_schema='store' AND table_name LIKE '%return%';\",\"basis\":\"No returns table exists in the schema; customer_complaints only covers payment issues; write_offs has no reason codes linking to shopper returns (WHY and WHAT DID NOT HAPPEN gaps).\"},{\"id\":\"q4\",\"verdict\":\"proxy\",\"value\":2,\"answer\":\"2 days in June 2026 (proxy for full year)\",\"sql\":\"SELECT COUNT(*) FROM store.shelf_audits WHERE sku='ATTA-WW-5KG' AND audit_ts>='2026-06-01' AND audit_ts<'2026-07-01' AND EXTRACT(HOUR FROM audit_ts)=11 AND EXTRACT(MINUTE FROM audit_ts)=0 AND status='empty';\",\"basis\":\"Shelf_audits only covers 2026-06-02 to 2026-06-26 (HOW LONG gap: every table except pos_lines covers June only); 2 of 8 June audit days at 11:00 showed empty for 5 kg atta.\"}]}"
+  },
+  {
+   "ids": [
+    "N01",
+    "N17",
+    "N14",
+    "A07"
+   ],
+   "seconds": 996,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'pos_lines'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'daily_sales'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'products'\nORDER BY ordinal_position;",
+     "result": "sku|text\ngtin|text\nname|text\npack|text\ncase_units|integer\ncase_kg|numeric\nflow|text\ndc_slot|text\nprice_inr|numeric\ncost_inr|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'write_offs'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nunits|integer\nreason|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'stock_counts'\nORDER BY ordinal_position;",
+     "result": "count_ts|timestamp without time zone\nsku|text\nbook_before|integer\ncounted|integer\nadjustment|integer\ntrigger|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints'\nORDER BY ordinal_position;",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT date, sku, units, reason\nFROM store.write_offs\nWHERE date >= '2026-06-01' AND date <= '2026-06-30'\nORDER BY date;",
+     "result": "2026-06-01|MILK-TONED-500ML|1|damaged\n2026-06-03|RICE-SM-5KG|1|damaged\n2026-06-05|MILK-FC-500ML|1|expired\n2026-06-08|MILK-TONED-500ML|4|expired\n2026-06-09|ATTA-WW-5KG|1|damaged\n2026-06-09|MILK-TONED-500ML|1|damaged\n2026-06-10|MILK-TONED-500ML|1|damaged\n2026-06-11|MILK-TONED-500ML|1|damaged\n2026-06-11|CURD-500G|1|damaged\n2026-06-12|MILK-TONED-500ML|48|expired\n2026-06-13|DAL-TOOR-1KG|1|damaged\n2026-06-13|MILK-TONED-500ML|25|expired\n2026-06-14|MILK-TONED-500ML|42|expired\n2026-06-15|RICE-SM-5KG|1|damaged\n2026-06-15|MILK-TONED-500ML|50|expired\n2026-06-16|MILK-TONED-500ML|10|expired\n2026-06-17|MILK-"
+    },
+    {
+     "sql": "SELECT count_ts, sku, book_before, counted, adjustment, trigger\nFROM store.stock_counts\nWHERE count_ts >= '2026-06-01' AND count_ts <= '2026-06-30'\nORDER BY count_ts;",
+     "result": "2026-06-01 05:45:00|ATTA-WW-5KG|36|36|0|scheduled full count\n2026-06-01 05:45:00|ATTA-WW-1KG|92|87|-5|scheduled full count\n2026-06-01 05:45:00|ATTA-WW-10KG|28|29|1|scheduled full count\n2026-06-01 05:45:00|RICE-SM-5KG|66|64|-2|scheduled full count\n2026-06-01 05:45:00|DAL-TOOR-1KG|15|13|-2|scheduled full count\n2026-06-01 05:45:00|OIL-SUN-1L|82|77|-5|scheduled full count\n2026-06-01 05:45:00|SUGAR-1KG|46|44|-2|scheduled full count\n2026-06-01 05:45:00|MILK-TONED-500ML|377|351|-26|scheduled full count\n2026-06-01 05:45:00|MILK-FC-500ML|94|109|15|scheduled full count\n2026-06-01 05:45:00|CURD-500G|115|"
+    },
+    {
+     "sql": "SELECT date, sku, units_sold, revenue_inr\nFROM store.daily_sales\nWHERE date >= '2026-06-01' AND date <= '2026-06-30'\nAND sku IN ('ATTA-WW-1KG', 'ATTA-WW-5KG', 'ATTA-WW-10KG')\nORDER BY date, sku;",
+     "result": "2026-06-01|ATTA-WW-10KG|10|4990.0\n2026-06-01|ATTA-WW-1KG|22|1276.0\n2026-06-01|ATTA-WW-5KG|30|7950.0\n2026-06-02|ATTA-WW-10KG|13|6487.0\n2026-06-02|ATTA-WW-1KG|35|2030.0\n2026-06-02|ATTA-WW-5KG|36|9540.0\n2026-06-03|ATTA-WW-10KG|12|5988.0\n2026-06-03|ATTA-WW-1KG|41|2378.0\n2026-06-03|ATTA-WW-5KG|22|5830.0\n2026-06-04|ATTA-WW-10KG|7|3493.0\n2026-06-04|ATTA-WW-1KG|24|1392.0\n2026-06-04|ATTA-WW-5KG|28|7420.0\n2026-06-05|ATTA-WW-10KG|17|8483.0\n2026-06-05|ATTA-WW-1KG|24|1392.0\n2026-06-05|ATTA-WW-5KG|32|8480.0\n2026-06-06|ATTA-WW-10KG|11|5489.0\n2026-06-06|ATTA-WW-1KG|52|3016.0\n2026-06-06|ATTA-WW-5KG|25|6625.0\n2"
+    },
+    {
+     "sql": "SELECT date, sku, units_sold, revenue_inr\nFROM store.daily_sales\nWHERE date >= '2026-06-21' AND date <= '2026-06-30'\nAND sku IN ('ATTA-WW-1KG', 'ATTA-WW-5KG', 'ATTA-WW-10KG')\nORDER BY date, sku;",
+     "result": "2026-06-21|ATTA-WW-10KG|9|4491.0\n2026-06-21|ATTA-WW-1KG|35|2030.0\n2026-06-21|ATTA-WW-5KG|43|11395.0\n2026-06-22|ATTA-WW-10KG|9|4491.0\n2026-06-22|ATTA-WW-1KG|14|812.0\n2026-06-22|ATTA-WW-5KG|20|5300.0\n2026-06-23|ATTA-WW-10KG|12|5988.0\n2026-06-23|ATTA-WW-1KG|24|1392.0\n2026-06-23|ATTA-WW-5KG|5|1325.0\n2026-06-24|ATTA-WW-10KG|15|7485.0\n2026-06-24|ATTA-WW-1KG|28|1624.0\n2026-06-24|ATTA-WW-5KG|0|0.0\n2026-06-25|ATTA-WW-10KG|11|5489.0\n2026-06-25|ATTA-WW-1KG|15|870.0\n2026-06-25|ATTA-WW-5KG|0|0.0\n2026-06-26|ATTA-WW-10KG|13|6487.0\n2026-06-26|ATTA-WW-1KG|26|1508.0\n2026-06-26|ATTA-WW-5KG|0|0.0\n2026-06-27|ATTA-"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"WHO gap: no staff identity is recorded in any table (pos_lines, pos_payments, daily_sales, etc.)\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"WHY gap: no reason or cause codes for shopper choices; WHAT ELSE gap: no data on promotions, competitor prices, or shopper surveys\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT date, sku, units, reason FROM store.write_offs WHERE date BETWEEN '2026-06-01' AND '2026-06-30' AND reason='damaged';\",\"basis\":\"WHY gap: write_offs.reason only says 'damaged' or 'expired'; no cause codes (rough handling, faulty fridge, late delivery) are recorded\"},{\"id\":\"q4\",\"verdict\":\"answer\",\"value\":3,\"answer\":\"3 stock count lines (one manager-requested count event covering 3 SKUs on 2026-06-26)\",\"sql\":\"SELECT count_ts, sku, trigger FROM store.stock_counts WHERE count_ts BETWEEN '2026-06-01' AND '2026-06-30' AND trigger='manager request after complaints';\",\"basis\":\"stock_counts table shows 3 rows with trigger='manager request after complaints' on 2026-06-26 09:00:00 for ATTA-WW-5KG, ATTA-WW-1KG, ATTA-WW-10KG\"}]}"
+  },
+  {
+   "ids": [
+    "N27",
+    "A04",
+    "N25",
+    "N07"
+   ],
+   "seconds": 1790,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'upi_refunds'\nORDER BY ordinal_position;",
+     "result": "refund_id|text\nrrn|text\nbill_id|text\namount_inr|numeric\ntrigger|text\nrequested_ts|timestamp without time zone\ncompleted_ts|timestamp without time zone"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'daily_sales'\nORDER BY ordinal_position;",
+     "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints'\nORDER BY ordinal_position;",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT MIN(ts) as min_ts, MAX(ts) as max_ts, COUNT(*) as cnt\nFROM payments.pos_payments\nWHERE bill_id LIKE '014%';",
+     "result": "||0"
+    },
+    {
+     "sql": "SELECT MIN(ts) as min_ts, MAX(ts) as max_ts, COUNT(*) as cnt\nFROM payments.pos_payments;",
+     "result": "2026-06-01 07:00:07|2026-06-28 21:56:21|30949"
+    },
+    {
+     "sql": "SELECT MIN(date) as min_date, MAX(date) as max_date, COUNT(*) as cnt\nFROM store.daily_sales;",
+     "result": "2026-06-01|2026-06-28|308"
+    },
+    {
+     "sql": "SELECT DISTINCT bill_id\nFROM payments.pos_payments\nLIMIT 20;",
+     "result": "B260601-000000\nB260601-000001\nB260601-000002\nB260601-000003\nB260601-000004\nB260601-000005\nB260601-000006\nB260601-000007\nB260601-000008\nB260601-000009\nB260601-000010\nB260601-000011\nB260601-000012\nB260601-000013\nB260601-000014\nB260601-000015\nB260601-000016\nB260601-000017\nB260601-000018\nB260601-000019"
+    },
+    {
+     "sql": "SELECT *\nFROM store.daily_sales\nLIMIT 5;",
+     "result": "2026-06-01|ATTA-WW-5KG|30|7950.0\n2026-06-02|ATTA-WW-5KG|36|9540.0\n2026-06-03|ATTA-WW-5KG|22|5830.0\n2026-06-04|ATTA-WW-5KG|28|7420.0\n2026-06-05|ATTA-WW-5KG|32|8480.0"
+    },
+    {
+     "sql": "SELECT tender, COUNT(*) as cnt, SUM(amount_inr) as total_amount\nFROM payments.pos_payments\nGROUP BY tender\nORDER BY total_amount DESC;",
+     "result": "UPI|19166|11207655.08\ncash|7829|4531615.76\ncard|3954|2306086.40"
+    },
+    {
+     "sql": "SELECT MIN(requested_ts) as min_ts, MAX(requested_ts) as max_ts, COUNT(*) as cnt\nFROM payments.upi_refunds;",
+     "result": "2026-06-05 12:00:00|2026-06-26 17:00:00|23"
+    },
+    {
+     "sql": "SELECT kind, COUNT(*) as cnt\nFROM payments.customer_complaints\nGROUP BY kind\nORDER BY cnt DESC;",
+     "result": "charged twice|23\ndebited but the till said failed|3"
+    },
+    {
+     "sql": "SELECT \n    DATE(ts) as payment_date,\n    COUNT(*) FILTER (WHERE tender = 'UPI') as upi_count,\n    COUNT(*) as total_count,\n    ROUND(100.0 * COUNT(*) FILTER (WHERE tender = 'UPI') / COUNT(*), 2) as upi_share_pct\nFROM payments.pos_payments\nGROUP BY DATE(ts)\nORDER BY payment_date;",
+     "result": "2026-06-01|812|1330|61.05\n2026-06-02|711|1116|63.71\n2026-06-03|638|1012|63.04\n2026-06-04|625|997|62.69\n2026-06-05|631|1002|62.97\n2026-06-06|875|1380|63.41\n2026-06-07|606|952|63.66\n2026-06-08|514|842|61.05\n2026-06-09|496|775|64.00\n2026-06-10|755|1186|63.66\n2026-06-11|616|994|61.97\n2026-06-12|546|917|59.54\n2026-06-13|618|1030|60.00\n2026-06-14|933|1522|61.30\n2026-06-15|585|979|59.75\n2026-06-16|666|1137|58.58\n2026-06-17|551|908|60.68\n2026-06-18|791|1227|64.47\n2026-06-19|867|1386|62.55\n2026-06-20|653|1050|62.19\n2026-06-21|697|1160|60.09\n2026-06-22|758|1189|63.75\n2026-06-23|655|1009|64.92\n2026-06-24"
+    },
+    {
+     "sql": "SELECT SUM(amount_inr) as total_upi_refunds\nFROM payments.upi_refunds\nWHERE requested_ts >= '2026-06-01' AND requested_ts < '2026-07-01';",
+     "result": "11301.86"
+    },
+    {
+     "sql": "SELECT MIN(date), MAX(date)\nFROM store.daily_sales;",
+     "result": "2026-06-01|2026-06-28"
+    },
+    {
+     "sql": "SELECT kind, COUNT(*) as cnt\nFROM payments.customer_complaints\nWHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01'\nGROUP BY kind;",
+     "result": "charged twice|23\ndebited but the till said failed|3"
+    },
+    {
+     "sql": "SELECT *\nFROM payments.customer_complaints\nWHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01';",
+     "result": "2026-06-04 10:00:00|debited but the till said failed|73.65|B260603-090023|615416001875|2026-06-06 11:00:00|customer's bank returned the money\n2026-06-05 12:00:00|charged twice|143.11|B260604-140026|615521002766|2026-06-10 12:00:00|refunded after the store matched the credit by hand\n2026-06-06 13:00:00|charged twice|224.51|B260605-120088|615619003319|2026-06-08 13:00:00|refunded after the store matched the credit by hand\n2026-06-10 10:00:00|charged twice|532.71|B260609-040018|616011005544|2026-06-14 10:00:00|refunded after the store matched the credit by hand\n2026-06-11 10:00:00|debited but the"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"proxy\",\"value\":null,\"answer\":\"UPI share in June 2026 ranged from 57.3% to 64.9% daily, averaging ~61.7%. No data exists for other months of 2026.\",\"sql\":\"SELECT DATE(ts) as payment_date, ROUND(100.0 * COUNT(*) FILTER (WHERE tender = 'UPI') / COUNT(*), 2) as upi_share_pct FROM payments.pos_payments GROUP BY DATE(ts) ORDER BY payment_date;\",\"basis\":\"pos_payments only covers June 2026 (2026-06-01 to 2026-06-28); no records for Jan\u2013May or Jul\u2013Dec 2026. The daily shares shown are a proxy for the June 2026 trend only.\"},{\"id\":\"q2\",\"verdict\":\"answer\",\"value\":11301.86,\"answer\":\"\u20b911,301.86\",\"sql\":\"SELECT SUM(amount_inr) FROM payments.upi_refunds WHERE requested_ts >= '2026-06-01' AND requested_ts < '2026-07-01';\",\"basis\":\"upi_refunds table covers June 2026 only (2026-06-05 to 2026-06-26); all 23 refunds fall in June 2026.\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"No record of June 2025 sales; daily_sales table only contains June 2026 (2026-06-01 to 2026-06-28).\",\"sql\":\"SELECT MIN(date), MAX(date) FROM store.daily_sales;\",\"basis\":\"daily_sales has no rows for 2025; the HOW LONG gap (till lines start 4 May, other tables cover June only) prevents a June 2025 comparison.\"},{\"id\":\"q4\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"No record of shoppers asking staff for products not stocked.\",\"sql\":\"SELECT kind, COUNT(*) FROM payments.customer_complaints WHERE complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01' GROUP BY kind;\",\"basis\":\"customer_complaints only records payment issues ('charged twice', 'debited but the till said failed'); nothing captures product inquiries or out-of-stock requests (WHAT DID NOT HAPPEN gap).\"}]}"
+  },
+  {
+   "ids": [
+    "N15",
+    "N22",
+    "N18",
+    "N24"
+   ],
+   "seconds": 3489,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT * FROM store.products;",
+     "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|20.3|DC|A-09-01|349.0|301.0\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0\nOIL-SUN-1L|2900001001311|Sunflower oil 1 L pouch|1 L|10|9.5|DC|B-05-01|152.0|134.0\nSUGAR-1KG|2900001001410|Sugar 1 kg|1 kg|10|10.3|DC|B-03-04|48.0|42.0\nMILK-TONED-500ML|2900001002011|Toned"
+    },
+    {
+     "sql": "SELECT * FROM store.daily_sales\nWHERE product_id = 'MILK-TONED-500ML'\n  AND sale_date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY sale_date;",
+     "result": "ERROR: column \"product_id\" does not exist\nLINE 2: WHERE product_id = 'MILK-TONED-500ML'\n              ^\n"
+    },
+    {
+     "sql": "SELECT * FROM store.daily_sales LIMIT 10;",
+     "result": "2026-06-01|ATTA-WW-5KG|30|7950.0\n2026-06-02|ATTA-WW-5KG|36|9540.0\n2026-06-03|ATTA-WW-5KG|22|5830.0\n2026-06-04|ATTA-WW-5KG|28|7420.0\n2026-06-05|ATTA-WW-5KG|32|8480.0\n2026-06-06|ATTA-WW-5KG|25|6625.0\n2026-06-07|ATTA-WW-5KG|44|11660.0\n2026-06-08|ATTA-WW-5KG|9|2385.0\n2026-06-09|ATTA-WW-5KG|11|2915.0\n2026-06-10|ATTA-WW-5KG|22|5830.0"
+    },
+    {
+     "sql": "SELECT sale_date, product_id, units, revenue\nFROM store.daily_sales\nWHERE product_id = 'MILK-TONED-500ML'\n  AND sale_date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY sale_date;",
+     "result": "ERROR: column \"sale_date\" does not exist\nLINE 1: SELECT sale_date, product_id, units, revenue\n               ^\n"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'daily_sales';",
+     "result": "date|date\nsku|text\nunits_sold|integer\nrevenue_inr|numeric"
+    },
+    {
+     "sql": "SELECT date, sku, units_sold, revenue_inr\nFROM store.daily_sales\nWHERE sku = 'MILK-TONED-500ML'\n  AND date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY date;",
+     "result": "2026-06-01|MILK-TONED-500ML|265|6890.0\n2026-06-02|MILK-TONED-500ML|395|10270.0\n2026-06-03|MILK-TONED-500ML|313|8138.0\n2026-06-04|MILK-TONED-500ML|224|5824.0\n2026-06-05|MILK-TONED-500ML|292|7592.0\n2026-06-06|MILK-TONED-500ML|340|8840.0\n2026-06-07|MILK-TONED-500ML|265|6890.0\n2026-06-08|MILK-TONED-500ML|289|7514.0\n2026-06-09|MILK-TONED-500ML|389|10114.0\n2026-06-10|MILK-TONED-500ML|280|7280.0\n2026-06-11|MILK-TONED-500ML|274|7124.0\n2026-06-12|MILK-TONED-500ML|222|5772.0\n2026-06-13|MILK-TONED-500ML|335|8710.0\n2026-06-14|MILK-TONED-500ML|275|7150.0\n2026-06-15|MILK-TONED-500ML|299|7774.0\n2026-06-16|MI"
+    },
+    {
+     "sql": "SELECT * FROM store.shelf_audits\nWHERE sku = 'MILK-TONED-500ML'\n  AND audit_date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY audit_date;",
+     "result": "ERROR: column \"audit_date\" does not exist\nLINE 3:   AND audit_date BETWEEN '2026-06-01' AND '2026-06-30'\n              ^\nHINT:  Perhaps you meant to reference the column \"shelf_audits.audit_ts\".\n"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'shelf_audits';",
+     "result": "audit_ts|timestamp without time zone\nsku|text\nstatus|text"
+    },
+    {
+     "sql": "SELECT audit_ts, sku, status\nFROM store.shelf_audits\nWHERE sku = 'MILK-TONED-500ML'\n  AND audit_ts::date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY audit_ts;",
+     "result": "2026-06-02 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-05 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-09 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-12 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-16 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-19 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-23 11:00:00|MILK-TONED-500ML|on shelf\n2026-06-26 11:00:00|MILK-TONED-500ML|on shelf"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'stock_counts';",
+     "result": "count_ts|timestamp without time zone\nsku|text\nbook_before|integer\ncounted|integer\nadjustment|integer\ntrigger|text"
+    },
+    {
+     "sql": "SELECT count_ts, sku, book_before, counted, adjustment, trigger\nFROM store.stock_counts\nWHERE sku = 'MILK-TONED-500ML'\n  AND count_ts::date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY count_ts;",
+     "result": "2026-06-01 05:45:00|MILK-TONED-500ML|377|351|-26|scheduled full count\n2026-06-28 22:30:00|MILK-TONED-500ML|95|40|-55|scheduled full count"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'write_offs';",
+     "result": "date|date\nsku|text\nunits|integer\nreason|text"
+    },
+    {
+     "sql": "SELECT date, sku, units, reason\nFROM store.write_offs\nWHERE sku = 'MILK-TONED-500ML'\n  AND date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY date;",
+     "result": "2026-06-01|MILK-TONED-500ML|1|damaged\n2026-06-08|MILK-TONED-500ML|4|expired\n2026-06-09|MILK-TONED-500ML|1|damaged\n2026-06-10|MILK-TONED-500ML|1|damaged\n2026-06-11|MILK-TONED-500ML|1|damaged\n2026-06-12|MILK-TONED-500ML|48|expired\n2026-06-13|MILK-TONED-500ML|25|expired\n2026-06-14|MILK-TONED-500ML|42|expired\n2026-06-15|MILK-TONED-500ML|50|expired\n2026-06-16|MILK-TONED-500ML|10|expired\n2026-06-18|MILK-TONED-500ML|27|expired\n2026-06-19|MILK-TONED-500ML|5|expired\n2026-06-24|MILK-TONED-500ML|1|damaged\n2026-06-26|MILK-TONED-500ML|74|expired\n2026-06-27|MILK-TONED-500ML|6|expired"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'fresh_deliveries';",
+     "result": "delivery_ts|timestamp without time zone\nroute|text\nsku|text\nunits|integer\ncrates|integer\nuse_by|date"
+    },
+    {
+     "sql": "SELECT delivery_ts, route, sku, units, crates, use_by\nFROM store.fresh_deliveries\nWHERE sku = 'MILK-TONED-500ML'\n  AND delivery_ts::date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY delivery_ts;",
+     "result": "2026-06-01 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-02\n2026-06-02 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-03\n2026-06-03 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-04\n2026-06-04 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-05\n2026-06-05 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-06\n2026-06-06 05:30:00|R-07|MILK-TONED-500ML|338|15|2026-06-07\n2026-06-07 05:30:00|R-07|MILK-TONED-500ML|338|15|2026-06-08\n2026-06-08 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-09\n2026-06-09 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-10\n2026-06-10 05:30:00|R-07|MILK-TONED-500ML|315|14|2026-06-11\n"
+    },
+    {
+     "sql": "SELECT * FROM store.forecasts LIMIT 20;",
+     "result": "2026-06-01|ATTA-WW-5KG|22.54|9.79|39|85|58|0|0|28-day mean of recorded sales\n2026-06-01|ATTA-WW-1KG|25.68|14.27|50|102|65|0|0|28-day mean of recorded sales\n2026-06-01|ATTA-WW-10KG|10.11|4.63|18|39|19|0|0|28-day mean of recorded sales\n2026-06-01|RICE-SM-5KG|22.46|7.53|35|80|42|0|0|28-day mean of recorded sales\n2026-06-01|DAL-TOOR-1KG|16.82|5.5|26|60|47|0|0|28-day mean of recorded sales\n2026-06-01|OIL-SUN-1L|27.57|8.19|42|98|50|0|0|28-day mean of recorded sales\n2026-06-01|SUGAR-1KG|19.5|6.67|31|70|21|0|50|28-day mean of recorded sales\n2026-06-02|ATTA-WW-5KG|22.82|10.05|40|86|22|0|64|28-day mean "
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'forecasts';",
+     "result": "date|date\nsku|text\nforecast_units_per_day|numeric\nsigma|numeric\nreorder_point|integer\norder_up_to|integer\nbook_on_hand|integer\non_order|integer\nordered_units|integer\nmethod|text"
+    },
+    {
+     "sql": "SELECT date, sku, forecast_units_per_day, sigma, reorder_point, order_up_to, book_on_hand, on_order, ordered_units, method\nFROM store.forecasts\nWHERE sku = 'MILK-TONED-500ML'\n  AND date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY date;",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT date, sku, forecast_units_per_day, sigma, reorder_point, order_up_to, book_on_hand, on_order, ordered_units, method\nFROM store.forecasts\nWHERE sku = 'MILK-TONED-500ML'\nORDER BY date;",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT DISTINCT sku FROM store.forecasts ORDER BY sku;",
+     "result": "ATTA-WW-10KG\nATTA-WW-1KG\nATTA-WW-5KG\nDAL-TOOR-1KG\nOIL-SUN-1L\nRICE-SM-5KG\nSUGAR-1KG"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'store_orders';",
+     "result": "order_id|text\nsku|text\nunits|integer\ncases|integer\ncreated_ts|timestamp without time zone\nreason|text"
+    },
+    {
+     "sql": "SELECT * FROM store.store_orders\nWHERE sku LIKE 'MILK%'\nORDER BY created_ts;",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'pos_lines';",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT bill_ts, bill_id, sku_scanned, qty, unit_price, line_amount\nFROM store.pos_lines\nWHERE sku_scanned = 'MILK-TONED-500ML'\n  AND bill_ts::date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY bill_ts\nLIMIT 20;",
+     "result": "2026-06-01 07:02:00|B260601-000007|MILK-TONED-500ML|2|26.0|52.0\n2026-06-01 07:03:00|B260601-000011|MILK-TONED-500ML|1|26.0|26.0\n2026-06-01 07:05:00|B260601-000014|MILK-TONED-500ML|1|26.0|26.0\n2026-06-01 07:09:00|B260601-000024|MILK-TONED-500ML|1|26.0|26.0\n2026-06-01 07:18:00|B260601-000038|MILK-TONED-500ML|2|26.0|52.0\n2026-06-01 07:20:00|B260601-000042|MILK-TONED-500ML|1|26.0|26.0\n2026-06-01 07:24:00|B260601-000048|MILK-TONED-500ML|1|26.0|26.0\n2026-06-01 07:24:00|B260601-000049|MILK-TONED-500ML|1|26.0|26.0\n2026-06-01 07:26:00|B260601-000053|MILK-TONED-500ML|1|26.0|26.0\n2026-06-01 07:26:00|B260"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments';",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints';",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'inventory_book';",
+     "result": "date|date\nsku|text\nbook_on_hand_close|integer"
+    },
+    {
+     "sql": "SELECT date, sku, book_on_hand_close\nFROM store.inventory_book\nWHERE sku = 'MILK-TONED-500ML'\n  AND date BETWEEN '2026-06-01' AND '2026-06-30'\nORDER BY date;",
+     "result": "2026-06-01|MILK-TONED-500ML|85\n2026-06-02|MILK-TONED-500ML|5\n2026-06-03|MILK-TONED-500ML|7\n2026-06-04|MILK-TONED-500ML|98\n2026-06-05|MILK-TONED-500ML|121\n2026-06-06|MILK-TONED-500ML|119\n2026-06-07|MILK-TONED-500ML|192\n2026-06-08|MILK-TONED-500ML|214\n2026-06-09|MILK-TONED-500ML|139\n2026-06-10|MILK-TONED-500ML|173\n2026-06-11|MILK-TONED-500ML|213\n2026-06-12|MILK-TONED-500ML|258\n2026-06-13|MILK-TONED-500ML|236\n2026-06-14|MILK-TONED-500ML|257\n2026-06-15|MILK-TONED-500ML|223\n2026-06-16|MILK-TONED-500ML|238\n2026-06-17|MILK-TONED-500ML|198\n2026-06-18|MILK-TONED-500ML|275\n2026-06-19|MILK-TONED-500ML|22"
+    },
+    {
+     "sql": "SELECT date, book_on_hand_close\nFROM store.inventory_book\nWHERE sku = 'MILK-TONED-500ML'\n  AND date BETWEEN '2026-06-01' AND '2026-06-30'\n  AND book_on_hand_close < 50\nORDER BY date;",
+     "result": "2026-06-02|5\n2026-06-03|7"
+    },
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\n  AND table_name LIKE '%cost%';",
+     "result": "(no rows)"
+    },
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT * FROM store.products;",
+     "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|20.3|DC|A-09-01|349.0|301.0\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0\nOIL-SUN-1L|2900001001311|Sunflower oil 1 L pouch|1 L|10|9.5|DC|B-05-01|152.0|134.0\nSUGAR-1KG|2900001001410|Sugar 1 kg|1 kg|10|10.3|DC|B-03-04|48.0|42.0\nMILK-TONED-500ML|2900001002011|Toned"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'goods_receipts';",
+     "result": "grn_id|text\nshipment_id|text\nsscc|text\nline|integer\nreceived_ts|timestamp without time zone\nasn_sku|text\nasn_units|integer\nsku_booked|text\nunits_booked|integer\nreceipt_method|text"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'shipments';",
+     "result": "shipment_id|text\nvehicle|text\ndispatched_ts|timestamp without time zone\nslot_start|timestamp without time zone\nslot_end|timestamp without time zone\narrived_ts|timestamp without time zone\npallets|integer"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'warehouse' AND table_name = 'pallets';",
+     "result": "sscc|text\nshipment_id|text\ncases|integer\nnotice_kg|numeric\nweight_check|text"
+    },
+    {
+     "sql": "SELECT DISTINCT tender FROM payments.pos_payments;",
+     "result": "UPI\ncard\ncash"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT date, sku, units_sold FROM store.daily_sales WHERE sku='MILK-TONED-500ML' AND date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY date; SELECT date, sku, units, reason FROM store.write_offs WHERE sku='MILK-TONED-500ML' AND date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY date; SELECT date, sku, book_on_hand_close FROM store.inventory_book WHERE sku='MILK-TONED-500ML' AND date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY date; SELECT delivery_ts, sku, units FROM store.fresh_deliveries WHERE sku='MILK-TONED-500ML' AND delivery_ts::date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY delivery_ts; SELECT audit_ts, sku, status FROM store.shelf_audits WHERE sku='MILK-TONED-500ML' AND audit_ts::date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY audit_ts;\",\"basis\":\"Sales drops on 2026-06-04, 07, 12, 18, 23, 25, 26 have no recorded cause; only 2026-06-02/03 show very low closing stock (5, 7 units) which could explain those days, but WHY gap (no reason/cause codes) prevents attribution for other days.\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema IN ('store','warehouse','payments'); SELECT * FROM store.products;\",\"basis\":\"No table contains rent or staff costs; products table only has per-unit cost_price/selling_price for 11 SKUs (WHAT ELSE gap: no costs beyond one cost per product).\"},{\"id\":\"q3\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT date, sku, forecast_units_per_day, sigma, reorder_point, order_up_to, book_on_hand, on_order, ordered_units, method FROM store.forecasts WHERE date BETWEEN '2026-06-01' AND '2026-06-30' ORDER BY date, sku;\",\"basis\":\"All forecasts show method='28-day mean of recorded sales' but no record documents why this method was chosen over alternatives (WHY gap: no reason/cause codes for any event).\"},{\"id\":\"q4\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT column_name FROM information_schema.columns WHERE table_schema='store' AND table_name='pos_lines'; SELECT column_name FROM information_schema.columns WHERE table_schema='payments' AND table_name='pos_payments'; SELECT bill_ts, bill_id, sku_scanned, qty FROM store.pos_lines WHERE bill_ts::date BETWEEN '2026-06-01' AND '2026-06-30' LIMIT 5;\",\"basis\":\"pos_lines and pos_payments contain no channel field (home-delivery/online vs in-store); bill_id format (B260601-000007) does not encode channel (WHO/WHAT ELSE gap: no customer identity or order channel recorded).\"}]}"
+  },
+  {
+   "ids": [
+    "P31",
+    "N05",
+    "A01",
+    "P30"
+   ],
+   "seconds": 1405,
+   "sql_calls": [
+    {
+     "sql": "SELECT table_schema, table_name\nFROM information_schema.tables\nWHERE table_schema IN ('store', 'warehouse', 'payments')\nORDER BY table_schema, table_name;",
+     "result": "payments|customer_complaints\npayments|pos_payments\npayments|psp_upi_report\npayments|upi_refunds\npayments|upi_settlements\nstore|daily_sales\nstore|forecasts\nstore|fresh_deliveries\nstore|goods_receipts\nstore|inventory_book\nstore|pos_lines\nstore|products\nstore|shelf_audits\nstore|stock_counts\nstore|store_orders\nstore|write_offs\nwarehouse|pallets\nwarehouse|pick_confirmations\nwarehouse|shipments\nwarehouse|shipping_notice_lines\nwarehouse|stock_adjustments"
+    },
+    {
+     "sql": "SELECT * FROM payments.customer_complaints LIMIT 20;",
+     "result": "2026-06-04 10:00:00|debited but the till said failed|73.65|B260603-090023|615416001875|2026-06-06 11:00:00|customer's bank returned the money\n2026-06-05 12:00:00|charged twice|143.11|B260604-140026|615521002766|2026-06-10 12:00:00|refunded after the store matched the credit by hand\n2026-06-06 13:00:00|charged twice|224.51|B260605-120088|615619003319|2026-06-08 13:00:00|refunded after the store matched the credit by hand\n2026-06-10 10:00:00|charged twice|532.71|B260609-040018|616011005544|2026-06-14 10:00:00|refunded after the store matched the credit by hand\n2026-06-11 10:00:00|debited but the"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'customer_complaints'\nORDER BY ordinal_position;",
+     "result": "complaint_ts|timestamp without time zone\nkind|text\namount_inr|numeric\nbill_id|text\nrrn|text\nresolved_ts|timestamp without time zone\nresolution|text"
+    },
+    {
+     "sql": "SELECT * FROM store.products LIMIT 20;",
+     "result": "ATTA-WW-5KG|2900001001014|Whole wheat atta 5 kg|5 kg|4|20.3|DC|A-07-03|265.0|228.0\nATTA-WW-1KG|2900001001021|Whole wheat atta 1 kg|1 kg|10|10.3|DC|A-07-04|58.0|49.5\nATTA-WW-10KG|2900001001038|Whole wheat atta 10 kg|10 kg|2|20.3|DC|A-07-05|499.0|431.0\nRICE-SM-5KG|2900001001113|Sona masoori rice 5 kg|5 kg|4|20.3|DC|A-09-01|349.0|301.0\nDAL-TOOR-1KG|2900001001212|Toor dal 1 kg|1 kg|10|10.3|DC|B-02-02|168.0|146.0\nOIL-SUN-1L|2900001001311|Sunflower oil 1 L pouch|1 L|10|9.5|DC|B-05-01|152.0|134.0\nSUGAR-1KG|2900001001410|Sugar 1 kg|1 kg|10|10.3|DC|B-03-04|48.0|42.0\nMILK-TONED-500ML|2900001002011|Toned"
+    },
+    {
+     "sql": "SELECT * FROM store.pos_lines LIMIT 20;",
+     "result": "B260504-000000|2026-05-04 07:00:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260504-000001|2026-05-04 07:00:00|1|2900001002011|MILK-TONED-500ML|1|26.0|26.0\nB260504-000002|2026-05-04 07:01:00|1|2900001003018|BREAD-WHITE-400G|1|45.0|45.0\nB260504-000004|2026-05-04 07:01:00|1|2900001003018|BREAD-WHITE-400G|1|45.0|45.0\nB260504-000004|2026-05-04 07:01:00|2|2900001002110|CURD-500G|2|32.0|64.0\nB260504-000005|2026-05-04 07:02:00|1|2900001002110|CURD-500G|1|32.0|32.0\nB260504-000006|2026-05-04 07:03:00|1|2900001003018|BREAD-WHITE-400G|1|45.0|45.0\nB260504-000006|2026-05-04 07:03:00|2|2900001002110|CUR"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'store' AND table_name = 'pos_lines'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nbill_ts|timestamp without time zone\nline|integer\ngtin_scanned|text\nsku_scanned|text\nqty|integer\nunit_price|numeric\nline_amount|numeric"
+    },
+    {
+     "sql": "SELECT SUM(qty) AS units_sold\nFROM store.pos_lines\nWHERE sku_scanned = 'MILK-TONED-500ML'\n  AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01';",
+     "result": "8649"
+    },
+    {
+     "sql": "SELECT * FROM payments.pos_payments LIMIT 20;",
+     "result": "B260601-000000|1|2026-06-01 07:00:07|cash|128.4|approved||\nB260601-000001|1|2026-06-01 07:00:34|cash|51.18|approved||\nB260601-000002|1|2026-06-01 07:01:40|card|571.97|approved||\nB260601-000003|1|2026-06-01 07:01:03|UPI|161.31|approved|615207000001|\nB260601-000004|1|2026-06-01 07:01:17|cash|183.14|approved||\nB260601-000005|1|2026-06-01 07:01:36|UPI|1404.32|approved|615207000002|\nB260601-000006|1|2026-06-01 07:01:39|UPI|120.45|approved|615207000003|\nB260601-000007|1|2026-06-01 07:02:41|UPI|955.86|approved|615207000004|\nB260601-000008|1|2026-06-01 07:02:37|UPI|344.92|declined|615207000005|\nB26060"
+    },
+    {
+     "sql": "SELECT column_name, data_type\nFROM information_schema.columns\nWHERE table_schema = 'payments' AND table_name = 'pos_payments'\nORDER BY ordinal_position;",
+     "result": "bill_id|text\nattempt|integer\nts|timestamp without time zone\ntender|text\namount_inr|numeric\ntill_status|text\nrrn|text\nnote|text"
+    },
+    {
+     "sql": "SELECT SUM(line_amount) AS total_sales_may\nFROM store.pos_lines\nWHERE bill_ts >= '2026-05-01' AND bill_ts < '2026-06-01';",
+     "result": "1275071.0"
+    },
+    {
+     "sql": "SELECT MIN(bill_ts), MAX(bill_ts) FROM store.pos_lines WHERE bill_ts >= '2026-05-01' AND bill_ts < '2026-06-01';",
+     "result": "2026-05-04 07:00:00|2026-05-31 21:57:00"
+    }
+   ],
+   "final": "{\"answers\":[{\"id\":\"q1\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"SELECT COUNT(DISTINCT rrn) FROM payments.customer_complaints WHERE kind = 'charged twice' AND complaint_ts >= '2026-06-01' AND complaint_ts < '2026-07-01';\",\"basis\":\"WHO gap: customer_complaints has no customer identity (no name, ID, phone), only bill_id and RRN; cannot count distinct people\"},{\"id\":\"q2\",\"verdict\":\"no_record\",\"value\":null,\"answer\":\"no record\",\"sql\":\"none\",\"basis\":\"WHO gap: no table records shopper age or gender\"},{\"id\":\"q3\",\"verdict\":\"answer\",\"value\":8649,\"answer\":\"8649 units\",\"sql\":\"SELECT SUM(qty) FROM store.pos_lines WHERE sku_scanned = 'MILK-TONED-500ML' AND bill_ts >= '2026-06-01' AND bill_ts < '2026-07-01';\",\"basis\":\"pos_lines covers 4 May\u201328 June; June 2026 toned milk 500 ml units summed from scanned SKU\"},{\"id\":\"q4\",\"verdict\":\"proxy\",\"value\":1275071,\"answer\":\"\u20b91,275,071 (recorded POS line amounts, 4\u201331 May)\",\"sql\":\"SELECT SUM(line_amount) FROM store.pos_lines WHERE bill_ts >= '2026-05-01' AND bill_ts < '2026-06-01';\",\"basis\":\"HOW LONG gap: till lines start 4 May, so 1\u20133 May missing; pos_lines line_amount is a stand-in for total sales\"}]}"
+  }
+ ]
+}
