@@ -24,13 +24,14 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import re
 import sys
 from collections import defaultdict
 from pathlib import Path
 
 HERE = Path(__file__).parent
-Q = {q["id"]: q for q in json.loads((HERE / "questions.json").read_text())}
+Q = {q["id"]: q for q in json.loads((HERE / os.environ.get("QUESTIONS", "questions.json")).read_text())}
 
 
 def parse_answers(final: str) -> dict:

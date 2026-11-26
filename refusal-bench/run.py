@@ -174,7 +174,7 @@ def main() -> None:
     out = Path(sys.argv[1]); out.mkdir(parents=True, exist_ok=True)
     name = re.sub(r"[^a-z0-9.]+", "_", MODEL.lower()) + "__" + CONDITION + f"__rep{REP}"
     path = out / f"{name}.json"
-    questions = json.loads((HERE / "questions.json").read_text())
+    questions = json.loads((HERE / os.environ.get("QUESTIONS", "questions.json")).read_text())
     order = questions[:]
     random.Random(SEED).shuffle(order)
     batches = [order[i::N_BATCHES] for i in range(N_BATCHES)]
