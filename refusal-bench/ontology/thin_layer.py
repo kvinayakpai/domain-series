@@ -169,23 +169,33 @@ def prompt_for(question):
         f"Question: {question}")
 
 
+LAST_ERROR = ""
+
+
 def model_rewrite(question):
-    """Call an OpenAI-compatible chat endpoint (NVIDIA-hosted by default). Temperature 0. Returns parsed JSON or None."""
+    """Call an OpenAI-compatible chat endpoint (NVIDIA-hosted by default). Temperature 0. Returns parsed JSON or None; the reason for a
+    failure is kept in LAST_ERROR and shown in the audit record."""
+    global LAST_ERROR
     import requests
     base = os.environ.get("BASE_URL", "https://integrate.api.nvidia.com/v1")
     model = os.environ["MODEL"]
-    for attempt in range(6):
+    for attempt in range(4):
         try:
-            r = requests.post(f"{base}/chat/completions", timeout=120, headers={"Authorization": "Bearer " + os.environ["NVIDIA_API_KEY"]},
-                              json={"model": model, "messages": [{"role": "user", "content": prompt_for(question)}], "temperature": 0, "max_tokens": 600})
+            r = requests.post(f"{base}/chat/completions", timeout=90, headers={"Authorization": "Bearer " + os.environ["NVIDIA_API_KEY"]},
+                              json={"model": model, "messages": [{"role": "user", "content": prompt_for(question)}], "temperature": 0, "max_tokens": 8000})
             if r.status_code in (429, 503, 529):
-                time.sleep(min(30, 5 * (attempt + 1))); continue
-            r.raise_for_status()
-            text = r.json()["choices"][0]["message"]["content"] or ""
+                LAST_ERROR = f"HTTP {r.status_code}"; time.sleep(min(30, 5 * (attempt + 1))); continue
+            if r.status_code >= 400:
+                LAST_ERROR = f"HTTP {r.status_code}: {r.text[:300]}"; return None
+            msg = r.json()["choices"][0]["message"]
+            text = msg.get("content") or ""
             m = re.search(r"\{.*\}", text, re.S)
-            return json.loads(m.group(0)) if m else None
-        except Exception:  # noqa: BLE001
-            time.sleep(3)
+            if not m:
+                LAST_ERROR = f"no JSON in the reply (content {len(text)} chars, reasoning {len(msg.get('reasoning_content') or '')} chars): {text[:200]!r}"
+                return None
+            return json.loads(m.group(0))
+        except Exception as e:  # noqa: BLE001
+            LAST_ERROR = f"{type(e).__name__}: {str(e)[:200]}"; time.sleep(3)
     return None
 
 
@@ -214,7 +224,7 @@ def answer_with_model(question, rewriter=model_rewrite, use_cache=True, write=Tr
         if write and use_cache and reply is not None:
             cache[key] = reply; CACHE.write_text(json.dumps(cache, indent=1, sort_keys=True))
     if not isinstance(reply, dict):
-        return {**first, "via": "resolver", "audit": {**audit, "rewrite": "no usable reply"}}
+        return {**first, "via": "resolver", "audit": {**audit, "rewrite": "no usable reply: " + (LAST_ERROR if audit["model_called"] else "cached")}}
     canonical, mappings = reply.get("canonical"), reply.get("mappings", [])
     audit.update(canonical=canonical, mappings=mappings)
     ok, why = verify(question, canonical, mappings)

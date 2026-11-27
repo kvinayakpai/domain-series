@@ -20,7 +20,11 @@ for f in sys.argv[2:]:
         else:
             kind = "LEAK" if d == "answer" else "refused"
         c[(L, kind)] += 1
-        if a["model_called"]: c["model_calls"] += 1
+        if a["model_called"]:
+            c["model_calls"] += 1
+            if str(a.get("rewrite", "")).startswith("no usable reply"): c["unusable_replies"] += 1
+            if c["model_calls"] >= 6 and c["unusable_replies"] == c["model_calls"]:
+                print("STOP: the first 6 model calls gave no usable reply:", a.get("rewrite")); (out / "stopped.txt").write_text(str(a.get("rewrite"))); sys.exit(1)
         if via.startswith("model"): c[(L, "answered_via_model")] += 1
         if a.get("verified") is False: c["rewrites_rejected"] += 1
         recs.append(dict(set=Path(f).name, id=x["id"], label=L, question=x["question"], kind=kind, value=r.get("value"), truth=x.get("truth"), via=via, audit=a))

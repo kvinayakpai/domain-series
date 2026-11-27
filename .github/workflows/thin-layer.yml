@@ -2,7 +2,7 @@ name: Thin model layer test, real models
 
 # Runs the model-assisted flow (refusal-bench/ontology/thin_layer.py) over every question set plus a paraphrase set.
 # The model may only rewrite a question; the resolver and the verifier decide. Scores the FINAL answers and records every model call.
-# Starts on a push that changes this file.
+# Starts on a push that changes this file. A probe step first prints one raw reply so a failing call is visible at once.
 
 on:
   push:
@@ -36,6 +36,16 @@ jobs:
         run: |
           python3 refusal-bench/ontology/thin_layer_tests.py
           python3 -I refusal-bench/build_paraphrase.py && git diff --exit-code refusal-bench/questions-paraphrase.json
+      - name: Probe the model (raw reply to one question)
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, "refusal-bench/ontology")
+          import thin_layer as T
+          r = T.model_rewrite("How many UPI refudns did Store 014 make in June 2026?")
+          print("reply:", r); print("error:", T.LAST_ERROR)
+          if r is None: raise SystemExit("probe failed: " + T.LAST_ERROR)
+          PY
       - name: Run the model-assisted flow
         run: |
           if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
