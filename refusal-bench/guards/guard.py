@@ -28,7 +28,7 @@ def window_check(q):
     # day-level mentions of May
     may_days = [int(d) for d in re.findall(r"\b(\d{1,2})\s+may\b", ql)]
     till = any(re.search(p, ql) for p in REG["till_patterns"])
-    for m in months:
+    for m in sorted(months, key=MONTHS.get):
         if m == "june":
             continue
         if m == "may":
