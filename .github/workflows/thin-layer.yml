@@ -2,7 +2,7 @@ name: Thin model layer test, real models
 
 # Runs the model-assisted flow (refusal-bench/ontology/thin_layer.py) over every question set plus a paraphrase set.
 # The model may only rewrite a question; the resolver and the verifier decide. Scores the FINAL answers and records every model call.
-# Starts on a push that changes this file (sixth attempt: the owner's fresh set 8 only). A probe step first prints one raw reply so a failing call is visible at once.
+# Starts on a push that changes this file (seventh attempt: other NVIDIA-hosted models on set 8 plus the paraphrase set). A probe step first prints one raw reply so a failing call is visible at once.
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: ["nvidia/nemotron-3.5-lightning-30b-a3b", "nvidia/nemotron-3-ultra-550b-a55b"]
+        model: ["meta/llama-3.3-70b-instruct", "openai/gpt-oss-120b", "deepseek-ai/deepseek-v3.1", "qwen/qwen3-235b-a22b", "mistralai/mistral-large-2-instruct", "moonshotai/kimi-k2-instruct"]
     env:
       MODEL: ${{ matrix.model }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
@@ -36,6 +36,9 @@ jobs:
         run: |
           python3 refusal-bench/ontology/thin_layer_tests.py
           python3 -I refusal-bench/build_paraphrase.py && git diff --exit-code refusal-bench/questions-paraphrase.json
+      - name: Is this model in the catalogue
+        run: |
+          curl -s -H "Authorization: Bearer $NVIDIA_API_KEY" https://integrate.api.nvidia.com/v1/models | python3 -c "import sys,json; ids=[m['id'] for m in json.load(sys.stdin)['data']]; print('listed' if '$MODEL' in ids else 'NOT LISTED', len(ids), 'models')" || true
       - name: Probe the model (raw reply to one question)
         run: |
           python3 - <<'PY'
@@ -50,7 +53,7 @@ jobs:
         run: |
           if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
           name=$(echo "$MODEL" | tr '/.' '__')
-          python3 refusal-bench/ontology/thin_eval.py "$RESULTS/$name" refusal-bench/questions-holdout8.json
+          python3 refusal-bench/ontology/thin_eval.py "$RESULTS/$name" refusal-bench/questions-holdout8.json refusal-bench/questions-paraphrase.json
       - name: Take the key out and commit the results
         if: always()
         run: |
