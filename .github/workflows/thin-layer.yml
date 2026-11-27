@@ -2,7 +2,7 @@ name: Thin model layer test, real models
 
 # Runs the model-assisted flow (refusal-bench/ontology/thin_layer.py) over every question set plus a paraphrase set.
 # The model may only rewrite a question; the resolver and the verifier decide. Scores the FINAL answers and records every model call.
-# Starts on a push that changes this file (seventh attempt: other NVIDIA-hosted models on set 8 plus the paraphrase set). A probe step first prints one raw reply so a failing call is visible at once.
+# Starts on a push that changes this file (eighth attempt: list the catalogue). A probe step first prints one raw reply so a failing call is visible at once.
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: ["meta/llama-3.3-70b-instruct", "openai/gpt-oss-120b", "deepseek-ai/deepseek-v3.1", "qwen/qwen3-235b-a22b", "mistralai/mistral-large-2-instruct", "moonshotai/kimi-k2-instruct"]
+        model: ["nvidia/nemotron-3.5-lightning-30b-a3b"]
     env:
       MODEL: ${{ matrix.model }}
       NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
@@ -38,7 +38,7 @@ jobs:
           python3 -I refusal-bench/build_paraphrase.py && git diff --exit-code refusal-bench/questions-paraphrase.json
       - name: Is this model in the catalogue
         run: |
-          curl -s -H "Authorization: Bearer $NVIDIA_API_KEY" https://integrate.api.nvidia.com/v1/models | python3 -c "import sys,json; ids=[m['id'] for m in json.load(sys.stdin)['data']]; print('listed' if '$MODEL' in ids else 'NOT LISTED', len(ids), 'models')" || true
+          curl -s -H "Authorization: Bearer $NVIDIA_API_KEY" https://integrate.api.nvidia.com/v1/models | python3 -c "import sys,json; ids=[m['id'] for m in json.load(sys.stdin)['data']]; print('listed' if '$MODEL' in ids else 'NOT LISTED', len(ids), 'models'); print('CATALOGUE', ' '.join(sorted(ids)))" || true
       - name: Probe the model (raw reply to one question)
         run: |
           python3 - <<'PY'
