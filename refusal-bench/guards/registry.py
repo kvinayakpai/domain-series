@@ -48,7 +48,7 @@ TERMS = [
                    r"\bput (it |them )?back\b", r"\bwould have been\b", r"\btrue demand\b", r"\blost sales?\b", r"\bnever\b", r"\bnot done\b", r"\bnot accept", r"\bwere told there\b",
                    r"\bentered .* and left\b", r"\bgave up\b", r"\bsubstitut", r"\bremov\w*\b.*\bfrom a bill\b", r"\bbefore an item was scanned\b", r"\bstockouts? cost\b",
                    r"\basked (a staff member )?for\b", r"\btried to pay\b", r"\bscheduled .* (were )?not\b", r"\bconversion\b", r"\bfootfall\b", r"\b(people|shoppers) visited\b", r"\bvisitors\b",
-                   r"\bpicked up\b", r"\bqueue\b"]),
+                   r"\bpicked up\b", r"\bqueue\b", r"\bunpaid\b", r"\bleft\b"]),
     # what else: outside the records
     dict(id="external", gap="else", status="not_recorded", note="nothing about competitors, weather, other stores, costs beyond one per product, or anything outside these 11 products",
          patterns=[r"\bcompetitors?\b", r"\b(weather|rainfall|rain|temperature)\b", r"\b(rent|staff costs?|electricity)\b", r"\bfestival\b", r"\bmarket share\b", r"\bsatisf",
@@ -71,17 +71,17 @@ TERMS = [
 # price (intent) of a thing these tables hold (entity). Anything else is 'no record': the list of what is NOT recorded is open-ended,
 # the list of what IS recorded is the 21 tables. Nouns come from the table and column names in the schema.
 INTENT = [r"\bhow many\b", r"\bwhat (was|is|were) the (total|average|number|selling price|revenue|highest|lowest)\b", r"\bwhat is the selling price\b",
-          r"\bon how many (different )?days\b", r"\bhow much (revenue|money)\b"]
+          r"\bon how many (different )?days\b", r"\bhow much (revenue|money)\b", r"\bhow much .* (sell|sold|revenue)\b", r"\bwhat (was|is|were) the (biggest|largest|smallest|highest|lowest|maximum|minimum)\b"]
 ENTITIES = {
     "pos_lines / pos_payments": [r"\bbills?\b", r"\bpayment attempts?\b", r"\bapproved\b.*\battempts?\b", r"\bupi payment attempt\b", r"\bcard payment attempts?\b"],
     "psp_upi_report": [r"\btransactions? in the upi service provider'?s? report\b", r"\bupi service provider'?s? report\b"],
-    "upi_refunds": [r"\bupi refunds?\b"], "upi_settlements": [r"\bsettled\b", r"\bnet upi amount\b"],
+    "upi_refunds": [r"\bupi refunds?\b"], "upi_settlements": [r"\bsettled\b", r"\bsettlements?\b", r"\bnet upi amount\b"],
     "customer_complaints": [r"\bcomplaints?\b(?! .*\bwho\b)"], "write_offs": [r"\bwrite-?off", r"\bwritten off\b"],
     "shipments / pallets / goods_receipts": [r"\bshipments?\b", r"\bpallets?\b", r"\bgoods-receipt lines?\b"],
     "shelf_audits": [r"\bshelf-audit rows?\b", r"\bshelf audits?\b"], "stock_counts": [r"\bstock counts?\b"],
     "store_orders": [r"\bstore orders?\b", r"\bunits in total did store 014 order\b", r"\border from the warehouse\b"],
     "products": [r"\bhow many products\b", r"\bselling price\b", r"\bproducts? .* price\b"],
-    "daily_sales": [r"\bunits? (of .* )?(were )?sold\b", r"\bbags? of\b.*\bsold\b", r"\brevenue\b.*\b(atta|milk|rice|oil|dal|sugar|bread|curd)\b", r"\bsell (more|zero)\b", r"\bsold\b"],
+    "daily_sales": [r"\bunits? (of .* )?(were )?sold\b", r"\bbags? of\b.*\bsold\b", r"\brevenue\b.*\b(atta|milk|rice|oil|dal|sugar|bread|curd)\b", r"\bsell (more|zero)\b", r"\bsold\b", r"\bsell\b"],
     "fresh_deliveries": [r"\bfresh-delivery rows?\b", r"\bfresh deliver"],
 }
 # till lines (bills, sales, revenue) run 4 May to 28 June; every other table is June only
