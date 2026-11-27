@@ -52,12 +52,12 @@ table("stock-counts-june", "stock count", [["stock", "counts"], ["stock", "count
            adjustment=C(kind="number", unit="packs", additive=True), trigger=C(kind="code")), sku="sku", record="stock-counts")
 table("shelf-audits-june", "shelf-audit row", [["shelf-audit", "rows"], ["shelf", "audit", "rows"], ["shelf-audit", "row"], ["shelf", "audits"]], "one product seen or not seen at an 11:00 audit", None, "audit_ts", "observes",
       dict(audit_ts=C(kind="time"), sku=C(kind="id"), status=C(kind="code")), sku="sku", record="shelf-audits")
-table("customer-complaints-june", "complaint", [["complaints"], ["complaint"], ["customer", "complaints"]], "one complaint about a debit", None, "complaint_ts", "observes",
+table("customer-complaints-june", "complaint", [["complaints", "about", "payments"], ["customer", "complaints", "about", "payments"], ["complaints"], ["complaint"], ["customer", "complaints"]], "one complaint about a debit", None, "complaint_ts", "observes",
       dict(complaint_ts=C(kind="time"), kind=C(kind="code"), amount_inr=C(kind="number", unit="rupees", additive=True), bill_id=C(kind="id"), rrn=C(kind="id"),
            resolved_ts=C(kind="time"), resolution=C(kind="code")), default="amount_inr")
 table("fresh-deliveries-june", "fresh-delivery row", [["fresh-delivery", "rows"], ["fresh", "delivery", "rows"], ["fresh-delivery", "row"], ["fresh", "deliveries"]], "one product on one fresh route delivery", None, "delivery_ts", "observes",
       dict(delivery_ts=C(kind="time"), route=C(kind="code"), sku=C(kind="id"), units=C(kind="number", unit="units", additive=True, cues=[["units"]]),
-           crates=C(kind="number", unit="crates", additive=True, cues=[["crates"]]), use_by=C(kind="time")), sku="sku")
+           crates=C(kind="number", unit="crates", additive=True, cues=[["crates", "delivered"], ["crates"]]), use_by=C(kind="time")), sku="sku")
 table("goods-receipts-june", "goods-receipt line", [["goods-receipt", "lines"], ["goods-receipt", "line"], ["goods", "receipt", "lines"]], "one pallet line received at the back door", "grn_id", "received_ts", "observes",
       dict(grn_id=C(kind="id"), shipment_id=C(kind="id"), sscc=C(kind="id"), line=C(kind="id"), received_ts=C(kind="time"), asn_sku=C(kind="id"),
            asn_units=C(kind="number", unit="units", additive=True), sku_booked=C(kind="id"), units_booked=C(kind="number", unit="units", additive=True, cues=[["units", "booked"], ["units", "received"]]),
