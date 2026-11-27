@@ -83,6 +83,7 @@ ENTITIES = {
     "products": [r"\bhow many products\b", r"\bselling price\b", r"\bproducts? .* price\b"],
     "daily_sales": [r"\bunits? (of .* )?(were )?sold\b", r"\bbags? of\b.*\bsold\b", r"\brevenue\b.*\b(atta|milk|rice|oil|dal|sugar|bread|curd)\b", r"\bsell (more|zero)\b", r"\bsold\b", r"\bsell\b"],
     "fresh_deliveries": [r"\bfresh-delivery rows?\b", r"\bfresh deliver"],
+    "shipping_notice_lines": [r"\bshipping notices?\b"], "forecasts": [r"\bforecast rows?\b"],
 }
 # till lines (bills, sales, revenue) run 4 May to 28 June; every other table is June only
 TILL_PATTERNS = [r"\bbills?\b", r"\bsales\b", r"\brevenue\b", r"\baverage bill\b", r"\bbasket\b"]

@@ -83,7 +83,7 @@ def vocabulary():
         "show shows showed include included find found settle settled count counted audit audited complain complained refund refunded write wrote order ordered sell sold "
         "request requested complete completed have had has take taken rise exceed above below least truck trucks vehicle product products item items each several "
         "can which ids id records these single manager's manager request weekday weekend being been sent one two three four five six seven eight nine ten "
-        "twice once both either")
+        "twice once both either across carry debit debited")
     add("difference found book counted adjustment settled settlement net gross paid payout received arrived arrive dispatched slot end ordered order warehouse sold sell sale "
         "revenue price priced selling cost written write off expired damaged declined failed approved refund refunds complaint complaints charged twice debited returned "
         "customer customers shipment pallet pallets receipt receipts audit audits shelf empty counts stock units unit bag bags kg line lines row rows bill bills attempt attempts "
