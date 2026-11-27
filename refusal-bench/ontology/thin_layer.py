@@ -182,7 +182,7 @@ def model_rewrite(question):
             body = {"model": model, "messages": [{"role": "user", "content": prompt_for(question)}], "temperature": 0, "max_tokens": 16000}
             if think_off:
                 body["chat_template_kwargs"] = {"enable_thinking": False}
-            r = requests.post(f"{base}/chat/completions", timeout=240, headers={"Authorization": "Bearer " + os.environ["NVIDIA_API_KEY"]}, json=body)
+            r = requests.post(f"{base}/chat/completions", timeout=240, headers={"Authorization": "Bearer " + os.environ[os.environ.get("KEY_ENV", "NVIDIA_API_KEY")]}, json=body)
             if r.status_code in (400, 422) and think_off:
                 LAST_ERROR = f"thinking switch refused: HTTP {r.status_code} {r.text[:150]}"; think_off = False; continue
             if r.status_code in (429, 503, 529):

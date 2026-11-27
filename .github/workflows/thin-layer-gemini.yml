@@ -1,0 +1,63 @@
+name: Thin model layer test, Gemini models
+
+# Runs the model-assisted flow (refusal-bench/ontology/thin_layer.py) over every question set plus a paraphrase set.
+# The model may only rewrite a question; the resolver and the verifier decide. Scores the FINAL answers and records every model call.
+# Starts on a push that changes this file (first Gemini attempt: set 8 plus the paraphrase set). A probe step first prints one raw reply so a failing call is visible at once.
+
+on:
+  push:
+    branches: [refusal-bench-v2]
+    paths:
+      - ".github/workflows/thin-layer-gemini.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RESULTS: refusal-bench/results/thin-gemini-run-${{ github.run_number }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        model: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"]
+    env:
+      MODEL: ${{ matrix.model }}
+      GEMINI_KEY: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
+      KEY_ENV: GEMINI_KEY
+      BASE_URL: https://generativelanguage.googleapis.com/v1beta/openai
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: pip install --quiet requests rdflib pyshacl owlrl
+      - name: Checks that need no model
+        run: |
+          python3 refusal-bench/ontology/thin_layer_tests.py
+          python3 -I refusal-bench/build_paraphrase.py && git diff --exit-code refusal-bench/questions-paraphrase.json
+      - name: Probe the model (raw reply to one question)
+        run: |
+          python3 - <<'PY'
+          import os, sys
+          sys.path.insert(0, "refusal-bench/ontology")
+          import thin_layer as T
+          r = T.model_rewrite("How many UPI refudns did Store 014 make in June 2026?")
+          print("reply:", r); print("error:", T.LAST_ERROR)
+          if r is None: raise SystemExit("probe failed: " + T.LAST_ERROR)
+          PY
+      - name: Run the model-assisted flow
+        run: |
+          if [ -z "$GEMINI_KEY" ]; then echo "::error::needs the GEMINI_API_KEY_DOMAIN_SERIES secret"; exit 1; fi
+          name=$(echo "$MODEL" | tr '/.' '__')
+          python3 refusal-bench/ontology/thin_eval.py "$RESULTS/$name" refusal-bench/questions-holdout8.json refusal-bench/questions-paraphrase.json
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS"
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS"
+          git commit -q -m "Thin model layer: $MODEL (run ${{ github.run_number }})" || exit 0
+          for i in 1 2 3 4 5 6 7 8 9 10; do git pull -q --rebase origin refusal-bench-v2 && git push -q origin HEAD:refusal-bench-v2 && break; sleep $((RANDOM % 15 + 3)); done

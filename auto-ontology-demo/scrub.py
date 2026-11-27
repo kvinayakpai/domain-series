@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 NVIDIA_KEY_SHAPE = re.compile(r"nvapi-[A-Za-z0-9_\-]{8,}")
+GEMINI_KEY_SHAPE = re.compile(r"AIza[0-9A-Za-z_\-]{20,}")
 # Authorization headers and key/token/password assignments, in logs, tracebacks and JSON.
 BEARER = re.compile(r"(?i)(Bearer\s+)[A-Za-z0-9\-._~+/]+=*")
 ASSIGNED = re.compile(
@@ -28,6 +29,7 @@ ASSIGNED = re.compile(
 def secrets() -> list[str]:
     found = [s for s in os.environ.get("SCRUB", "").split("|") if s]
     found.append(os.environ.get("NVIDIA_API_KEY", ""))
+    found.append(os.environ.get("GEMINI_KEY", ""))
     return [s for s in found if len(s) >= 8]
 
 
@@ -35,6 +37,7 @@ def clean(text: str) -> str:
     for secret in secrets():
         text = text.replace(secret, "[redacted]")
     text = NVIDIA_KEY_SHAPE.sub("[redacted]", text)
+    text = GEMINI_KEY_SHAPE.sub("[redacted]", text)
     text = BEARER.sub(r"\1[redacted]", text)
     return ASSIGNED.sub(r"\1[redacted]\2", text)
 
