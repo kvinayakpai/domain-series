@@ -109,41 +109,38 @@ def constraint_tokens(text):
     return out
 
 
-def verify(original, canonical, mappings):
-    """Return (ok, reason). Deterministic. The mappings are the model's claims about which words it replaced."""
+def align(original, canonical):
+    """Deterministic comparison of the two texts. Returns (explained, unexplained_original, unexplained_canonical):
+    a word only in the original is explained when it is filler, or a one-edit typo of a defined word that is only in the rewrite, or an
+    approved synonym of a word only in the rewrite. A word only in the rewrite is explained when it is a function word or the other
+    half of such a pair. The model's own list of mappings is not consulted."""
+    o_s = [stem(t) for t in tokenize(original)]; c_s = [stem(t) for t in tokenize(canonical)]
+    o_set, c_set = set(o_s), set(c_s)
+    vocab = defined_words(); pairs = {(stem(a), stem(b)) for a, b in approved_pairs()}
+    o_only = sorted(w for w in o_set - c_set if w not in FILLER and w not in {"2026", "014"})
+    c_only = sorted(w for w in c_set - o_set if w not in FUNCTION)
+    used_c, pairs_used, bad_o = set(), [], []
+    for w in o_only:
+        hit = next((c for c in c_only if c not in used_c and ((w, c) in pairs or (c in vocab and w not in vocab and one_edit(w, c) and len(w) >= 5 and typo_target(w, vocab) == c))), None)
+        if hit:
+            used_c.add(hit); pairs_used.append((w, hit))
+        else:
+            bad_o.append(w)
+    bad_c = [c for c in c_only if c not in used_c]
+    return pairs_used, bad_o, bad_c
+
+
+def verify(original, canonical, mappings=None):
+    """Return (ok, reason). Deterministic: the model's claims about what it changed are not used."""
     if not isinstance(canonical, str) or "\n" in canonical or len(canonical) > 300 or not canonical.strip():
         return False, "the rewrite is not a single short question"
     if canonical.strip().upper() == "CANNOT":
         return False, "the model could not express the question in defined words"
-    o_t, c_t = tokenize(original), tokenize(canonical)
-    o_s, c_s = [stem(t) for t in o_t], [stem(t) for t in c_t]
-    pairs = approved_pairs(); vocab = defined_words()
-    accepted_from, accepted_to, rejected = {}, set(), []
-    for m in mappings if isinstance(mappings, list) else []:
-        try:
-            fr, to = stem(str(m["from"]).lower()), stem(str(m["to"]).lower())
-        except Exception:  # noqa: BLE001
-            return False, "malformed mapping"
-        if (fr, to) in {(stem(a), stem(b)) for a, b in pairs}:
-            accepted_from[fr] = to; accepted_to.add(to)
-        elif to in vocab and typo_target(fr, vocab) == to:
-            accepted_from[fr] = to; accepted_to.add(to)
-        else:
-            rejected.append((fr, to))
-    if rejected:
-        return False, "not an approved meaning: " + ", ".join(f"'{a}' as '{b}'" for a, b in rejected)
-    # every original word must survive, be filler, or be an accepted mapping
-    c_set, o_set = set(c_s), set(o_s)
-    for t in o_s:
-        if t in c_set or t in FILLER or stem(t) in FILLER or t in accepted_from or t in vocab and t in c_set:
-            continue
-        if t in {"2026", "014"}:
-            continue
-        return False, f"'{t}' from the question is not in the rewrite and is not an approved filler or mapping"
-    for t in c_s:
-        if t in o_set or t in FUNCTION or t in accepted_to or t in {"2026"} and "2026" in o_set:
-            continue
-        return False, f"the rewrite adds '{t}', which is not in the question"
+    pairs_used, bad_o, bad_c = align(original, canonical)
+    if bad_o:
+        return False, "words of the question that are not in the rewrite and are not filler, a typo of a defined word, or an approved meaning: " + ", ".join(bad_o)
+    if bad_c:
+        return False, "the rewrite adds words that are not in the question: " + ", ".join(bad_c)
     if constraint_tokens(original) != constraint_tokens(canonical):
         return False, "numbers, dates, comparisons or negations differ between the question and the rewrite"
     ao, ac = agg_classes(original), agg_classes(canonical)
@@ -235,14 +232,14 @@ def answer_with_model(question, rewriter=model_rewrite, use_cache=True, write=Tr
     ok, why = verify(question, canonical, mappings)
     audit["verified"] = ok; audit["why"] = why
     if not ok:
-        # a mapping that was refused only because nobody has approved it is queued for review, never used
-        if write and isinstance(mappings, list) and mappings:
-            props = _load(PROPOSALS, {"proposals": []})
-            for m in mappings:
-                item = {"from": str(m.get("from", "")).lower(), "to": str(m.get("to", "")).lower()}
-                if item["from"] and item not in props["proposals"] and (item["from"], item["to"]) not in approved_pairs():
-                    props["proposals"].append(item)
-            PROPOSALS.write_text(json.dumps(props, indent=1, sort_keys=True))
+        # a pair of unexplained words (one in the question, one in the rewrite) is queued for a person to approve, never used
+        if write and isinstance(canonical, str) and "\n" not in canonical and canonical.strip().upper() != "CANNOT":
+            _, bad_o, bad_c = align(question, canonical)
+            if len(bad_o) == 1 and len(bad_c) == 1 and bad_c[0] in defined_words():
+                props = _load(PROPOSALS, {"proposals": []})
+                item = {"from": bad_o[0], "to": bad_c[0], "example": question}
+                if all((p["from"], p["to"]) != (item["from"], item["to"]) for p in props["proposals"]):
+                    props["proposals"].append(item); PROPOSALS.write_text(json.dumps(props, indent=1, sort_keys=True))
         return {**first, "via": "resolver", "audit": audit}
     second = answer(canonical)
     audit["second"] = second["decision"]
