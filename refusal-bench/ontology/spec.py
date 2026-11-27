@@ -109,9 +109,9 @@ VALUE_ALT = {
 # words that only join a question together and carry no business meaning
 GLUE = """a an the of in on at to for from by with and or is are was were be been do does did done has have had it its this that these those there their they them we you your
 i my me our what which how many much store 014 s t than then as per each every any all some into over about up out between during while when where
-june 2026 rupees rupee inr warehouse carry carried marked across settled one total number count counts sum average mean highest lowest biggest largest smallest maximum minimum single most least days day
+rupees rupee inr warehouse carry carried marked across settled one total number count counts sum average mean highest lowest biggest largest smallest maximum minimum single most least days day
 rung ring made make log logged recorded record recorded receive received arrive arrived show shows showed were being get got give gave sent send include included
-tills till records these row rows line lines different distinct unique amount amounts value""".split()
+tills till records these row rows line lines different distinct unique amount amounts""".split()
 
 # aggregate cues (token sets) -> function
 AGG = {

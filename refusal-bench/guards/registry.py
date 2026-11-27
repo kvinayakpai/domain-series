@@ -58,6 +58,8 @@ TERMS = [
                    r"\bhow much should\b", r"\bstolen\b", r"\btheft\b"]),
     dict(id="list_margin", gap="else", status="proxy", note="selling price minus the single cost per product is a list margin, not a real margin",
          patterns=[r"\bgross margin\b", r"\bmargin\b"]),
+    dict(id="basket_value", gap="who", status="proxy", note="a bill's total is what one checkout cost: a stand-in for what a shopper spent, since no table links bills to a shopper",
+         patterns=[r"\b(average|mean|typical)\b.*\b(bill|basket)\b.*\b(value|size|amount)\b", r"\b(bill|basket) (value|size)\b"]),
     dict(id="shelf_hours", gap="not_happen", status="proxy", note="shelf audits are 11:00 snapshots twice a week, not hours off the shelf",
          patterns=[r"\bhours\b.*\boff the shelf\b", r"\bat 3 pm\b", r"\bshelf look empty\b", r"\bon the shelf at\b"]),
     dict(id="forecast_vs_demand", gap="not_happen", status="not_recorded", note="a forecast can only be scored against recorded sales, not demand",

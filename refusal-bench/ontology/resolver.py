@@ -321,9 +321,21 @@ def read_one(question, subject, toks, stoks):
         for i, x in enumerate(toks):
             if x in (rng.group(1), rng.group(3), rng.group(2), rng.group(4), "from", "to", "2026"):
                 used.add(i)
-    if not win and re.search(r"\bjune 2026\b|\bin june\b", q) and T["date"]:
-        win = ("2026-06-01", "2026-06-30")
-        where.append(f'substr("{T["date"]}",1,10) between ? and ?'); params += list(win); trace.append(("registry", "window June 2026", "june 2026"))
+    june = re.search(r"\b(?:in|for|during|of) june(?: 2026)?\b|\bjune 2026\b", q)
+    if not win and june:
+        if T["date"]:
+            win = ("2026-06-01", "2026-06-30")
+            where.append(f'substr("{T["date"]}",1,10) between ? and ?'); params += list(win); trace.append(("registry", "window June 2026", june.group(0)))
+        elif T["window"] == "june":
+            win = (T["start"], T["end"]); trace.append(("registry", "this record kind covers June 2026 only", june.group(0)))
+        else:
+            return None, ("registry", f"{T['label']} records are not dated, so a period cannot be applied")
+        for i, x in enumerate(toks):
+            if x in ("june", "2026"):
+                used.add(i)
+    whole = False
+    if not win and T["date"]:
+        win = (T["start"], T["end"]); whole = True; trace.append(("registry", f"no period named: whole coverage {T['start']} to {T['end']}", "(none)"))
     # ---- decide the aggregate and the expression
     expr, how = None, None
     if cmp_ and not measure:
@@ -334,6 +346,8 @@ def read_one(question, subject, toks, stoks):
         how = "count_distinct_day"; expr = f'count(distinct substr("{T["date"]}",1,10))'
         if cmp_:
             where.append(f'"{measure}" {cmp_[0]} ?'); params.append(cmp_[1])
+    elif kind in ("bill", "distinct") and agg in ("avg", "max", "min", "sum", "much"):
+        return None, ("ontology", f"a {subject[3]} is counted here; its average, total or extreme needs a grouped value that is not defined")
     elif kind == "bill":
         how = "count_distinct"; expr = f'count(distinct "{subject[4]}")'
     elif kind == "distinct":
@@ -386,10 +400,11 @@ def read_one(question, subject, toks, stoks):
         if cnt != 1:
             return None, ("ontology", f"asking for a {measure.replace('_', ' ')} without a total, average or extreme needs exactly one matching record; found {cnt}")
     sql = f'select {expr} from "{tstem}"' + (" where " + " and ".join(where) if where else "")
-    return dict(sql=sql, params=tuple(params), how=how, table=tstem, trace=trace, measure=measure, window=win), None
+    return dict(sql=sql, params=tuple(params), how=how, table=tstem, trace=trace, measure=measure, window=win, whole=whole), None
 
 
 def answer(question):
+    question = re.sub(r"\s+", " ", question.strip())
     O = onto()
     toks = tokenize(re.sub(r"\bstore 014('s)?\b", " ", question, flags=re.I))
     toks = [t for t in toks if t != "014"]
@@ -454,7 +469,8 @@ def answer(question):
     if proxy:
         layers["registry"] = "; ".join(proxy)
         return refusal("proxy", layers, "The records hold only a stand-in for this: " + "; ".join(proxy), value=value, sql=p["sql"], params=p["params"], trace=p["trace"])
-    return dict(decision="answer", value=value, sql=p["sql"], params=p["params"], layers=layers, trace=p["trace"], message=None, window=p["window"])
+    return dict(decision="answer", value=value, sql=p["sql"], params=p["params"], layers=layers, trace=p["trace"], window=p["window"], whole_coverage=p["whole"],
+                message=(f"No period was named, so this covers everything the records hold for this record kind: {p['window'][0]} to {p['window'][1]}." if p["whole"] else None))
 
 
 if __name__ == "__main__":
