@@ -147,6 +147,9 @@ for r in product_rows:
     pack = re.sub(r"\s", "", r["pack"].lower())
     shared = sum(1 for o in product_rows if set(words[o["sku"]]) <= set(ws) or set(ws) <= set(words[o["sku"]])) > 1
     cue(pn, ws + ([pack] if shared else []))
+    head = ws[-1] if ws else None          # the head noun alone names the product when no other product has it (bread, curd, sugar, rice, dal)
+    if head and sum(1 for o in product_rows if head in words[o["sku"]]) == 1 and len(ws) > 1:
+        cue(pn, [head])
     g.add((pn, SKOS.altLabel, Literal(r["name"].lower())))
 
 # derived flags: definitions in SQL, with the cue words that call them

@@ -35,7 +35,7 @@ table("psp-upi-report-june", "UPI service provider's transaction", [["transactio
 table("daily-sales-june", "daily sales row", [["daily", "sales"]], "units and revenue of one product on one day", None, "date", "copies",
       dict(date=C(kind="time"), sku=C(kind="id"), units_sold=C(kind="number", unit="units", additive=True, cues=[["daily", "units", "sold"], ["units", "sold"], ["bags", "sold"], ["units", "sell"], ["bags", "sell"], ["units", "were", "sold"]]),
            revenue_inr=C(kind="number", unit="rupees", additive=True, cues=[["daily", "revenue"], ["revenue"], ["sell", "rupees"], ["sold", "rupees"]])), sku="sku", window="till", record="till-lines")
-table("write-offs-june", "write-off", [["write-off", "lines"], ["writeoff", "lines"], ["write-offs"], ["write-off"], ["written", "off"]], "one product written off on one day", None, "date", "observes",
+table("write-offs-june", "write-off", [["write", "off"], ["write-off", "lines"], ["writeoff", "lines"], ["write-offs"], ["write-off"], ["written", "off"]], "one product written off on one day", None, "date", "observes",
       dict(date=C(kind="time"), sku=C(kind="id"), units=C(kind="number", unit="units", additive=True, cues=[["units", "written", "off"], ["units", "write-offs"], ["units", "write-off"]]), reason=C(kind="code")), sku="sku")
 table("upi-refunds-june", "UPI refund", [["upi", "refunds"], ["upi", "refund"]], "one refund sent back to a customer's bank", "refund_id", "requested_ts", "observes",
       dict(refund_id=C(kind="id"), rrn=C(kind="id"), bill_id=C(kind="id"), amount_inr=C(kind="number", unit="rupees", additive=True, cues=[["amount"]]), trigger=C(kind="code"),
@@ -56,7 +56,7 @@ table("customer-complaints-june", "complaint", [["complaints", "about", "payment
       dict(complaint_ts=C(kind="time"), kind=C(kind="code"), amount_inr=C(kind="number", unit="rupees", additive=True), bill_id=C(kind="id"), rrn=C(kind="id"),
            resolved_ts=C(kind="time"), resolution=C(kind="code")), default="amount_inr")
 table("fresh-deliveries-june", "fresh-delivery row", [["fresh-delivery", "rows"], ["fresh", "delivery", "rows"], ["fresh-delivery", "row"], ["fresh", "deliveries"]], "one product on one fresh route delivery", None, "delivery_ts", "observes",
-      dict(delivery_ts=C(kind="time"), route=C(kind="code"), sku=C(kind="id"), units=C(kind="number", unit="units", additive=True, cues=[["units"]]),
+      dict(delivery_ts=C(kind="time"), route=C(kind="code"), sku=C(kind="id"), units=C(kind="number", unit="units", additive=True, cues=[["units", "delivered"], ["units"]]),
            crates=C(kind="number", unit="crates", additive=True, cues=[["crates", "delivered"], ["crates"]]), use_by=C(kind="time")), sku="sku")
 table("goods-receipts-june", "goods-receipt line", [["goods-receipt", "lines"], ["goods-receipt", "line"], ["goods", "receipt", "lines"]], "one pallet line received at the back door", "grn_id", "received_ts", "observes",
       dict(grn_id=C(kind="id"), shipment_id=C(kind="id"), sscc=C(kind="id"), line=C(kind="id"), received_ts=C(kind="time"), asn_sku=C(kind="id"),

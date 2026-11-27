@@ -346,6 +346,8 @@ def read_one(question, subject, toks, stoks):
         how = "count_distinct_day"; expr = f'count(distinct substr("{T["date"]}",1,10))'
         if cmp_:
             where.append(f'"{measure}" {cmp_[0]} ?'); params.append(cmp_[1])
+    elif kind in ("bill", "distinct") and (measure or cmp_):
+        return None, ("ontology", f"a {subject[3]} is counted here; it cannot also carry a measure ({measure or 'comparison'})")
     elif kind in ("bill", "distinct") and agg in ("avg", "max", "min", "sum", "much"):
         return None, ("ontology", f"a {subject[3]} is counted here; its average, total or extreme needs a grouped value that is not defined")
     elif kind == "bill":
@@ -384,7 +386,7 @@ def read_one(question, subject, toks, stoks):
     # ---- every remaining word must be defined
     own = set()
     for cname, cc in T["cols"].items():
-        if cc["kind"] == "id":
+        if cc["kind"] in ("id", "number"):      # an id or a measure word is never free: it must be matched as a noun, a cue or a filter
             continue
         for w in re.split(r"[_]", cname):
             if w not in ("ts", "inr", "id"):
