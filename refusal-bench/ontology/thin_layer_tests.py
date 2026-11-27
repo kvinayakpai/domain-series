@@ -34,6 +34,9 @@ CASES = [
     ("model turns 'bought nothing' into bills", "How many shoppers came in during June 2026 and bought nothing?", rw("How many bills were rung up in June 2026?"), False, None),
     ("claimed typo that is a real different word", "How many refunds were issued in June 2026?", rw("How many UPI refunds were made in June 2026?", [("issued", "made")]), False, None),
 ]
+pr = T.prompt_for("How many UPI refudns?")
+assert "Record kinds:" in pr and "Question: How many UPI refudns?" in pr and len(pr) < 6000, "prompt_for is broken"
+print("PASS prompt builds (%d chars)" % len(pr))
 bad = 0
 for name, q, r, accept, val in CASES:
     out = T.answer_with_model(q, rewriter=r, write=False, use_cache=False)

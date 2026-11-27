@@ -81,7 +81,7 @@ class Onto:
                     val = str(g.value(v, D.value))
                     for ph in sorted({str(x) for x in g.objects(v, SKOS.altLabel)} | {val.lower()}):
                         cols[name]["values"][ph] = val
-            self.tables[stemname] = dict(iri=t, stem=stemname, label=str(g.value(t, RDFS.label)), nouns=[x.split() for x in L(t, D.cueSet)],
+            self.tables[stemname] = dict(iri=t, stem=stemname, label=str(g.value(t, RDFS.label)), grain=str(g.value(t, D.grain)), nouns=[x.split() for x in L(t, D.cueSet)],
                                          date=str(g.value(t, D.dateColumn)) if g.value(t, D.dateColumn) else None,
                                          start=str(g.value(t, D.coverageStart))[:10] if g.value(t, D.coverageStart) else None,
                                          end=str(g.value(t, D.coverageEnd))[:10] if g.value(t, D.coverageEnd) else None,
