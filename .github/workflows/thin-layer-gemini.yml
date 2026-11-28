@@ -2,7 +2,7 @@ name: Thin model layer test, Gemini models
 
 # Runs the model-assisted flow (refusal-bench/ontology/thin_layer.py) over every question set plus a paraphrase set.
 # The model may only rewrite a question; the resolver and the verifier decide. Scores the FINAL answers and records every model call.
-# Starts on a push that changes this file (fourth Gemini attempt: Pro and 3.8 Flash again, no NVIDIA-only switch, longer timeout). A probe step first prints one raw reply so a failing call is visible at once.
+# Starts on a push that changes this file (set 9: the owner's 17 false-premise questions). A probe step first prints one raw reply so a failing call is visible at once.
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: ["gemini-3.1-pro-preview", "gemini-3.8-flash"]
+        model: ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.8-flash", "gemini-3.1-pro-preview"]
     env:
       MODEL: ${{ matrix.model }}
       GEMINI_KEY: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
@@ -56,7 +56,7 @@ jobs:
         run: |
           if [ -z "$GEMINI_KEY" ]; then echo "::error::needs the GEMINI_API_KEY_DOMAIN_SERIES secret"; exit 1; fi
           name=$(echo "$MODEL" | tr '/.' '__')
-          python3 refusal-bench/ontology/thin_eval.py "$RESULTS/$name" refusal-bench/questions-holdout8.json refusal-bench/questions-paraphrase.json
+          python3 refusal-bench/ontology/thin_eval.py "$RESULTS/$name" refusal-bench/questions-holdout9.json
       - name: Take the key out and commit the results
         if: always()
         run: |
