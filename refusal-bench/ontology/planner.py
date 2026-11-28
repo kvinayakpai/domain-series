@@ -487,7 +487,7 @@ def model_plan_raw(question):
     think_off = "nvidia" in base
     for attempt in range(4):
         try:
-            body = {"model": model, "messages": [{"role": "user", "content": prompt_for(question)}], "temperature": 0, "max_tokens": 16000}
+            body = {"model": model, "messages": [{"role": "user", "content": prompt_v2(question) if os.environ.get("INSTR_V2") else prompt_for(question)}], "temperature": 0, "max_tokens": 16000}
             if think_off: body["chat_template_kwargs"] = {"enable_thinking": False}
             r = requests.post(f"{base}/chat/completions", timeout=int(os.environ.get("TIMEOUT", "240")), headers={"Authorization": "Bearer " + os.environ[os.environ.get("KEY_ENV", "NVIDIA_API_KEY")]}, json=body)
             if r.status_code in (400, 422) and think_off: think_off = False; continue
@@ -557,3 +557,9 @@ def answer_cascade(question, planner):
         r = run_plan(question, plan)
     r["reply"] = render(question, r)
     return r
+
+
+def prompt_v2(question):
+    """The three-layer instructions (planner_instructions_v2.txt) followed by the question."""
+    from pathlib import Path
+    return Path(__file__).with_name("planner_instructions_v2.txt").read_text() + "\nQUESTION: " + question + "\nReply with JSON only."
