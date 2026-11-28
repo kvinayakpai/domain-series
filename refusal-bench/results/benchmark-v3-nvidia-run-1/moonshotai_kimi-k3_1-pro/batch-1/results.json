@@ -1,0 +1,6635 @@
+{
+ "Q001": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q002": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "knowledge",
+  "columns": [
+   "forecast_demand_units"
+  ],
+  "rows": [
+   [
+    637.32
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q003": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Recorded June 2026 sales for toned milk 500 ml are the evidence base; true demand and lost sales while out of stock are not recorded, so this is not a true-demand estimate.",
+    "columns": [
+     "recorded_units",
+     "recorded_revenue_inr",
+     "days_with_recorded_sales"
+    ],
+    "rows": [
+     [
+      8649.0,
+      224874.0,
+      28
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"daily-sales-june\".\"units_sold\") as \"recorded_units\", sum(\"daily-sales-june\".\"revenue_inr\") as \"recorded_revenue_inr\", count(distinct substr(\"daily-sales-june\".\"date\",1,10)) as \"days_with_recorded_sales\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(substr(\"daily-sales-june\".\"date\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "MILK-TONED-500ML",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'MILK-TONED-500ML' and day(daily sales.date) between 2026-06-01 and 2026-06-28; report recorded_units = sum of daily sales.units_sold, recorded_revenue_inr = sum of daily sales.revenue_inr, days_with_recorded_sales = count distinct of day(daily sales.date).",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "On-shelf availability uses the share of 11:00 shelf audits with status 'on shelf'; these twice-weekly snapshots identify recorded empty-shelf evidence but not hours out of stock or demand lost.",
+    "columns": [
+     "audit_status",
+     "audit_count"
+    ],
+    "rows": [
+     [
+      "on shelf",
+      8
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select \"shelf-audits-june\".\"status\" as \"audit_status\", count(*) as \"audit_count\" from \"shelf-audits-june\"  where (\"shelf-audits-june\".\"sku\" = ?) and (substr(substr(\"shelf-audits-june\".\"audit_ts\",1,10),1,10) between ? and ?) group by \"shelf-audits-june\".\"status\" limit 200",
+    "params": [
+     "MILK-TONED-500ML",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From shelf-audit row records; keep rows where shelf audits.sku = 'MILK-TONED-500ML' and day(shelf audits.audit_ts) between 2026-06-01 and 2026-06-28; group by shelf audits.status; report audit_status = shelf audits.status, audit_count = count of *.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "The sum of the 28-day-mean recorded-sales forecasts is a labelled stand-in for June demand, not true demand; Rule 4 says forecasts predict demand and cannot be validated against sales alone.",
+    "columns": [
+     "forecast_units_june",
+     "forecast_days"
+    ],
+    "rows": [
+     [
+      null,
+      0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"forecasts-june\".\"forecast_units_per_day\") as \"forecast_units_june\", count(*) as \"forecast_days\" from \"forecasts-june\"  where (\"forecasts-june\".\"sku\" = ?) and (substr(substr(\"forecasts-june\".\"date\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "MILK-TONED-500ML",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From forecast row records; keep rows where forecasts.sku = 'MILK-TONED-500ML' and day(forecasts.date) between 2026-06-01 and 2026-06-28; report forecast_units_june = sum of forecasts.forecast_units_per_day, forecast_days = count of *.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 3,
+  "total_parts": 3,
+  "columns": [
+   "recorded_units",
+   "recorded_revenue_inr",
+   "days_with_recorded_sales"
+  ],
+  "rows": [
+   [
+    8649.0,
+    224874.0,
+    28
+   ]
+  ],
+  "row_count": 1,
+  "message": "3 of 3 part(s) answered."
+ },
+ "Q004": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Finds the recorded 11:00 audit snapshots when toned milk was empty; these are snapshots, not continuous hours off the shelf.",
+    "columns": [
+     "empty_audit",
+     "empty_day"
+    ],
+    "rows": [],
+    "row_count": 0,
+    "sql": "select \"shelf-audits-june\".\"audit_ts\" as \"empty_audit\", substr(\"shelf-audits-june\".\"audit_ts\",1,10) as \"empty_day\" from \"shelf-audits-june\"  where (\"shelf-audits-june\".\"sku\" = ?) and (\"shelf-audits-june\".\"status\" = ?) order by \"empty_audit\" asc limit 200",
+    "params": [
+     "MILK-TONED-500ML",
+     "empty"
+    ],
+    "plan_in_words": "From shelf-audit row records; keep rows where shelf audits.sku = 'MILK-TONED-500ML' and shelf audits.status = 'empty'; report empty_audit = shelf audits.audit_ts, empty_day = day(shelf audits.audit_ts); sorted by empty_audit asc.",
+    "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Provides daily sales of plausible labelled stand-ins (full cream milk and curd) to compare with toned-milk empty-audit days; substitution, individual shoppers' choices, demand and lost sales are not recorded, and same-day sales alone cannot",
+    "columns": [
+     "sku",
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "CURD-500G",
+      "2026-06-01",
+      112.0,
+      3584.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-01",
+      99.0,
+      3366.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-02",
+      38.0,
+      1216.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-02",
+      123.0,
+      4182.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-03",
+      59.0,
+      1888.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-03",
+      81.0,
+      2754.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-04",
+      88.0,
+      2816.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-04",
+      74.0,
+      2516.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-05",
+      58.0,
+      1856.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-05",
+      99.0,
+      3366.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-06",
+      58.0,
+      1856.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-06",
+      151.0,
+      5134.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-07",
+      129.0,
+      4128.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-07",
+      101.0,
+      3434.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-08",
+      50.0,
+      1600.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-08",
+      121.0,
+      4114.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-09",
+      72.0,
+      2304.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-09",
+      158.0,
+      5372.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-10",
+      74.0,
+      2368.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-10",
+      87.0,
+      2958.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-11",
+      66.0,
+      2112.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-11",
+      142.0,
+      4828.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-12",
+      53.0,
+      1696.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-12",
+      109.0,
+      3706.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-13",
+      77.0,
+      2464.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-13",
+      122.0,
+      4148.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-14",
+      62.0,
+      1984.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-14",
+      90.0,
+      3060.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-15",
+      47.0,
+      1504.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-15",
+      88.0,
+      2992.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-16",
+      133.0,
+      4256.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-16",
+      84.0,
+      2856.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-17",
+      34.0,
+      1088.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-17",
+      90.0,
+      3060.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-18",
+      72.0,
+      2304.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-18",
+      94.0,
+      3196.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-19",
+      55.0,
+      1760.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-19",
+      84.0,
+      2856.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-20",
+      55.0,
+      1760.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-20",
+      186.0,
+      6324.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-21",
+      79.0,
+      2528.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-21",
+      76.0,
+      2584.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-22",
+      53.0,
+      1696.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-22",
+      114.0,
+      3876.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-23",
+      62.0,
+      1984.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-23",
+      102.0,
+      3468.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-24",
+      48.0,
+      1536.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-24",
+      61.0,
+      2074.0
+     ],
+     [
+      "CURD-500G",
+      "2026-06-25",
+      63.0,
+      2016.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "2026-06-25",
+      109.0,
+      3706.0
+     ]
+    ],
+    "row_count": 56,
+    "sql": "select \"daily-sales-june\".\"sku\" as \"sku\", substr(\"daily-sales-june\".\"date\",1,10) as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" in (?,?)) group by \"daily-sales-june\".\"sku\", substr(\"daily-sales-june\".\"date\",1,10) order by \"date\" asc, \"sku\" asc limit 200",
+    "params": [
+     "MILK-FC-500ML",
+     "CURD-500G"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku in ['MILK-FC-500ML', 'CURD-500G']; group by daily sales.sku, day(daily sales.date); report sku = daily sales.sku, date = day(daily sales.date), units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by date asc, sku asc.",
+    "message": "56 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 2,
+  "columns": [
+   "empty_audit",
+   "empty_day"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "message": "2 of 2 part(s) answered."
+ },
+ "Q005": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "knowledge",
+  "columns": [
+   "date",
+   "bills_as_visitor_proxy"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    1299
+   ],
+   [
+    "2026-06-02",
+    1089
+   ],
+   [
+    "2026-06-03",
+    997
+   ],
+   [
+    "2026-06-04",
+    974
+   ],
+   [
+    "2026-06-05",
+    978
+   ],
+   [
+    "2026-06-06",
+    1344
+   ],
+   [
+    "2026-06-07",
+    919
+   ],
+   [
+    "2026-06-08",
+    808
+   ],
+   [
+    "2026-06-09",
+    752
+   ],
+   [
+    "2026-06-10",
+    1139
+   ],
+   [
+    "2026-06-11",
+    967
+   ],
+   [
+    "2026-06-12",
+    893
+   ],
+   [
+    "2026-06-13",
+    994
+   ],
+   [
+    "2026-06-14",
+    1488
+   ],
+   [
+    "2026-06-15",
+    958
+   ],
+   [
+    "2026-06-16",
+    1107
+   ],
+   [
+    "2026-06-17",
+    890
+   ],
+   [
+    "2026-06-18",
+    1195
+   ],
+   [
+    "2026-06-19",
+    1338
+   ],
+   [
+    "2026-06-20",
+    990
+   ],
+   [
+    "2026-06-21",
+    1121
+   ],
+   [
+    "2026-06-22",
+    1160
+   ],
+   [
+    "2026-06-23",
+    983
+   ],
+   [
+    "2026-06-24",
+    1086
+   ],
+   [
+    "2026-06-25",
+    938
+   ],
+   [
+    "2026-06-26",
+    1375
+   ],
+   [
+    "2026-06-27",
+    1039
+   ],
+   [
+    "2026-06-28",
+    1256
+   ]
+  ],
+  "row_count": 28,
+  "message": "28 row(s)."
+ },
+ "Q006": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q007": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q008": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q009": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "Bills containing atta, oil or dal till lines are the recorded evidence; person_identity and shopper_count are not recorded, so a bill is only a stand-in for a shopper and cannot show whether the same shoppers return.",
+    "columns": [
+     "bill_id",
+     "has_atta",
+     "lines_in_group"
+    ],
+    "rows": [
+     [
+      "B260504-000055",
+      1,
+      1
+     ],
+     [
+      "B260504-010009",
+      1,
+      1
+     ],
+     [
+      "B260504-010057",
+      1,
+      1
+     ],
+     [
+      "B260504-020010",
+      1,
+      1
+     ],
+     [
+      "B260504-020048",
+      1,
+      1
+     ],
+     [
+      "B260504-020052",
+      1,
+      1
+     ],
+     [
+      "B260504-030001",
+      1,
+      1
+     ],
+     [
+      "B260504-030004",
+      1,
+      1
+     ],
+     [
+      "B260504-030008",
+      1,
+      1
+     ],
+     [
+      "B260504-030017",
+      1,
+      2
+     ],
+     [
+      "B260504-030023",
+      1,
+      2
+     ],
+     [
+      "B260504-030045",
+      1,
+      1
+     ],
+     [
+      "B260504-030057",
+      1,
+      1
+     ],
+     [
+      "B260504-040007",
+      1,
+      1
+     ],
+     [
+      "B260504-040011",
+      1,
+      1
+     ],
+     [
+      "B260504-040015",
+      1,
+      1
+     ],
+     [
+      "B260504-040042",
+      1,
+      1
+     ],
+     [
+      "B260504-040054",
+      1,
+      1
+     ],
+     [
+      "B260504-040058",
+      1,
+      1
+     ],
+     [
+      "B260504-050002",
+      1,
+      1
+     ],
+     [
+      "B260504-050023",
+      1,
+      1
+     ],
+     [
+      "B260504-050046",
+      1,
+      1
+     ],
+     [
+      "B260504-060023",
+      1,
+      1
+     ],
+     [
+      "B260504-060024",
+      1,
+      1
+     ],
+     [
+      "B260504-060030",
+      1,
+      2
+     ],
+     [
+      "B260504-060034",
+      1,
+      2
+     ],
+     [
+      "B260504-060045",
+      1,
+      1
+     ],
+     [
+      "B260504-060046",
+      1,
+      1
+     ],
+     [
+      "B260504-070006",
+      1,
+      1
+     ],
+     [
+      "B260504-070016",
+      1,
+      1
+     ],
+     [
+      "B260504-070022",
+      1,
+      2
+     ],
+     [
+      "B260504-070023",
+      1,
+      1
+     ],
+     [
+      "B260504-070030",
+      1,
+      1
+     ],
+     [
+      "B260504-070043",
+      1,
+      1
+     ],
+     [
+      "B260504-080024",
+      1,
+      1
+     ],
+     [
+      "B260504-080031",
+      1,
+      1
+     ],
+     [
+      "B260504-080034",
+      1,
+      1
+     ],
+     [
+      "B260504-080049",
+      1,
+      1
+     ],
+     [
+      "B260504-080059",
+      1,
+      1
+     ],
+     [
+      "B260504-090000",
+      1,
+      1
+     ],
+     [
+      "B260504-090021",
+      1,
+      1
+     ],
+     [
+      "B260504-090022",
+      1,
+      1
+     ],
+     [
+      "B260504-090031",
+      1,
+      1
+     ],
+     [
+      "B260504-090040",
+      1,
+      1
+     ],
+     [
+      "B260504-090041",
+      1,
+      2
+     ],
+     [
+      "B260504-090067",
+      1,
+      1
+     ],
+     [
+      "B260504-100000",
+      1,
+      1
+     ],
+     [
+      "B260504-100001",
+      1,
+      1
+     ],
+     [
+      "B260504-100002",
+      1,
+      1
+     ],
+     [
+      "B260504-100004",
+      1,
+      1
+     ]
+    ],
+    "row_count": 200,
+    "sql": "select \"pos-lines-may-june\".\"bill_id\" as \"bill_id\", max((? - ?)) as \"has_atta\", count(*) as \"lines_in_group\" from \"pos-lines-may-june\"  where (\"pos-lines-may-june\".\"sku_scanned\" in (?,?,?,?,?)) group by \"pos-lines-may-june\".\"bill_id\" limit 200",
+    "params": [
+     1,
+     0,
+     "ATTA-WW-10KG",
+     "ATTA-WW-1KG",
+     "ATTA-WW-5KG",
+     "OIL-SUN-1L",
+     "DAL-TOOR-1KG"
+    ],
+    "plan_in_words": "From till line records; keep rows where pos lines may.sku_scanned in ['ATTA-WW-10KG', 'ATTA-WW-1KG', 'ATTA-WW-5KG', 'OIL-SUN-1L', 'DAL-TOOR-1KG']; group by pos lines may.bill_id; report bill_id = pos lines may.bill_id, has_atta = max of 1 - 0, lines_in_group = count of *.",
+    "message": "200 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Per-bill atta, oil and dal quantities let code check which category combinations co-occur; no customer identity is recorded, and till lines cover only the eleven followed items.",
+    "columns": [
+     "bill_id",
+     "sku",
+     "qty"
+    ],
+    "rows": [
+     [
+      "B260504-000055",
+      "DAL-TOOR-1KG",
+      1.0
+     ],
+     [
+      "B260504-010009",
+      "ATTA-WW-10KG",
+      1.0
+     ],
+     [
+      "B260504-010057",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-020010",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-020048",
+      "DAL-TOOR-1KG",
+      1.0
+     ],
+     [
+      "B260504-020052",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-030001",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-030004",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-030008",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-030017",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-030017",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-030023",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-030023",
+      "DAL-TOOR-1KG",
+      1.0
+     ],
+     [
+      "B260504-030045",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-030057",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-040007",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-040011",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-040015",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-040042",
+      "DAL-TOOR-1KG",
+      1.0
+     ],
+     [
+      "B260504-040054",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-040058",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-050002",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-050023",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-050046",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-060023",
+      "ATTA-WW-10KG",
+      1.0
+     ],
+     [
+      "B260504-060024",
+      "DAL-TOOR-1KG",
+      1.0
+     ],
+     [
+      "B260504-060030",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-060030",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-060034",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-060034",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-060045",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-060046",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-070006",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-070016",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-070022",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-070022",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-070023",
+      "ATTA-WW-10KG",
+      1.0
+     ],
+     [
+      "B260504-070030",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-070043",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-080024",
+      "OIL-SUN-1L",
+      1.0
+     ],
+     [
+      "B260504-080031",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-080034",
+      "DAL-TOOR-1KG",
+      1.0
+     ],
+     [
+      "B260504-080049",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-080059",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-090000",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-090021",
+      "ATTA-WW-5KG",
+      1.0
+     ],
+     [
+      "B260504-090022",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-090031",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-090040",
+      "ATTA-WW-1KG",
+      1.0
+     ],
+     [
+      "B260504-090041",
+      "ATTA-WW-5KG",
+      1.0
+     ]
+    ],
+    "row_count": 200,
+    "sql": "select \"pos-lines-may-june\".\"bill_id\" as \"bill_id\", \"pos-lines-may-june\".\"sku_scanned\" as \"sku\", sum(\"pos-lines-may-june\".\"qty\") as \"qty\" from \"pos-lines-may-june\"  where (\"pos-lines-may-june\".\"sku_scanned\" in (?,?,?,?,?)) group by \"pos-lines-may-june\".\"bill_id\", \"pos-lines-may-june\".\"sku_scanned\" limit 200",
+    "params": [
+     "ATTA-WW-10KG",
+     "ATTA-WW-1KG",
+     "ATTA-WW-5KG",
+     "OIL-SUN-1L",
+     "DAL-TOOR-1KG"
+    ],
+    "plan_in_words": "From till line records; keep rows where pos lines may.sku_scanned in ['ATTA-WW-10KG', 'ATTA-WW-1KG', 'ATTA-WW-5KG', 'OIL-SUN-1L', 'DAL-TOOR-1KG']; group by pos lines may.bill_id, pos lines may.sku_scanned; report bill_id = pos lines may.bill_id, sku = pos lines may.sku_scanned, qty = sum of pos lines may.qty.",
+    "message": "200 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 2,
+  "columns": [
+   "bill_id",
+   "has_atta",
+   "lines_in_group"
+  ],
+  "rows": [
+   [
+    "B260504-000055",
+    1,
+    1
+   ],
+   [
+    "B260504-010009",
+    1,
+    1
+   ],
+   [
+    "B260504-010057",
+    1,
+    1
+   ],
+   [
+    "B260504-020010",
+    1,
+    1
+   ],
+   [
+    "B260504-020048",
+    1,
+    1
+   ],
+   [
+    "B260504-020052",
+    1,
+    1
+   ],
+   [
+    "B260504-030001",
+    1,
+    1
+   ],
+   [
+    "B260504-030004",
+    1,
+    1
+   ],
+   [
+    "B260504-030008",
+    1,
+    1
+   ],
+   [
+    "B260504-030017",
+    1,
+    2
+   ],
+   [
+    "B260504-030023",
+    1,
+    2
+   ],
+   [
+    "B260504-030045",
+    1,
+    1
+   ],
+   [
+    "B260504-030057",
+    1,
+    1
+   ],
+   [
+    "B260504-040007",
+    1,
+    1
+   ],
+   [
+    "B260504-040011",
+    1,
+    1
+   ],
+   [
+    "B260504-040015",
+    1,
+    1
+   ],
+   [
+    "B260504-040042",
+    1,
+    1
+   ],
+   [
+    "B260504-040054",
+    1,
+    1
+   ],
+   [
+    "B260504-040058",
+    1,
+    1
+   ],
+   [
+    "B260504-050002",
+    1,
+    1
+   ],
+   [
+    "B260504-050023",
+    1,
+    1
+   ],
+   [
+    "B260504-050046",
+    1,
+    1
+   ],
+   [
+    "B260504-060023",
+    1,
+    1
+   ],
+   [
+    "B260504-060024",
+    1,
+    1
+   ],
+   [
+    "B260504-060030",
+    1,
+    2
+   ],
+   [
+    "B260504-060034",
+    1,
+    2
+   ],
+   [
+    "B260504-060045",
+    1,
+    1
+   ],
+   [
+    "B260504-060046",
+    1,
+    1
+   ],
+   [
+    "B260504-070006",
+    1,
+    1
+   ],
+   [
+    "B260504-070016",
+    1,
+    1
+   ],
+   [
+    "B260504-070022",
+    1,
+    2
+   ],
+   [
+    "B260504-070023",
+    1,
+    1
+   ],
+   [
+    "B260504-070030",
+    1,
+    1
+   ],
+   [
+    "B260504-070043",
+    1,
+    1
+   ],
+   [
+    "B260504-080024",
+    1,
+    1
+   ],
+   [
+    "B260504-080031",
+    1,
+    1
+   ],
+   [
+    "B260504-080034",
+    1,
+    1
+   ],
+   [
+    "B260504-080049",
+    1,
+    1
+   ],
+   [
+    "B260504-080059",
+    1,
+    1
+   ],
+   [
+    "B260504-090000",
+    1,
+    1
+   ],
+   [
+    "B260504-090021",
+    1,
+    1
+   ],
+   [
+    "B260504-090022",
+    1,
+    1
+   ],
+   [
+    "B260504-090031",
+    1,
+    1
+   ],
+   [
+    "B260504-090040",
+    1,
+    1
+   ],
+   [
+    "B260504-090041",
+    1,
+    2
+   ],
+   [
+    "B260504-090067",
+    1,
+    1
+   ],
+   [
+    "B260504-100000",
+    1,
+    1
+   ],
+   [
+    "B260504-100001",
+    1,
+    1
+   ],
+   [
+    "B260504-100002",
+    1,
+    1
+   ],
+   [
+    "B260504-100004",
+    1,
+    1
+   ]
+  ],
+  "row_count": 200,
+  "message": "2 of 2 part(s) answered."
+ },
+ "Q010": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Recorded June debit complaints are the only direct customer-dissatisfaction records; satisfaction itself is not surveyed or recorded.",
+    "columns": [
+     "complaints",
+     "distinct_bills_complained",
+     "complaint_amount_inr"
+    ],
+    "rows": [
+     [
+      26,
+      24,
+      11969.16
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(*) as \"complaints\", count(distinct \"customer-complaints-june\".\"bill_id\") as \"distinct_bills_complained\", sum(\"customer-complaints-june\".\"amount_inr\") as \"complaint_amount_inr\" from \"customer-complaints-june\"  where (substr(substr(\"customer-complaints-june\".\"complaint_ts\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "2026-06-04",
+     "2026-06-26"
+    ],
+    "plan_in_words": "From complaint records; keep rows where day(customer complaints.complaint_ts) between 2026-06-04 and 2026-06-26; report complaints = count of *, distinct_bills_complained = count distinct of customer complaints.bill_id, complaint_amount_inr = sum of customer complaints.amount_inr.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "ontology",
+    "covers": "Uses Bills and takings: approved payments provide the June bill denominator and takings; a bill is only a stand-in for a shopper, not a satisfaction measure.",
+    "columns": [
+     "bills",
+     "takings_inr",
+     "average_bill_inr"
+    ],
+    "rows": [
+     [
+      30077,
+      17570666.87,
+      584.1894760115704
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(distinct \"pos-payments-june\".\"bill_id\") as \"bills\", sum(\"pos-payments-june\".\"amount_inr\") as \"takings_inr\", avg(\"pos-payments-june\".\"amount_inr\") as \"average_bill_inr\" from \"pos-payments-june\"  where (\"pos-payments-june\".\"till_status\" = ?) and (substr(substr(\"pos-payments-june\".\"ts\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "approved",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From payment attempt records; keep rows where pos payments.till_status = 'approved' and day(pos payments.ts) between 2026-06-01 and 2026-06-28; report bills = count distinct of pos payments.bill_id, takings_inr = sum of pos payments.amount_inr, average_bill_inr = avg of pos payments.amount_inr.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "no_record",
+    "layers": [
+     "ontology"
+    ],
+    "failed_layer": "ontology",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (a select item needs 'as' (a lowercase name) and 'expr').",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "On-shelf availability is relevant indirect evidence, but audits are twice-weekly 11:00 snapshots and cannot establish satisfaction, shelf hours, unrecorded lost sales, or shoppers who did not buy.",
+    "columns": [
+     "audits",
+     "on_shelf_audits"
+    ],
+    "rows": [
+     [
+      88,
+      88.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(*) as \"audits\", sum((? * 1.0 / nullif(?, 0))) as \"on_shelf_audits\" from \"shelf-audits-june\"  where (substr(substr(\"shelf-audits-june\".\"audit_ts\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     1,
+     1,
+     "2026-06-02",
+     "2026-06-26"
+    ],
+    "plan_in_words": "From shelf-audit row records; keep rows where day(shelf audits.audit_ts) between 2026-06-02 and 2026-06-26; report audits = count of *, on_shelf_audits = sum of 1 / 1.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 3,
+  "total_parts": 4,
+  "columns": [
+   "complaints",
+   "distinct_bills_complained",
+   "complaint_amount_inr"
+  ],
+  "rows": [
+   [
+    26,
+    24,
+    11969.16
+   ]
+  ],
+  "row_count": 1,
+  "message": "3 of 4 part(s) answered."
+ },
+ "Q011": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q012": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Daily units and revenue for each of the eleven followed products across June, so a new product's first sales day and any existing product's decline can be seen; no table records a launch, a launch date, or a cause, so cannibalisation cannot",
+    "columns": [
+     "sku",
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "ATTA-WW-10KG",
+      "2026-06-01",
+      10.0,
+      4990.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-02",
+      13.0,
+      6487.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-03",
+      12.0,
+      5988.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-04",
+      7.0,
+      3493.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-05",
+      17.0,
+      8483.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-06",
+      11.0,
+      5489.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-07",
+      17.0,
+      8483.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-08",
+      4.0,
+      1996.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-09",
+      5.0,
+      2495.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-10",
+      7.0,
+      3493.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-11",
+      6.0,
+      2994.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-12",
+      16.0,
+      7984.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-13",
+      13.0,
+      6487.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-14",
+      10.0,
+      4990.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-15",
+      10.0,
+      4990.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-16",
+      4.0,
+      1996.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-17",
+      10.0,
+      4990.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-18",
+      9.0,
+      4491.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-19",
+      14.0,
+      6986.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-20",
+      10.0,
+      4990.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-21",
+      9.0,
+      4491.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-22",
+      9.0,
+      4491.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-23",
+      12.0,
+      5988.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-24",
+      15.0,
+      7485.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-25",
+      11.0,
+      5489.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-26",
+      13.0,
+      6487.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-27",
+      8.0,
+      3992.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "2026-06-28",
+      5.0,
+      2495.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-01",
+      22.0,
+      1276.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-02",
+      35.0,
+      2030.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-03",
+      41.0,
+      2378.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-04",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-05",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-06",
+      52.0,
+      3016.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-07",
+      40.0,
+      2320.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-08",
+      27.0,
+      1566.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-09",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-10",
+      41.0,
+      2378.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-11",
+      31.0,
+      1798.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-12",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-13",
+      28.0,
+      1624.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-14",
+      32.0,
+      1856.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-15",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-16",
+      22.0,
+      1276.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-17",
+      45.0,
+      2610.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-18",
+      28.0,
+      1624.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-19",
+      25.0,
+      1450.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-20",
+      25.0,
+      1450.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-21",
+      35.0,
+      2030.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-22",
+      14.0,
+      812.0
+     ]
+    ],
+    "row_count": 200,
+    "sql": "select \"daily-sales-june\".\"sku\" as \"sku\", substr(\"daily-sales-june\".\"date\",1,10) as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" in (?,?,?,?,?,?,?,?,?,?,?)) group by \"daily-sales-june\".\"sku\", substr(\"daily-sales-june\".\"date\",1,10) order by \"sku\" asc, \"date\" asc limit 200",
+    "params": [
+     "ATTA-WW-10KG",
+     "ATTA-WW-1KG",
+     "ATTA-WW-5KG",
+     "BREAD-WHITE-400G",
+     "CURD-500G",
+     "DAL-TOOR-1KG",
+     "MILK-FC-500ML",
+     "MILK-TONED-500ML",
+     "OIL-SUN-1L",
+     "RICE-SM-5KG",
+     "SUGAR-1KG"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku in ['ATTA-WW-10KG', 'ATTA-WW-1KG', 'ATTA-WW-5KG', 'BREAD-WHITE-400G', 'CURD-500G', 'DAL-TOOR-1KG', 'MILK-FC-500ML', 'MILK-TONED-500ML', 'OIL-SUN-1L', 'RICE-SM-5KG', 'SUGAR-1KG']; group by daily sales.sku, day(daily sales.date); report sku = daily sales.sku, date = day(daily sales.date), units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by sku asc, date asc.",
+    "message": "200 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "The product list with names, packs and flows, to identify which items are lookalike pack sizes of one another (possible substitutes) when reading the daily sales pattern.",
+    "columns": [
+     "sku",
+     "name",
+     "pack",
+     "flow"
+    ],
+    "rows": [
+     [
+      "ATTA-WW-10KG",
+      "Whole wheat atta 10 kg",
+      "10 kg",
+      "DC"
+     ],
+     [
+      "ATTA-WW-1KG",
+      "Whole wheat atta 1 kg",
+      "1 kg",
+      "DC"
+     ],
+     [
+      "ATTA-WW-5KG",
+      "Whole wheat atta 5 kg",
+      "5 kg",
+      "DC"
+     ],
+     [
+      "BREAD-WHITE-400G",
+      "White bread 400 g",
+      "400 g",
+      "DSD"
+     ],
+     [
+      "CURD-500G",
+      "Curd 500 g pouch",
+      "500 g",
+      "DSD"
+     ],
+     [
+      "DAL-TOOR-1KG",
+      "Toor dal 1 kg",
+      "1 kg",
+      "DC"
+     ],
+     [
+      "MILK-FC-500ML",
+      "Full cream milk 500 ml pouch",
+      "500 ml",
+      "DSD"
+     ],
+     [
+      "MILK-TONED-500ML",
+      "Toned milk 500 ml pouch",
+      "500 ml",
+      "DSD"
+     ],
+     [
+      "OIL-SUN-1L",
+      "Sunflower oil 1 L pouch",
+      "1 L",
+      "DC"
+     ],
+     [
+      "RICE-SM-5KG",
+      "Sona masoori rice 5 kg",
+      "5 kg",
+      "DC"
+     ],
+     [
+      "SUGAR-1KG",
+      "Sugar 1 kg",
+      "1 kg",
+      "DC"
+     ]
+    ],
+    "row_count": 11,
+    "sql": "select \"products\".\"sku\" as \"sku\", \"products\".\"name\" as \"name\", \"products\".\"pack\" as \"pack\", \"products\".\"flow\" as \"flow\" from \"products\"  order by \"sku\" asc limit 200",
+    "params": [],
+    "plan_in_words": "From product records; report sku = products.sku, name = products.name, pack = products.pack, flow = products.flow; sorted by sku asc.",
+    "message": "11 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 2,
+  "columns": [
+   "sku",
+   "date",
+   "units_sold",
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    "ATTA-WW-10KG",
+    "2026-06-01",
+    10.0,
+    4990.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-02",
+    13.0,
+    6487.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-03",
+    12.0,
+    5988.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-04",
+    7.0,
+    3493.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-05",
+    17.0,
+    8483.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-06",
+    11.0,
+    5489.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-07",
+    17.0,
+    8483.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-08",
+    4.0,
+    1996.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-09",
+    5.0,
+    2495.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-10",
+    7.0,
+    3493.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-11",
+    6.0,
+    2994.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-12",
+    16.0,
+    7984.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-13",
+    13.0,
+    6487.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-14",
+    10.0,
+    4990.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-15",
+    10.0,
+    4990.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-16",
+    4.0,
+    1996.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-17",
+    10.0,
+    4990.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-18",
+    9.0,
+    4491.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-19",
+    14.0,
+    6986.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-20",
+    10.0,
+    4990.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-21",
+    9.0,
+    4491.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-22",
+    9.0,
+    4491.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-23",
+    12.0,
+    5988.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-24",
+    15.0,
+    7485.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-25",
+    11.0,
+    5489.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-26",
+    13.0,
+    6487.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-27",
+    8.0,
+    3992.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-28",
+    5.0,
+    2495.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-01",
+    22.0,
+    1276.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-02",
+    35.0,
+    2030.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-03",
+    41.0,
+    2378.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-04",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-05",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-06",
+    52.0,
+    3016.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-07",
+    40.0,
+    2320.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-08",
+    27.0,
+    1566.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-09",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-10",
+    41.0,
+    2378.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-11",
+    31.0,
+    1798.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-12",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-13",
+    28.0,
+    1624.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-14",
+    32.0,
+    1856.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-15",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-16",
+    22.0,
+    1276.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-17",
+    45.0,
+    2610.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-18",
+    28.0,
+    1624.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-19",
+    25.0,
+    1450.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-20",
+    25.0,
+    1450.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-21",
+    35.0,
+    2030.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-22",
+    14.0,
+    812.0
+   ]
+  ],
+  "row_count": 200,
+  "message": "2 of 2 part(s) answered."
+ },
+ "Q013": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "Ranks the eleven followed products by recorded June sales as evidence for range review; it does not record demand, lost sales, true margins, or products outside these eleven, so it cannot by itself decide additions or delistings.",
+    "columns": [
+     "sku",
+     "product_name",
+     "units_sold_june",
+     "revenue_inr_june",
+     "days_with_sales"
+    ],
+    "rows": [
+     [
+      "ATTA-WW-10KG",
+      "Whole wheat atta 10 kg",
+      287.0,
+      143213.0,
+      28
+     ],
+     [
+      "SUGAR-1KG",
+      "Sugar 1 kg",
+      509.0,
+      24432.0,
+      28
+     ],
+     [
+      "DAL-TOOR-1KG",
+      "Toor dal 1 kg",
+      539.0,
+      90552.0,
+      28
+     ],
+     [
+      "ATTA-WW-5KG",
+      "Whole wheat atta 5 kg",
+      567.0,
+      150255.0,
+      28
+     ],
+     [
+      "RICE-SM-5KG",
+      "Sona masoori rice 5 kg",
+      609.0,
+      212541.0,
+      28
+     ],
+     [
+      "OIL-SUN-1L",
+      "Sunflower oil 1 L pouch",
+      747.0,
+      113544.0,
+      28
+     ],
+     [
+      "ATTA-WW-1KG",
+      "Whole wheat atta 1 kg",
+      826.0,
+      47908.0,
+      28
+     ],
+     [
+      "BREAD-WHITE-400G",
+      "White bread 400 g",
+      1674.0,
+      75330.0,
+      28
+     ],
+     [
+      "CURD-500G",
+      "Curd 500 g pouch",
+      1942.0,
+      62144.0,
+      28
+     ],
+     [
+      "MILK-FC-500ML",
+      "Full cream milk 500 ml pouch",
+      2916.0,
+      99144.0,
+      28
+     ],
+     [
+      "MILK-TONED-500ML",
+      "Toned milk 500 ml pouch",
+      8649.0,
+      224874.0,
+      28
+     ]
+    ],
+    "row_count": 11,
+    "sql": "select \"products\".\"sku\" as \"sku\", \"products\".\"name\" as \"product_name\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold_june\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr_june\", count(distinct \"daily-sales-june\".\"date\") as \"days_with_sales\" from \"daily-sales-june\" inner join \"products\" on \"daily-sales-june\".\"sku\" = \"products\".\"sku\" group by \"products\".\"sku\", \"products\".\"name\" order by \"units_sold_june\" asc limit 200",
+    "params": [],
+    "plan_in_words": "From daily sales row records; inner-join product records on daily sales.sku = products.sku; group by products.sku, products.name; report sku = products.sku, product_name = products.name, units_sold_june = sum of daily sales.units_sold, revenue_inr_june = sum of daily sales.revenue_inr, days_with_sales = count distinct of daily sales.date; sorted by units_sold_june asc.",
+    "message": "11 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "no_record",
+    "layers": [
+     "schema"
+    ],
+    "failed_layer": "schema",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"=\", \"args\": [{\"col\": \"shelf-audits-june.status\"}, {\"lit\": \"on shelf\"}]} is not in the plan form).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "Summarises recorded damaged and expired write-offs as range-review evidence; it does not establish why waste occurred or whether dropping a product would improve profit.",
+    "columns": [
+     "sku",
+     "product_name",
+     "reason",
+     "units_written_off"
+    ],
+    "rows": [
+     [
+      "MILK-TONED-500ML",
+      "Toned milk 500 ml pouch",
+      "expired",
+      291.0
+     ],
+     [
+      "MILK-FC-500ML",
+      "Full cream milk 500 ml pouch",
+      "expired",
+      198.0
+     ],
+     [
+      "MILK-TONED-500ML",
+      "Toned milk 500 ml pouch",
+      "damaged",
+      5.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "Whole wheat atta 5 kg",
+      "damaged",
+      3.0
+     ],
+     [
+      "CURD-500G",
+      "Curd 500 g pouch",
+      "damaged",
+      3.0
+     ],
+     [
+      "RICE-SM-5KG",
+      "Sona masoori rice 5 kg",
+      "damaged",
+      2.0
+     ],
+     [
+      "DAL-TOOR-1KG",
+      "Toor dal 1 kg",
+      "damaged",
+      1.0
+     ],
+     [
+      "SUGAR-1KG",
+      "Sugar 1 kg",
+      "damaged",
+      1.0
+     ]
+    ],
+    "row_count": 8,
+    "sql": "select \"products\".\"sku\" as \"sku\", \"products\".\"name\" as \"product_name\", \"write-offs-june\".\"reason\" as \"reason\", sum(\"write-offs-june\".\"units\") as \"units_written_off\" from \"write-offs-june\" inner join \"products\" on \"write-offs-june\".\"sku\" = \"products\".\"sku\" group by \"products\".\"sku\", \"products\".\"name\", \"write-offs-june\".\"reason\" order by \"units_written_off\" desc limit 200",
+    "params": [],
+    "plan_in_words": "From write-off records; inner-join product records on write offs.sku = products.sku; group by products.sku, products.name, write offs.reason; report sku = products.sku, product_name = products.name, reason = write offs.reason, units_written_off = sum of write offs.units; sorted by units_written_off desc.",
+    "message": "8 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "Provides price minus the single recorded product cost as a labelled list-margin proxy for the existing range; real margins, competitor ranges, shopper preferences, and candidate new products are not recorded.",
+    "columns": [
+     "sku",
+     "product_name",
+     "pack",
+     "flow",
+     "list_margin_inr"
+    ],
+    "rows": [
+     [
+      "MILK-TONED-500ML",
+      "Toned milk 500 ml pouch",
+      "500 ml",
+      "DSD",
+      1.3000000000000007
+     ],
+     [
+      "MILK-FC-500ML",
+      "Full cream milk 500 ml pouch",
+      "500 ml",
+      "DSD",
+      1.7000000000000028
+     ],
+     [
+      "CURD-500G",
+      "Curd 500 g pouch",
+      "500 g",
+      "DSD",
+      2.5
+     ],
+     [
+      "SUGAR-1KG",
+      "Sugar 1 kg",
+      "1 kg",
+      "DC",
+      6.0
+     ],
+     [
+      "BREAD-WHITE-400G",
+      "White bread 400 g",
+      "400 g",
+      "DSD",
+      6.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "Whole wheat atta 1 kg",
+      "1 kg",
+      "DC",
+      8.5
+     ],
+     [
+      "OIL-SUN-1L",
+      "Sunflower oil 1 L pouch",
+      "1 L",
+      "DC",
+      18.0
+     ],
+     [
+      "DAL-TOOR-1KG",
+      "Toor dal 1 kg",
+      "1 kg",
+      "DC",
+      22.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "Whole wheat atta 5 kg",
+      "5 kg",
+      "DC",
+      37.0
+     ],
+     [
+      "RICE-SM-5KG",
+      "Sona masoori rice 5 kg",
+      "5 kg",
+      "DC",
+      48.0
+     ],
+     [
+      "ATTA-WW-10KG",
+      "Whole wheat atta 10 kg",
+      "10 kg",
+      "DC",
+      68.0
+     ]
+    ],
+    "row_count": 11,
+    "sql": "select \"products\".\"sku\" as \"sku\", \"products\".\"name\" as \"product_name\", \"products\".\"pack\" as \"pack\", \"products\".\"flow\" as \"flow\", (\"products\".\"price_inr\" - \"products\".\"cost_inr\") as \"list_margin_inr\" from \"products\"  order by \"list_margin_inr\" asc limit 200",
+    "params": [],
+    "plan_in_words": "From product records; report sku = products.sku, product_name = products.name, pack = products.pack, flow = products.flow, list_margin_inr = products.price_inr - products.cost_inr; sorted by list_margin_inr asc.",
+    "message": "11 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 3,
+  "total_parts": 4,
+  "columns": [
+   "sku",
+   "product_name",
+   "units_sold_june",
+   "revenue_inr_june",
+   "days_with_sales"
+  ],
+  "rows": [
+   [
+    "ATTA-WW-10KG",
+    "Whole wheat atta 10 kg",
+    287.0,
+    143213.0,
+    28
+   ],
+   [
+    "SUGAR-1KG",
+    "Sugar 1 kg",
+    509.0,
+    24432.0,
+    28
+   ],
+   [
+    "DAL-TOOR-1KG",
+    "Toor dal 1 kg",
+    539.0,
+    90552.0,
+    28
+   ],
+   [
+    "ATTA-WW-5KG",
+    "Whole wheat atta 5 kg",
+    567.0,
+    150255.0,
+    28
+   ],
+   [
+    "RICE-SM-5KG",
+    "Sona masoori rice 5 kg",
+    609.0,
+    212541.0,
+    28
+   ],
+   [
+    "OIL-SUN-1L",
+    "Sunflower oil 1 L pouch",
+    747.0,
+    113544.0,
+    28
+   ],
+   [
+    "ATTA-WW-1KG",
+    "Whole wheat atta 1 kg",
+    826.0,
+    47908.0,
+    28
+   ],
+   [
+    "BREAD-WHITE-400G",
+    "White bread 400 g",
+    1674.0,
+    75330.0,
+    28
+   ],
+   [
+    "CURD-500G",
+    "Curd 500 g pouch",
+    1942.0,
+    62144.0,
+    28
+   ],
+   [
+    "MILK-FC-500ML",
+    "Full cream milk 500 ml pouch",
+    2916.0,
+    99144.0,
+    28
+   ],
+   [
+    "MILK-TONED-500ML",
+    "Toned milk 500 ml pouch",
+    8649.0,
+    224874.0,
+    28
+   ]
+  ],
+  "row_count": 11,
+  "message": "3 of 4 part(s) answered."
+ },
+ "Q014": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q015": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q016": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "bags_sold"
+  ],
+  "rows": [
+   [
+    567.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q017": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q018": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q019": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Identifies the June 2026 days on which toned milk sales fell, using recorded daily units and revenue for MILK-TONED-500ML.",
+    "columns": [
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      265.0,
+      6890.0
+     ],
+     [
+      "2026-06-02",
+      395.0,
+      10270.0
+     ],
+     [
+      "2026-06-03",
+      313.0,
+      8138.0
+     ],
+     [
+      "2026-06-04",
+      224.0,
+      5824.0
+     ],
+     [
+      "2026-06-05",
+      292.0,
+      7592.0
+     ],
+     [
+      "2026-06-06",
+      340.0,
+      8840.0
+     ],
+     [
+      "2026-06-07",
+      265.0,
+      6890.0
+     ],
+     [
+      "2026-06-08",
+      289.0,
+      7514.0
+     ],
+     [
+      "2026-06-09",
+      389.0,
+      10114.0
+     ],
+     [
+      "2026-06-10",
+      280.0,
+      7280.0
+     ],
+     [
+      "2026-06-11",
+      274.0,
+      7124.0
+     ],
+     [
+      "2026-06-12",
+      222.0,
+      5772.0
+     ],
+     [
+      "2026-06-13",
+      335.0,
+      8710.0
+     ],
+     [
+      "2026-06-14",
+      275.0,
+      7150.0
+     ],
+     [
+      "2026-06-15",
+      299.0,
+      7774.0
+     ],
+     [
+      "2026-06-16",
+      290.0,
+      7540.0
+     ],
+     [
+      "2026-06-17",
+      355.0,
+      9230.0
+     ],
+     [
+      "2026-06-18",
+      211.0,
+      5486.0
+     ],
+     [
+      "2026-06-19",
+      356.0,
+      9256.0
+     ],
+     [
+      "2026-06-20",
+      428.0,
+      11128.0
+     ],
+     [
+      "2026-06-21",
+      377.0,
+      9802.0
+     ],
+     [
+      "2026-06-22",
+      302.0,
+      7852.0
+     ],
+     [
+      "2026-06-23",
+      278.0,
+      7228.0
+     ],
+     [
+      "2026-06-24",
+      381.0,
+      9906.0
+     ],
+     [
+      "2026-06-25",
+      182.0,
+      4732.0
+     ],
+     [
+      "2026-06-26",
+      163.0,
+      4238.0
+     ],
+     [
+      "2026-06-27",
+      355.0,
+      9230.0
+     ],
+     [
+      "2026-06-28",
+      514.0,
+      13364.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"daily-sales-june\".\"date\" as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) group by \"daily-sales-june\".\"date\" order by \"date\" asc limit 28",
+    "params": [
+     "MILK-TONED-500ML"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'MILK-TONED-500ML'; group by daily sales.date; report date = daily sales.date, units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Checks the recorded 11:00 shelf-audit evidence for toned milk; these twice-weekly snapshots can show an empty shelf but not hours off shelf, and no table records the cause of a sales fall.",
+    "columns": [
+     "audit_ts",
+     "status"
+    ],
+    "rows": [
+     [
+      "2026-06-02T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-05T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-09T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-12T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-16T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-19T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-23T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-26T11:00",
+      "on shelf"
+     ]
+    ],
+    "row_count": 8,
+    "sql": "select \"shelf-audits-june\".\"audit_ts\" as \"audit_ts\", \"shelf-audits-june\".\"status\" as \"status\" from \"shelf-audits-june\"  where (\"shelf-audits-june\".\"sku\" = ?) order by \"audit_ts\" asc limit 200",
+    "params": [
+     "MILK-TONED-500ML"
+    ],
+    "plan_in_words": "From shelf-audit row records; keep rows where shelf audits.sku = 'MILK-TONED-500ML'; report audit_ts = shelf audits.audit_ts, status = shelf audits.status; sorted by audit_ts asc.",
+    "message": "8 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Provides daily closing book stock as a labelled belief to compare with the low-sales days; book stock is not on-shelf availability and does not establish why sales fell.",
+    "columns": [
+     "date",
+     "book_on_hand_close"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      85.0
+     ],
+     [
+      "2026-06-02",
+      5.0
+     ],
+     [
+      "2026-06-03",
+      7.0
+     ],
+     [
+      "2026-06-04",
+      98.0
+     ],
+     [
+      "2026-06-05",
+      121.0
+     ],
+     [
+      "2026-06-06",
+      119.0
+     ],
+     [
+      "2026-06-07",
+      192.0
+     ],
+     [
+      "2026-06-08",
+      214.0
+     ],
+     [
+      "2026-06-09",
+      139.0
+     ],
+     [
+      "2026-06-10",
+      173.0
+     ],
+     [
+      "2026-06-11",
+      213.0
+     ],
+     [
+      "2026-06-12",
+      258.0
+     ],
+     [
+      "2026-06-13",
+      236.0
+     ],
+     [
+      "2026-06-14",
+      257.0
+     ],
+     [
+      "2026-06-15",
+      223.0
+     ],
+     [
+      "2026-06-16",
+      238.0
+     ],
+     [
+      "2026-06-17",
+      198.0
+     ],
+     [
+      "2026-06-18",
+      275.0
+     ],
+     [
+      "2026-06-19",
+      229.0
+     ],
+     [
+      "2026-06-20",
+      139.0
+     ],
+     [
+      "2026-06-21",
+      100.0
+     ],
+     [
+      "2026-06-22",
+      113.0
+     ],
+     [
+      "2026-06-23",
+      150.0
+     ],
+     [
+      "2026-06-24",
+      83.0
+     ],
+     [
+      "2026-06-25",
+      216.0
+     ],
+     [
+      "2026-06-26",
+      294.0
+     ],
+     [
+      "2026-06-27",
+      271.0
+     ],
+     [
+      "2026-06-28",
+      95.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"inventory-book-june\".\"date\" as \"date\", \"inventory-book-june\".\"book_on_hand_close\" as \"book_on_hand_close\" from \"inventory-book-june\"  where (\"inventory-book-june\".\"sku\" = ?) order by \"date\" asc limit 28",
+    "params": [
+     "MILK-TONED-500ML"
+    ],
+    "plan_in_words": "From book-stock row records; keep rows where inventory book.sku = 'MILK-TONED-500ML'; report date = inventory book.date, book_on_hand_close = inventory book.book_on_hand_close; sorted by date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Supplies recorded June fresh-delivery timing and quantities for toned milk as contextual evidence only; shelf restock times and the actual reason for the sales decline are not recorded.",
+    "columns": [
+     "delivery_ts",
+     "route",
+     "crates",
+     "units",
+     "use_by"
+    ],
+    "rows": [
+     [
+      "2026-06-01T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-02"
+     ],
+     [
+      "2026-06-02T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-03"
+     ],
+     [
+      "2026-06-03T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-04"
+     ],
+     [
+      "2026-06-04T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-05"
+     ],
+     [
+      "2026-06-05T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-06"
+     ],
+     [
+      "2026-06-06T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-07"
+     ],
+     [
+      "2026-06-07T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-08"
+     ],
+     [
+      "2026-06-08T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-09"
+     ],
+     [
+      "2026-06-09T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-10"
+     ],
+     [
+      "2026-06-10T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-11"
+     ],
+     [
+      "2026-06-11T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-12"
+     ],
+     [
+      "2026-06-12T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-13"
+     ],
+     [
+      "2026-06-13T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-14"
+     ],
+     [
+      "2026-06-14T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-15"
+     ],
+     [
+      "2026-06-15T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-16"
+     ],
+     [
+      "2026-06-16T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-17"
+     ],
+     [
+      "2026-06-17T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-18"
+     ],
+     [
+      "2026-06-18T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-19"
+     ],
+     [
+      "2026-06-19T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-20"
+     ],
+     [
+      "2026-06-20T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-21"
+     ],
+     [
+      "2026-06-21T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-22"
+     ],
+     [
+      "2026-06-22T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-23"
+     ],
+     [
+      "2026-06-23T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-24"
+     ],
+     [
+      "2026-06-24T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-25"
+     ],
+     [
+      "2026-06-25T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-26"
+     ],
+     [
+      "2026-06-26T05:30",
+      "R-07",
+      14.0,
+      315.0,
+      "2026-06-27"
+     ],
+     [
+      "2026-06-27T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-28"
+     ],
+     [
+      "2026-06-28T05:30",
+      "R-07",
+      15.0,
+      338.0,
+      "2026-06-29"
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"fresh-deliveries-june\".\"delivery_ts\" as \"delivery_ts\", \"fresh-deliveries-june\".\"route\" as \"route\", \"fresh-deliveries-june\".\"crates\" as \"crates\", \"fresh-deliveries-june\".\"units\" as \"units\", \"fresh-deliveries-june\".\"use_by\" as \"use_by\" from \"fresh-deliveries-june\"  where (\"fresh-deliveries-june\".\"sku\" = ?) order by \"delivery_ts\" asc limit 200",
+    "params": [
+     "MILK-TONED-500ML"
+    ],
+    "plan_in_words": "From fresh-delivery row records; keep rows where fresh deliveries.sku = 'MILK-TONED-500ML'; report delivery_ts = fresh deliveries.delivery_ts, route = fresh deliveries.route, crates = fresh deliveries.crates, units = fresh deliveries.units, use_by = fresh deliveries.use_by; sorted by delivery_ts asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 4,
+  "total_parts": 4,
+  "columns": [
+   "date",
+   "units_sold",
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    265.0,
+    6890.0
+   ],
+   [
+    "2026-06-02",
+    395.0,
+    10270.0
+   ],
+   [
+    "2026-06-03",
+    313.0,
+    8138.0
+   ],
+   [
+    "2026-06-04",
+    224.0,
+    5824.0
+   ],
+   [
+    "2026-06-05",
+    292.0,
+    7592.0
+   ],
+   [
+    "2026-06-06",
+    340.0,
+    8840.0
+   ],
+   [
+    "2026-06-07",
+    265.0,
+    6890.0
+   ],
+   [
+    "2026-06-08",
+    289.0,
+    7514.0
+   ],
+   [
+    "2026-06-09",
+    389.0,
+    10114.0
+   ],
+   [
+    "2026-06-10",
+    280.0,
+    7280.0
+   ],
+   [
+    "2026-06-11",
+    274.0,
+    7124.0
+   ],
+   [
+    "2026-06-12",
+    222.0,
+    5772.0
+   ],
+   [
+    "2026-06-13",
+    335.0,
+    8710.0
+   ],
+   [
+    "2026-06-14",
+    275.0,
+    7150.0
+   ],
+   [
+    "2026-06-15",
+    299.0,
+    7774.0
+   ],
+   [
+    "2026-06-16",
+    290.0,
+    7540.0
+   ],
+   [
+    "2026-06-17",
+    355.0,
+    9230.0
+   ],
+   [
+    "2026-06-18",
+    211.0,
+    5486.0
+   ],
+   [
+    "2026-06-19",
+    356.0,
+    9256.0
+   ],
+   [
+    "2026-06-20",
+    428.0,
+    11128.0
+   ],
+   [
+    "2026-06-21",
+    377.0,
+    9802.0
+   ],
+   [
+    "2026-06-22",
+    302.0,
+    7852.0
+   ],
+   [
+    "2026-06-23",
+    278.0,
+    7228.0
+   ],
+   [
+    "2026-06-24",
+    381.0,
+    9906.0
+   ],
+   [
+    "2026-06-25",
+    182.0,
+    4732.0
+   ],
+   [
+    "2026-06-26",
+    163.0,
+    4238.0
+   ],
+   [
+    "2026-06-27",
+    355.0,
+    9230.0
+   ],
+   [
+    "2026-06-28",
+    514.0,
+    13364.0
+   ]
+  ],
+  "row_count": 28,
+  "message": "4 of 4 part(s) answered."
+ },
+ "Q020": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q021": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q022": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "knowledge",
+  "columns": [
+   "may_sales_inr"
+  ],
+  "rows": [
+   [
+    1275071.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q023": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    150255.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q024": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "distinct_bills"
+  ],
+  "rows": [
+   [
+    13909
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q025": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q026": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q027": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "total_units_sold"
+  ],
+  "rows": [
+   [
+    19265.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q028": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (select 'sale_date' must be aggregated or in group_by)."
+ },
+ "Q029": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q030": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q031": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "sale_date",
+   "units_sold"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    30.0
+   ],
+   [
+    "2026-06-02",
+    36.0
+   ],
+   [
+    "2026-06-03",
+    22.0
+   ],
+   [
+    "2026-06-04",
+    28.0
+   ],
+   [
+    "2026-06-05",
+    32.0
+   ],
+   [
+    "2026-06-06",
+    25.0
+   ],
+   [
+    "2026-06-07",
+    44.0
+   ],
+   [
+    "2026-06-08",
+    9.0
+   ],
+   [
+    "2026-06-09",
+    11.0
+   ],
+   [
+    "2026-06-10",
+    22.0
+   ],
+   [
+    "2026-06-11",
+    1.0
+   ],
+   [
+    "2026-06-12",
+    0.0
+   ],
+   [
+    "2026-06-13",
+    22.0
+   ],
+   [
+    "2026-06-14",
+    23.0
+   ],
+   [
+    "2026-06-15",
+    22.0
+   ],
+   [
+    "2026-06-16",
+    17.0
+   ],
+   [
+    "2026-06-17",
+    11.0
+   ],
+   [
+    "2026-06-18",
+    31.0
+   ],
+   [
+    "2026-06-19",
+    27.0
+   ],
+   [
+    "2026-06-20",
+    21.0
+   ],
+   [
+    "2026-06-21",
+    43.0
+   ],
+   [
+    "2026-06-22",
+    20.0
+   ],
+   [
+    "2026-06-23",
+    5.0
+   ],
+   [
+    "2026-06-24",
+    0.0
+   ],
+   [
+    "2026-06-25",
+    0.0
+   ],
+   [
+    "2026-06-26",
+    0.0
+   ],
+   [
+    "2026-06-27",
+    44.0
+   ],
+   [
+    "2026-06-28",
+    21.0
+   ]
+  ],
+  "row_count": 28,
+  "message": "28 row(s)."
+ },
+ "Q032": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "bills"
+  ],
+  "rows": [
+   [
+    30077
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q033": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "lowest_daily_revenue_inr"
+  ],
+  "rows": [
+   [
+    336.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q034": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Total recorded June 2026 units sold for Sugar 1 kg (SUGAR-1KG), one of the eleven followed items.",
+    "columns": [
+     "units_sold_june"
+    ],
+    "rows": [
+     [
+      509.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"daily-sales-june\".\"units_sold\") as \"units_sold_june\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(\"daily-sales-june\".\"date\",1,10) between ? and ?) limit 200",
+    "params": [
+     "SUGAR-1KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'SUGAR-1KG' and daily sales.date between 2026-06-01 and 2026-06-28; report units_sold_june = sum of daily sales.units_sold.",
+    "message": "1 row(s).",
+    "value": 509.0,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Daily recorded sugar sales across June so the last-week fall can be checked against earlier weeks rather than assumed.",
+    "columns": [
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      23.0,
+      1104.0
+     ],
+     [
+      "2026-06-02",
+      15.0,
+      720.0
+     ],
+     [
+      "2026-06-03",
+      21.0,
+      1008.0
+     ],
+     [
+      "2026-06-04",
+      31.0,
+      1488.0
+     ],
+     [
+      "2026-06-05",
+      19.0,
+      912.0
+     ],
+     [
+      "2026-06-06",
+      25.0,
+      1200.0
+     ],
+     [
+      "2026-06-07",
+      30.0,
+      1440.0
+     ],
+     [
+      "2026-06-08",
+      11.0,
+      528.0
+     ],
+     [
+      "2026-06-09",
+      9.0,
+      432.0
+     ],
+     [
+      "2026-06-10",
+      20.0,
+      960.0
+     ],
+     [
+      "2026-06-11",
+      16.0,
+      768.0
+     ],
+     [
+      "2026-06-12",
+      36.0,
+      1728.0
+     ],
+     [
+      "2026-06-13",
+      12.0,
+      576.0
+     ],
+     [
+      "2026-06-14",
+      13.0,
+      624.0
+     ],
+     [
+      "2026-06-15",
+      9.0,
+      432.0
+     ],
+     [
+      "2026-06-16",
+      7.0,
+      336.0
+     ],
+     [
+      "2026-06-17",
+      13.0,
+      624.0
+     ],
+     [
+      "2026-06-18",
+      27.0,
+      1296.0
+     ],
+     [
+      "2026-06-19",
+      21.0,
+      1008.0
+     ],
+     [
+      "2026-06-20",
+      14.0,
+      672.0
+     ],
+     [
+      "2026-06-21",
+      11.0,
+      528.0
+     ],
+     [
+      "2026-06-22",
+      23.0,
+      1104.0
+     ],
+     [
+      "2026-06-23",
+      18.0,
+      864.0
+     ],
+     [
+      "2026-06-24",
+      14.0,
+      672.0
+     ],
+     [
+      "2026-06-25",
+      19.0,
+      912.0
+     ],
+     [
+      "2026-06-26",
+      8.0,
+      384.0
+     ],
+     [
+      "2026-06-27",
+      22.0,
+      1056.0
+     ],
+     [
+      "2026-06-28",
+      22.0,
+      1056.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"daily-sales-june\".\"date\" as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(\"daily-sales-june\".\"date\",1,10) between ? and ?) group by \"daily-sales-june\".\"date\" order by \"date\" asc limit 28",
+    "params": [
+     "SUGAR-1KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'SUGAR-1KG' and daily sales.date between 2026-06-01 and 2026-06-28; group by daily sales.date; report date = daily sales.date, units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Cause is not recorded; these 11:00 shelf-audit snapshots are recorded evidence only, showing whether sugar was seen empty around the sales fall, not why sales fell or hours off shelf.",
+    "columns": [
+     "audit_ts",
+     "status"
+    ],
+    "rows": [
+     [
+      "2026-06-02T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-05T11:00",
+      "empty"
+     ],
+     [
+      "2026-06-09T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-12T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-16T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-19T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-23T11:00",
+      "on shelf"
+     ],
+     [
+      "2026-06-26T11:00",
+      "on shelf"
+     ]
+    ],
+    "row_count": 8,
+    "sql": "select \"shelf-audits-june\".\"audit_ts\" as \"audit_ts\", \"shelf-audits-june\".\"status\" as \"status\" from \"shelf-audits-june\"  where (\"shelf-audits-june\".\"sku\" = ?) and (substr(substr(\"shelf-audits-june\".\"audit_ts\",1,10),1,10) between ? and ?) order by \"audit_ts\" asc limit 20",
+    "params": [
+     "SUGAR-1KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From shelf-audit row records; keep rows where shelf audits.sku = 'SUGAR-1KG' and day(shelf audits.audit_ts) between 2026-06-01 and 2026-06-28; report audit_ts = shelf audits.audit_ts, status = shelf audits.status; sorted by audit_ts asc.",
+    "message": "8 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Cause is not recorded; closing book stock is only a belief and supporting evidence for the sales pattern, not proof of shelf availability, demand, lost sales, or a reason for the fall.",
+    "columns": [
+     "date",
+     "book_on_hand_close"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      21.0
+     ],
+     [
+      "2026-06-02",
+      56.0
+     ],
+     [
+      "2026-06-03",
+      35.0
+     ],
+     [
+      "2026-06-04",
+      4.0
+     ],
+     [
+      "2026-06-05",
+      55.0
+     ],
+     [
+      "2026-06-06",
+      30.0
+     ],
+     [
+      "2026-06-07",
+      0.0
+     ],
+     [
+      "2026-06-08",
+      59.0
+     ],
+     [
+      "2026-06-09",
+      50.0
+     ],
+     [
+      "2026-06-10",
+      30.0
+     ],
+     [
+      "2026-06-11",
+      54.0
+     ],
+     [
+      "2026-06-12",
+      18.0
+     ],
+     [
+      "2026-06-13",
+      46.0
+     ],
+     [
+      "2026-06-14",
+      33.0
+     ],
+     [
+      "2026-06-15",
+      24.0
+     ],
+     [
+      "2026-06-16",
+      67.0
+     ],
+     [
+      "2026-06-17",
+      54.0
+     ],
+     [
+      "2026-06-18",
+      27.0
+     ],
+     [
+      "2026-06-19",
+      46.0
+     ],
+     [
+      "2026-06-20",
+      32.0
+     ],
+     [
+      "2026-06-21",
+      20.0
+     ],
+     [
+      "2026-06-22",
+      47.0
+     ],
+     [
+      "2026-06-23",
+      29.0
+     ],
+     [
+      "2026-06-24",
+      55.0
+     ],
+     [
+      "2026-06-25",
+      36.0
+     ],
+     [
+      "2026-06-26",
+      28.0
+     ],
+     [
+      "2026-06-27",
+      46.0
+     ],
+     [
+      "2026-06-28",
+      24.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"inventory-book-june\".\"date\" as \"date\", \"inventory-book-june\".\"book_on_hand_close\" as \"book_on_hand_close\" from \"inventory-book-june\"  where (\"inventory-book-june\".\"sku\" = ?) and (substr(\"inventory-book-june\".\"date\",1,10) between ? and ?) order by \"date\" asc limit 28",
+    "params": [
+     "SUGAR-1KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From book-stock row records; keep rows where inventory book.sku = 'SUGAR-1KG' and inventory book.date between 2026-06-01 and 2026-06-28; report date = inventory book.date, book_on_hand_close = inventory book.book_on_hand_close; sorted by date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 4,
+  "total_parts": 4,
+  "columns": [
+   "units_sold_june"
+  ],
+  "rows": [
+   [
+    509.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "4 of 4 part(s) answered."
+ },
+ "Q035": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Identifies the two milk products and their flow (DC or DSD) so the evidence is read correctly.",
+    "columns": [
+     "sku",
+     "name",
+     "pack",
+     "flow",
+     "dc_slot"
+    ],
+    "rows": [
+     [
+      "MILK-TONED-500ML",
+      "Toned milk 500 ml pouch",
+      "500 ml",
+      "DSD",
+      null
+     ],
+     [
+      "MILK-FC-500ML",
+      "Full cream milk 500 ml pouch",
+      "500 ml",
+      "DSD",
+      null
+     ]
+    ],
+    "row_count": 2,
+    "sql": "select \"products\".\"sku\" as \"sku\", \"products\".\"name\" as \"name\", \"products\".\"pack\" as \"pack\", \"products\".\"flow\" as \"flow\", \"products\".\"dc_slot\" as \"dc_slot\" from \"products\"  where (\"products\".\"sku\" in (?,?)) limit 200",
+    "params": [
+     "MILK-FC-500ML",
+     "MILK-TONED-500ML"
+    ],
+    "plan_in_words": "From product records; keep rows where products.sku in ['MILK-FC-500ML', 'MILK-TONED-500ML']; report sku = products.sku, name = products.name, pack = products.pack, flow = products.flow, dc_slot = products.dc_slot.",
+    "message": "2 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Recorded June sales of the two milks; sales are not demand (Demand is not sales), so this is evidence, not a stocking verdict.",
+    "columns": [
+     "sku",
+     "units_sold_june",
+     "revenue_inr_june",
+     "days_with_sales",
+     "avg_units_per_day"
+    ],
+    "rows": [
+     [
+      "MILK-FC-500ML",
+      2916.0,
+      99144.0,
+      28,
+      104.14285714285714
+     ],
+     [
+      "MILK-TONED-500ML",
+      8649.0,
+      224874.0,
+      28,
+      308.89285714285717
+     ]
+    ],
+    "row_count": 2,
+    "sql": "select \"daily-sales-june\".\"sku\" as \"sku\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold_june\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr_june\", count(distinct \"daily-sales-june\".\"date\") as \"days_with_sales\", avg(\"daily-sales-june\".\"units_sold\") as \"avg_units_per_day\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" in (?,?)) group by \"daily-sales-june\".\"sku\" limit 200",
+    "params": [
+     "MILK-FC-500ML",
+     "MILK-TONED-500ML"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku in ['MILK-FC-500ML', 'MILK-TONED-500ML']; group by daily sales.sku; report sku = daily sales.sku, units_sold_june = sum of daily sales.units_sold, revenue_inr_june = sum of daily sales.revenue_inr, days_with_sales = count distinct of daily sales.date, avg_units_per_day = avg of daily sales.units_sold.",
+    "message": "2 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "no_record",
+    "layers": [
+     "schema"
+    ],
+    "failed_layer": "schema",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"=\", \"args\": [{\"col\": \"shelf-audits-june.status\"}, {\"lit\": \"on shelf\"}]} is not in the plan form).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "ontology",
+    "covers": "The 28-day-mean forecast, units already ordered and the latest stock position for milk; the forecast predicts demand, which is not recorded, so it can only be compared with recorded sales (forecast_vs_demand).",
+    "columns": [
+     "sku",
+     "avg_forecast_units_per_day",
+     "total_ordered_units_june",
+     "latest_book_on_hand",
+     "latest_on_order",
+     "latest_order_up_to",
+     "latest_reorder_point"
+    ],
+    "rows": [],
+    "row_count": 0,
+    "sql": "select \"forecasts-june\".\"sku\" as \"sku\", avg(\"forecasts-june\".\"forecast_units_per_day\") as \"avg_forecast_units_per_day\", sum(\"forecasts-june\".\"ordered_units\") as \"total_ordered_units_june\", max(\"forecasts-june\".\"book_on_hand\") as \"latest_book_on_hand\", max(\"forecasts-june\".\"on_order\") as \"latest_on_order\", max(\"forecasts-june\".\"order_up_to\") as \"latest_order_up_to\", max(\"forecasts-june\".\"reorder_point\") as \"latest_reorder_point\" from \"forecasts-june\"  where (\"forecasts-june\".\"sku\" in (?,?)) group by \"forecasts-june\".\"sku\" limit 200",
+    "params": [
+     "MILK-FC-500ML",
+     "MILK-TONED-500ML"
+    ],
+    "plan_in_words": "From forecast row records; keep rows where forecasts.sku in ['MILK-FC-500ML', 'MILK-TONED-500ML']; group by forecasts.sku; report sku = forecasts.sku, avg_forecast_units_per_day = avg of forecasts.forecast_units_per_day, total_ordered_units_june = sum of forecasts.ordered_units, latest_book_on_hand = max of forecasts.book_on_hand, latest_on_order = max of forecasts.on_order, latest_order_up_to = max of forecasts.order_up_to, latest_reorder_point = max of forecasts.reorder_point.",
+    "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 3,
+  "total_parts": 4,
+  "columns": [
+   "sku",
+   "name",
+   "pack",
+   "flow",
+   "dc_slot"
+  ],
+  "rows": [
+   [
+    "MILK-TONED-500ML",
+    "Toned milk 500 ml pouch",
+    "500 ml",
+    "DSD",
+    null
+   ],
+   [
+    "MILK-FC-500ML",
+    "Full cream milk 500 ml pouch",
+    "500 ml",
+    "DSD",
+    null
+   ]
+  ],
+  "row_count": 2,
+  "message": "3 of 4 part(s) answered."
+ },
+ "Q036": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (the question names day 4 of month 5 but no part of the plan covers that date)."
+ },
+ "Q037": {
+  "decision": "answer",
+  "layer": "ontology",
+  "declared_layer": "schema",
+  "columns": [
+   "average_units_sold_per_day"
+  ],
+  "rows": [
+   [
+    59.785714285714285
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q038": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Total units of Whole wheat atta 5 kg sold in June 2026, using the daily sales records.",
+    "columns": [
+     "bags_sold_june"
+    ],
+    "rows": [
+     [
+      567.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"daily-sales-june\".\"units_sold\") as \"bags_sold_june\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(substr(\"daily-sales-june\".\"date\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-30"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'ATTA-WW-5KG' and day(daily sales.date) between 2026-06-01 and 2026-06-30; report bags_sold_june = sum of daily sales.units_sold.",
+    "message": "1 row(s).",
+    "value": 567.0,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Total units of Whole wheat atta 5 kg sold in the week of 8 June 2026 (8–14 June), using the daily sales records.",
+    "columns": [
+     "bags_sold_week_8_june"
+    ],
+    "rows": [
+     [
+      88.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"daily-sales-june\".\"units_sold\") as \"bags_sold_week_8_june\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(substr(\"daily-sales-june\".\"date\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-08",
+     "2026-06-14"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'ATTA-WW-5KG' and day(daily sales.date) between 2026-06-08 and 2026-06-14; report bags_sold_week_8_june = sum of daily sales.units_sold.",
+    "message": "1 row(s).",
+    "value": 88.0,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 2,
+  "columns": [
+   "bags_sold_june"
+  ],
+  "rows": [
+   [
+    567.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "2 of 2 part(s) answered."
+ },
+ "Q039": {
+  "decision": "answer",
+  "layer": "ontology",
+  "declared_layer": "schema",
+  "columns": [
+   "sku",
+   "week1_units",
+   "week2_units"
+  ],
+  "rows": [
+   [
+    "ATTA-WW-10KG",
+    148.0,
+    148.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    445.0,
+    445.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    305.0,
+    305.0
+   ],
+   [
+    "DAL-TOOR-1KG",
+    297.0,
+    297.0
+   ],
+   [
+    "OIL-SUN-1L",
+    405.0,
+    405.0
+   ],
+   [
+    "RICE-SM-5KG",
+    333.0,
+    333.0
+   ],
+   [
+    "SUGAR-1KG",
+    281.0,
+    281.0
+   ]
+  ],
+  "row_count": 7,
+  "message": "7 row(s)."
+ },
+ "Q040": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Checks the premise by showing daily 5 kg atta units and revenue for June, including the week of 8 June and comparison weeks.",
+    "columns": [
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      30.0,
+      7950.0
+     ],
+     [
+      "2026-06-02",
+      36.0,
+      9540.0
+     ],
+     [
+      "2026-06-03",
+      22.0,
+      5830.0
+     ],
+     [
+      "2026-06-04",
+      28.0,
+      7420.0
+     ],
+     [
+      "2026-06-05",
+      32.0,
+      8480.0
+     ],
+     [
+      "2026-06-06",
+      25.0,
+      6625.0
+     ],
+     [
+      "2026-06-07",
+      44.0,
+      11660.0
+     ],
+     [
+      "2026-06-08",
+      9.0,
+      2385.0
+     ],
+     [
+      "2026-06-09",
+      11.0,
+      2915.0
+     ],
+     [
+      "2026-06-10",
+      22.0,
+      5830.0
+     ],
+     [
+      "2026-06-11",
+      1.0,
+      265.0
+     ],
+     [
+      "2026-06-12",
+      0.0,
+      0.0
+     ],
+     [
+      "2026-06-13",
+      22.0,
+      5830.0
+     ],
+     [
+      "2026-06-14",
+      23.0,
+      6095.0
+     ],
+     [
+      "2026-06-15",
+      22.0,
+      5830.0
+     ],
+     [
+      "2026-06-16",
+      17.0,
+      4505.0
+     ],
+     [
+      "2026-06-17",
+      11.0,
+      2915.0
+     ],
+     [
+      "2026-06-18",
+      31.0,
+      8215.0
+     ],
+     [
+      "2026-06-19",
+      27.0,
+      7155.0
+     ],
+     [
+      "2026-06-20",
+      21.0,
+      5565.0
+     ],
+     [
+      "2026-06-21",
+      43.0,
+      11395.0
+     ],
+     [
+      "2026-06-22",
+      20.0,
+      5300.0
+     ],
+     [
+      "2026-06-23",
+      5.0,
+      1325.0
+     ],
+     [
+      "2026-06-24",
+      0.0,
+      0.0
+     ],
+     [
+      "2026-06-25",
+      0.0,
+      0.0
+     ],
+     [
+      "2026-06-26",
+      0.0,
+      0.0
+     ],
+     [
+      "2026-06-27",
+      44.0,
+      11660.0
+     ],
+     [
+      "2026-06-28",
+      21.0,
+      5565.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select substr(\"daily-sales-june\".\"date\",1,10) as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(substr(\"daily-sales-june\".\"date\",1,10),1,10) between ? and ?) group by substr(\"daily-sales-june\".\"date\",1,10) order by \"date\" asc limit 28",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'ATTA-WW-5KG' and day(daily sales.date) between 2026-06-01 and 2026-06-28; group by day(daily sales.date); report date = day(daily sales.date), units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "ontology",
+    "covers": "Uses On-shelf availability to check whether empty 11:00 shelf audits coincide with the sales fall; audits are snapshots, not hours off shelf.",
+    "columns": [
+     "audit_date",
+     "status",
+     "audits"
+    ],
+    "rows": [
+     [
+      "2026-06-02",
+      "on shelf",
+      1
+     ],
+     [
+      "2026-06-05",
+      "on shelf",
+      1
+     ],
+     [
+      "2026-06-09",
+      "on shelf",
+      1
+     ],
+     [
+      "2026-06-12",
+      "empty",
+      1
+     ],
+     [
+      "2026-06-16",
+      "on shelf",
+      1
+     ],
+     [
+      "2026-06-19",
+      "on shelf",
+      1
+     ],
+     [
+      "2026-06-23",
+      "on shelf",
+      1
+     ],
+     [
+      "2026-06-26",
+      "empty",
+      1
+     ]
+    ],
+    "row_count": 8,
+    "sql": "select substr(\"shelf-audits-june\".\"audit_ts\",1,10) as \"audit_date\", \"shelf-audits-june\".\"status\" as \"status\", count(*) as \"audits\" from \"shelf-audits-june\"  where (\"shelf-audits-june\".\"sku\" = ?) and (substr(substr(\"shelf-audits-june\".\"audit_ts\",1,10),1,10) between ? and ?) group by substr(\"shelf-audits-june\".\"audit_ts\",1,10), \"shelf-audits-june\".\"status\" order by \"audit_date\" asc limit 28",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From shelf-audit row records; keep rows where shelf audits.sku = 'ATTA-WW-5KG' and day(shelf audits.audit_ts) between 2026-06-01 and 2026-06-28; group by day(shelf audits.audit_ts), shelf audits.status; report audit_date = day(shelf audits.audit_ts), status = shelf audits.status, audits = count of *; sorted by audit_date asc.",
+    "message": "8 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Provides forecast, ordering and book-stock context around the week; book stock is a belief, and demand and the actual cause are not recorded.",
+    "columns": [
+     "date",
+     "forecast_units",
+     "ordered_units",
+     "book_on_hand",
+     "on_order",
+     "reorder_point"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      22.54,
+      0.0,
+      58.0,
+      0.0,
+      39.0
+     ],
+     [
+      "2026-06-02",
+      22.82,
+      64.0,
+      22.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-03",
+      21.96,
+      0.0,
+      64.0,
+      0.0,
+      37.0
+     ],
+     [
+      "2026-06-04",
+      22.39,
+      48.0,
+      36.0,
+      0.0,
+      38.0
+     ],
+     [
+      "2026-06-05",
+      23.54,
+      0.0,
+      52.0,
+      0.0,
+      37.0
+     ],
+     [
+      "2026-06-06",
+      24.43,
+      60.0,
+      27.0,
+      0.0,
+      36.0
+     ],
+     [
+      "2026-06-07",
+      25.29,
+      0.0,
+      43.0,
+      0.0,
+      38.0
+     ],
+     [
+      "2026-06-08",
+      24.89,
+      56.0,
+      34.0,
+      0.0,
+      39.0
+     ],
+     [
+      "2026-06-09",
+      24.29,
+      0.0,
+      78.0,
+      0.0,
+      39.0
+     ],
+     [
+      "2026-06-10",
+      24.57,
+      0.0,
+      56.0,
+      0.0,
+      39.0
+     ],
+     [
+      "2026-06-11",
+      23.82,
+      0.0,
+      55.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-12",
+      22.96,
+      0.0,
+      55.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-13",
+      23.36,
+      56.0,
+      33.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-14",
+      23.57,
+      0.0,
+      66.0,
+      0.0,
+      41.0
+     ],
+     [
+      "2026-06-15",
+      23.54,
+      0.0,
+      44.0,
+      0.0,
+      41.0
+     ],
+     [
+      "2026-06-16",
+      23.32,
+      60.0,
+      27.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-17",
+      22.82,
+      0.0,
+      76.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-18",
+      22.93,
+      0.0,
+      45.0,
+      0.0,
+      41.0
+     ],
+     [
+      "2026-06-19",
+      22.61,
+      72.0,
+      17.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-20",
+      22.54,
+      0.0,
+      68.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-21",
+      23.07,
+      64.0,
+      25.0,
+      0.0,
+      41.0
+     ],
+     [
+      "2026-06-22",
+      23.07,
+      0.0,
+      68.0,
+      0.0,
+      41.0
+     ],
+     [
+      "2026-06-23",
+      21.79,
+      0.0,
+      63.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-24",
+      20.96,
+      0.0,
+      63.0,
+      0.0,
+      40.0
+     ],
+     [
+      "2026-06-25",
+      20.14,
+      0.0,
+      63.0,
+      0.0,
+      41.0
+     ],
+     [
+      "2026-06-26",
+      19.64,
+      84.0,
+      0.0,
+      0.0,
+      41.0
+     ],
+     [
+      "2026-06-27",
+      20.21,
+      44.0,
+      40.0,
+      0.0,
+      43.0
+     ],
+     [
+      "2026-06-28",
+      20.25,
+      0.0,
+      63.0,
+      0.0,
+      43.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select substr(\"forecasts-june\".\"date\",1,10) as \"date\", sum(\"forecasts-june\".\"forecast_units_per_day\") as \"forecast_units\", sum(\"forecasts-june\".\"ordered_units\") as \"ordered_units\", max(\"forecasts-june\".\"book_on_hand\") as \"book_on_hand\", max(\"forecasts-june\".\"on_order\") as \"on_order\", max(\"forecasts-june\".\"reorder_point\") as \"reorder_point\" from \"forecasts-june\"  where (\"forecasts-june\".\"sku\" = ?) and (substr(substr(\"forecasts-june\".\"date\",1,10),1,10) between ? and ?) group by substr(\"forecasts-june\".\"date\",1,10) order by \"date\" asc limit 28",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From forecast row records; keep rows where forecasts.sku = 'ATTA-WW-5KG' and day(forecasts.date) between 2026-06-01 and 2026-06-28; group by day(forecasts.date); report date = day(forecasts.date), forecast_units = sum of forecasts.forecast_units_per_day, ordered_units = sum of forecasts.ordered_units, book_on_hand = max of forecasts.book_on_hand, on_order = max of forecasts.on_order, reorder_point = max of forecasts.reorder_point; sorted by date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Checks recorded fresh-route deliveries as supply context only; back-door receipts do not record shelf restock times, and no table records why sales fell.",
+    "columns": [
+     "delivery_date",
+     "deliveries",
+     "units_delivered"
+    ],
+    "rows": [],
+    "row_count": 0,
+    "sql": "select substr(\"fresh-deliveries-june\".\"delivery_ts\",1,10) as \"delivery_date\", count(*) as \"deliveries\", sum(\"fresh-deliveries-june\".\"units\") as \"units_delivered\" from \"fresh-deliveries-june\"  where (\"fresh-deliveries-june\".\"sku\" = ?) and (substr(substr(\"fresh-deliveries-june\".\"delivery_ts\",1,10),1,10) between ? and ?) group by substr(\"fresh-deliveries-june\".\"delivery_ts\",1,10) order by \"delivery_date\" asc limit 28",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From fresh-delivery row records; keep rows where fresh deliveries.sku = 'ATTA-WW-5KG' and day(fresh deliveries.delivery_ts) between 2026-06-01 and 2026-06-28; group by day(fresh deliveries.delivery_ts); report delivery_date = day(fresh deliveries.delivery_ts), deliveries = count of *, units_delivered = sum of fresh deliveries.units; sorted by delivery_date asc.",
+    "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 4,
+  "total_parts": 4,
+  "columns": [
+   "date",
+   "units_sold",
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    30.0,
+    7950.0
+   ],
+   [
+    "2026-06-02",
+    36.0,
+    9540.0
+   ],
+   [
+    "2026-06-03",
+    22.0,
+    5830.0
+   ],
+   [
+    "2026-06-04",
+    28.0,
+    7420.0
+   ],
+   [
+    "2026-06-05",
+    32.0,
+    8480.0
+   ],
+   [
+    "2026-06-06",
+    25.0,
+    6625.0
+   ],
+   [
+    "2026-06-07",
+    44.0,
+    11660.0
+   ],
+   [
+    "2026-06-08",
+    9.0,
+    2385.0
+   ],
+   [
+    "2026-06-09",
+    11.0,
+    2915.0
+   ],
+   [
+    "2026-06-10",
+    22.0,
+    5830.0
+   ],
+   [
+    "2026-06-11",
+    1.0,
+    265.0
+   ],
+   [
+    "2026-06-12",
+    0.0,
+    0.0
+   ],
+   [
+    "2026-06-13",
+    22.0,
+    5830.0
+   ],
+   [
+    "2026-06-14",
+    23.0,
+    6095.0
+   ],
+   [
+    "2026-06-15",
+    22.0,
+    5830.0
+   ],
+   [
+    "2026-06-16",
+    17.0,
+    4505.0
+   ],
+   [
+    "2026-06-17",
+    11.0,
+    2915.0
+   ],
+   [
+    "2026-06-18",
+    31.0,
+    8215.0
+   ],
+   [
+    "2026-06-19",
+    27.0,
+    7155.0
+   ],
+   [
+    "2026-06-20",
+    21.0,
+    5565.0
+   ],
+   [
+    "2026-06-21",
+    43.0,
+    11395.0
+   ],
+   [
+    "2026-06-22",
+    20.0,
+    5300.0
+   ],
+   [
+    "2026-06-23",
+    5.0,
+    1325.0
+   ],
+   [
+    "2026-06-24",
+    0.0,
+    0.0
+   ],
+   [
+    "2026-06-25",
+    0.0,
+    0.0
+   ],
+   [
+    "2026-06-26",
+    0.0,
+    0.0
+   ],
+   [
+    "2026-06-27",
+    44.0,
+    11660.0
+   ],
+   [
+    "2026-06-28",
+    21.0,
+    5565.0
+   ]
+  ],
+  "row_count": 28,
+  "message": "4 of 4 part(s) answered."
+ },
+ "Q041": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Daily unit sales and revenue for 5 kg and 1 kg atta are the recorded evidence; shopper switching is not recorded because no table identifies a shopper or household, and demand and lost sales are not recorded.",
+    "columns": [
+     "sku",
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "ATTA-WW-1KG",
+      "2026-06-01",
+      22.0,
+      1276.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-02",
+      35.0,
+      2030.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-03",
+      41.0,
+      2378.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-04",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-05",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-06",
+      52.0,
+      3016.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-07",
+      40.0,
+      2320.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-08",
+      27.0,
+      1566.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-09",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-10",
+      41.0,
+      2378.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-11",
+      31.0,
+      1798.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-12",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-13",
+      28.0,
+      1624.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-14",
+      32.0,
+      1856.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-15",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-16",
+      22.0,
+      1276.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-17",
+      45.0,
+      2610.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-18",
+      28.0,
+      1624.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-19",
+      25.0,
+      1450.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-20",
+      25.0,
+      1450.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-21",
+      35.0,
+      2030.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-22",
+      14.0,
+      812.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-23",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-24",
+      28.0,
+      1624.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-25",
+      15.0,
+      870.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-26",
+      26.0,
+      1508.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-27",
+      25.0,
+      1450.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-28",
+      45.0,
+      2610.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-01",
+      30.0,
+      7950.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-02",
+      36.0,
+      9540.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-03",
+      22.0,
+      5830.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-04",
+      28.0,
+      7420.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-05",
+      32.0,
+      8480.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-06",
+      25.0,
+      6625.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-07",
+      44.0,
+      11660.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-08",
+      9.0,
+      2385.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-09",
+      11.0,
+      2915.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-10",
+      22.0,
+      5830.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-11",
+      1.0,
+      265.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-12",
+      0.0,
+      0.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-13",
+      22.0,
+      5830.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-14",
+      23.0,
+      6095.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-15",
+      22.0,
+      5830.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-16",
+      17.0,
+      4505.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-17",
+      11.0,
+      2915.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-18",
+      31.0,
+      8215.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-19",
+      27.0,
+      7155.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-20",
+      21.0,
+      5565.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-21",
+      43.0,
+      11395.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-22",
+      20.0,
+      5300.0
+     ]
+    ],
+    "row_count": 56,
+    "sql": "select \"daily-sales-june\".\"sku\" as \"sku\", substr(\"daily-sales-june\".\"date\",1,10) as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" in (?,?)) group by \"daily-sales-june\".\"sku\", substr(\"daily-sales-june\".\"date\",1,10) order by \"sku\" asc, \"date\" asc limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "ATTA-WW-1KG"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku in ['ATTA-WW-5KG', 'ATTA-WW-1KG']; group by daily sales.sku, day(daily sales.date); report sku = daily sales.sku, date = day(daily sales.date), units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by sku asc, date asc.",
+    "message": "56 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 1,
+  "columns": [
+   "sku",
+   "date",
+   "units_sold",
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    "ATTA-WW-1KG",
+    "2026-06-01",
+    22.0,
+    1276.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-02",
+    35.0,
+    2030.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-03",
+    41.0,
+    2378.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-04",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-05",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-06",
+    52.0,
+    3016.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-07",
+    40.0,
+    2320.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-08",
+    27.0,
+    1566.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-09",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-10",
+    41.0,
+    2378.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-11",
+    31.0,
+    1798.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-12",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-13",
+    28.0,
+    1624.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-14",
+    32.0,
+    1856.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-15",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-16",
+    22.0,
+    1276.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-17",
+    45.0,
+    2610.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-18",
+    28.0,
+    1624.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-19",
+    25.0,
+    1450.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-20",
+    25.0,
+    1450.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-21",
+    35.0,
+    2030.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-22",
+    14.0,
+    812.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-23",
+    24.0,
+    1392.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-24",
+    28.0,
+    1624.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-25",
+    15.0,
+    870.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-26",
+    26.0,
+    1508.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-27",
+    25.0,
+    1450.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-28",
+    45.0,
+    2610.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-01",
+    30.0,
+    7950.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-02",
+    36.0,
+    9540.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-03",
+    22.0,
+    5830.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-04",
+    28.0,
+    7420.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-05",
+    32.0,
+    8480.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-06",
+    25.0,
+    6625.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-07",
+    44.0,
+    11660.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-08",
+    9.0,
+    2385.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-09",
+    11.0,
+    2915.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-10",
+    22.0,
+    5830.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-11",
+    1.0,
+    265.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-12",
+    0.0,
+    0.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-13",
+    22.0,
+    5830.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-14",
+    23.0,
+    6095.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-15",
+    22.0,
+    5830.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-16",
+    17.0,
+    4505.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-17",
+    11.0,
+    2915.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-18",
+    31.0,
+    8215.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-19",
+    27.0,
+    7155.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-20",
+    21.0,
+    5565.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-21",
+    43.0,
+    11395.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "2026-06-22",
+    20.0,
+    5300.0
+   ]
+  ],
+  "row_count": 56,
+  "message": "1 of 1 part(s) answered."
+ },
+ "Q042": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "knowledge",
+  "columns": [
+   "date",
+   "units_sold"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    30.0
+   ],
+   [
+    "2026-06-02",
+    36.0
+   ],
+   [
+    "2026-06-03",
+    22.0
+   ],
+   [
+    "2026-06-04",
+    28.0
+   ],
+   [
+    "2026-06-05",
+    32.0
+   ],
+   [
+    "2026-06-06",
+    25.0
+   ],
+   [
+    "2026-06-07",
+    44.0
+   ],
+   [
+    "2026-06-08",
+    9.0
+   ],
+   [
+    "2026-06-09",
+    11.0
+   ],
+   [
+    "2026-06-10",
+    22.0
+   ],
+   [
+    "2026-06-11",
+    1.0
+   ],
+   [
+    "2026-06-12",
+    0.0
+   ],
+   [
+    "2026-06-13",
+    22.0
+   ],
+   [
+    "2026-06-14",
+    23.0
+   ],
+   [
+    "2026-06-15",
+    22.0
+   ],
+   [
+    "2026-06-16",
+    17.0
+   ],
+   [
+    "2026-06-17",
+    11.0
+   ],
+   [
+    "2026-06-18",
+    31.0
+   ],
+   [
+    "2026-06-19",
+    27.0
+   ],
+   [
+    "2026-06-20",
+    21.0
+   ],
+   [
+    "2026-06-21",
+    43.0
+   ],
+   [
+    "2026-06-22",
+    20.0
+   ],
+   [
+    "2026-06-23",
+    5.0
+   ],
+   [
+    "2026-06-24",
+    0.0
+   ],
+   [
+    "2026-06-25",
+    0.0
+   ],
+   [
+    "2026-06-26",
+    0.0
+   ],
+   [
+    "2026-06-27",
+    44.0
+   ],
+   [
+    "2026-06-28",
+    21.0
+   ]
+  ],
+  "row_count": 28,
+  "message": "28 row(s)."
+ },
+ "Q043": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "no_record",
+    "layers": [
+     "schema"
+    ],
+    "failed_layer": "schema",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"=\", \"args\": [{\"col\": \"shelf-audits-june.status\"}, {\"lit\": \"empty\"}]} is not in the plan form).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Recorded sales of 5 kg atta on 23-26 June are evidence only; zero sales do not measure unmet demand, and no record holds the bags shoppers wanted and did not find.",
+    "columns": [
+     "date",
+     "units_sold"
+    ],
+    "rows": [
+     [
+      "2026-06-23",
+      5.0
+     ],
+     [
+      "2026-06-24",
+      0.0
+     ],
+     [
+      "2026-06-25",
+      0.0
+     ],
+     [
+      "2026-06-26",
+      0.0
+     ]
+    ],
+    "row_count": 4,
+    "sql": "select substr(\"daily-sales-june\".\"date\",1,10) as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(substr(\"daily-sales-june\".\"date\",1,10),1,10) between ? and ?) group by substr(\"daily-sales-june\".\"date\",1,10) order by \"date\" asc limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-23",
+     "2026-06-26"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'ATTA-WW-5KG' and day(daily sales.date) between 2026-06-23 and 2026-06-26; group by day(daily sales.date); report date = day(daily sales.date), units_sold = sum of daily sales.units_sold; sorted by date asc.",
+    "message": "4 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "The 28-day-mean forecast for 23-26 June is a labelled stand-in for expected demand in bags, not observed shopper demand; lost sales themselves are not recorded.",
+    "columns": [
+     "forecast_bags_23_26_june"
+    ],
+    "rows": [
+     [
+      82.53
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"forecasts-june\".\"forecast_units_per_day\") as \"forecast_bags_23_26_june\" from \"forecasts-june\"  where (\"forecasts-june\".\"sku\" = ?) and (substr(substr(\"forecasts-june\".\"date\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-23",
+     "2026-06-26"
+    ],
+    "plan_in_words": "From forecast row records; keep rows where forecasts.sku = 'ATTA-WW-5KG' and day(forecasts.date) between 2026-06-23 and 2026-06-26; report forecast_bags_23_26_june = sum of forecasts.forecast_units_per_day.",
+    "message": "1 row(s).",
+    "value": 82.53,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 3,
+  "columns": [
+   "date",
+   "units_sold"
+  ],
+  "rows": [
+   [
+    "2026-06-23",
+    5.0
+   ],
+   [
+    "2026-06-24",
+    0.0
+   ],
+   [
+    "2026-06-25",
+    0.0
+   ],
+   [
+    "2026-06-26",
+    0.0
+   ]
+  ],
+  "row_count": 4,
+  "message": "2 of 3 part(s) answered."
+ },
+ "Q044": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Checks the stated 59% drop by comparing 5 kg atta sales in 2026-06-08 to 2026-06-14 with the prior week, 2026-06-01 to 2026-06-07.",
+    "columns": [
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      30.0,
+      7950.0
+     ],
+     [
+      "2026-06-02",
+      36.0,
+      9540.0
+     ],
+     [
+      "2026-06-03",
+      22.0,
+      5830.0
+     ],
+     [
+      "2026-06-04",
+      28.0,
+      7420.0
+     ],
+     [
+      "2026-06-05",
+      32.0,
+      8480.0
+     ],
+     [
+      "2026-06-06",
+      25.0,
+      6625.0
+     ],
+     [
+      "2026-06-07",
+      44.0,
+      11660.0
+     ],
+     [
+      "2026-06-08",
+      9.0,
+      2385.0
+     ],
+     [
+      "2026-06-09",
+      11.0,
+      2915.0
+     ],
+     [
+      "2026-06-10",
+      22.0,
+      5830.0
+     ],
+     [
+      "2026-06-11",
+      1.0,
+      265.0
+     ],
+     [
+      "2026-06-12",
+      0.0,
+      0.0
+     ],
+     [
+      "2026-06-13",
+      22.0,
+      5830.0
+     ],
+     [
+      "2026-06-14",
+      23.0,
+      6095.0
+     ]
+    ],
+    "row_count": 14,
+    "sql": "select \"daily-sales-june\".\"date\" as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(\"daily-sales-june\".\"date\",1,10) between ? and ?) group by \"daily-sales-june\".\"date\" order by \"date\" asc limit 14",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-14"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'ATTA-WW-5KG' and daily sales.date between 2026-06-01 and 2026-06-14; group by daily sales.date; report date = daily sales.date, units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by date asc.",
+    "message": "14 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Checks the premise that closing book stock for 5 kg atta was positive on every day from 2026-06-08 through 2026-06-14; book stock is a belief, not shelf availability.",
+    "columns": [
+     "days_with_book_stock",
+     "minimum_book_on_hand_close"
+    ],
+    "rows": [
+     [
+      7,
+      33.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(*) as \"days_with_book_stock\", min(\"inventory-book-june\".\"book_on_hand_close\") as \"minimum_book_on_hand_close\" from \"inventory-book-june\"  where (\"inventory-book-june\".\"sku\" = ?) and (substr(\"inventory-book-june\".\"date\",1,10) between ? and ?) having (min(\"inventory-book-june\".\"book_on_hand_close\") > ?) limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-08",
+     "2026-06-14",
+     0
+    ],
+    "plan_in_words": "From book-stock row records; keep rows where inventory book.sku = 'ATTA-WW-5KG' and inventory book.date between 2026-06-08 and 2026-06-14; keep groups where min of inventory book.book_on_hand_close > 0; report days_with_book_stock = count of *, minimum_book_on_hand_close = min of inventory book.book_on_hand_close.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "no_record",
+    "layers": [
+     "schema"
+    ],
+    "failed_layer": "schema",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"=\", \"args\": [{\"col\": \"shelf-audits-june.status\"}, {\"lit\": \"on shelf\"}]} is not in the plan form).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Provides the recorded sales evidence for both pack sizes, but no table records shelf-space dimensions, causes, demand, lost sales or shoppers who did not buy, so the records cannot determine how much shelf space to reallocate.",
+    "columns": [
+     "sku",
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "ATTA-WW-1KG",
+      "2026-06-01",
+      22.0,
+      1276.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-02",
+      35.0,
+      2030.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-03",
+      41.0,
+      2378.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-04",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-05",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-06",
+      52.0,
+      3016.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-07",
+      40.0,
+      2320.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-08",
+      27.0,
+      1566.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-09",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-10",
+      41.0,
+      2378.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-11",
+      31.0,
+      1798.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-12",
+      24.0,
+      1392.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-13",
+      28.0,
+      1624.0
+     ],
+     [
+      "ATTA-WW-1KG",
+      "2026-06-14",
+      32.0,
+      1856.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-01",
+      30.0,
+      7950.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-02",
+      36.0,
+      9540.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-03",
+      22.0,
+      5830.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-04",
+      28.0,
+      7420.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-05",
+      32.0,
+      8480.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-06",
+      25.0,
+      6625.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-07",
+      44.0,
+      11660.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-08",
+      9.0,
+      2385.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-09",
+      11.0,
+      2915.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-10",
+      22.0,
+      5830.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-11",
+      1.0,
+      265.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-12",
+      0.0,
+      0.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-13",
+      22.0,
+      5830.0
+     ],
+     [
+      "ATTA-WW-5KG",
+      "2026-06-14",
+      23.0,
+      6095.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"daily-sales-june\".\"sku\" as \"sku\", \"daily-sales-june\".\"date\" as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" in (?,?)) and (substr(\"daily-sales-june\".\"date\",1,10) between ? and ?) group by \"daily-sales-june\".\"sku\", \"daily-sales-june\".\"date\" order by \"sku\" asc, \"date\" asc limit 28",
+    "params": [
+     "ATTA-WW-5KG",
+     "ATTA-WW-1KG",
+     "2026-06-01",
+     "2026-06-14"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku in ['ATTA-WW-5KG', 'ATTA-WW-1KG'] and daily sales.date between 2026-06-01 and 2026-06-14; group by daily sales.sku, daily sales.date; report sku = daily sales.sku, date = daily sales.date, units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by sku asc, date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 3,
+  "total_parts": 4,
+  "columns": [
+   "date",
+   "units_sold",
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    30.0,
+    7950.0
+   ],
+   [
+    "2026-06-02",
+    36.0,
+    9540.0
+   ],
+   [
+    "2026-06-03",
+    22.0,
+    5830.0
+   ],
+   [
+    "2026-06-04",
+    28.0,
+    7420.0
+   ],
+   [
+    "2026-06-05",
+    32.0,
+    8480.0
+   ],
+   [
+    "2026-06-06",
+    25.0,
+    6625.0
+   ],
+   [
+    "2026-06-07",
+    44.0,
+    11660.0
+   ],
+   [
+    "2026-06-08",
+    9.0,
+    2385.0
+   ],
+   [
+    "2026-06-09",
+    11.0,
+    2915.0
+   ],
+   [
+    "2026-06-10",
+    22.0,
+    5830.0
+   ],
+   [
+    "2026-06-11",
+    1.0,
+    265.0
+   ],
+   [
+    "2026-06-12",
+    0.0,
+    0.0
+   ],
+   [
+    "2026-06-13",
+    22.0,
+    5830.0
+   ],
+   [
+    "2026-06-14",
+    23.0,
+    6095.0
+   ]
+  ],
+  "row_count": 14,
+  "message": "3 of 4 part(s) answered."
+ },
+ "Q045": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q046": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q047": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "no_record",
+    "layers": [
+     "ontology"
+    ],
+    "failed_layer": "ontology",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (group_by without an aggregate).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "ontology",
+    "covers": "Uses the Sales definition: June 2026 revenue and each flow's share cover only the eleven followed items, not the whole store; the share denominator is total recorded June revenue for those items.",
+    "columns": [
+     "flow",
+     "revenue_inr",
+     "share_of_june_revenue"
+    ],
+    "rows": [
+     [
+      "DC",
+      782445.0,
+      null
+     ],
+     [
+      "DSD",
+      461492.0,
+      null
+     ]
+    ],
+    "row_count": 2,
+    "sql": "select \"products\".\"flow\" as \"flow\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\", (sum(\"daily-sales-june\".\"revenue_inr\") * 1.0 / nullif(?, 0)) as \"share_of_june_revenue\" from \"daily-sales-june\" inner join \"products\" on \"daily-sales-june\".\"sku\" = \"products\".\"sku\" where (substr(substr(\"daily-sales-june\".\"date\",1,10),1,10) between ? and ?) and (\"products\".\"flow\" in (?,?)) group by \"products\".\"flow\" order by \"flow\" asc limit 2",
+    "params": [
+     0,
+     "2026-06-01",
+     "2026-06-30",
+     "DC",
+     "DSD"
+    ],
+    "plan_in_words": "From daily sales row records; inner-join product records on daily sales.sku = products.sku; keep rows where day(daily sales.date) between 2026-06-01 and 2026-06-30 and products.flow in ['DC', 'DSD']; group by products.flow; report flow = products.flow, revenue_inr = sum of daily sales.revenue_inr, share_of_june_revenue = sum of daily sales.revenue_inr / 0; sorted by flow asc.",
+    "message": "2 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 2,
+  "columns": [
+   "flow",
+   "revenue_inr",
+   "share_of_june_revenue"
+  ],
+  "rows": [
+   [
+    "DC",
+    782445.0,
+    null
+   ],
+   [
+    "DSD",
+    461492.0,
+    null
+   ]
+  ],
+  "row_count": 2,
+  "message": "1 of 2 part(s) answered."
+ },
+ "Q048": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "bill_id",
+   "distinct_skus"
+  ],
+  "rows": [
+   [
+    "B260504-090041",
+    2
+   ],
+   [
+    "B260506-050009",
+    2
+   ],
+   [
+    "B260506-090024",
+    2
+   ],
+   [
+    "B260512-080025",
+    2
+   ],
+   [
+    "B260512-130049",
+    2
+   ],
+   [
+    "B260520-110068",
+    2
+   ],
+   [
+    "B260520-140049",
+    2
+   ],
+   [
+    "B260521-140051",
+    2
+   ],
+   [
+    "B260522-140007",
+    2
+   ],
+   [
+    "B260523-060019",
+    2
+   ],
+   [
+    "B260524-120079",
+    2
+   ],
+   [
+    "B260525-120009",
+    2
+   ],
+   [
+    "B260530-130084",
+    2
+   ],
+   [
+    "B260605-090056",
+    2
+   ],
+   [
+    "B260605-120001",
+    2
+   ],
+   [
+    "B260606-040039",
+    2
+   ],
+   [
+    "B260607-110060",
+    2
+   ],
+   [
+    "B260608-050018",
+    2
+   ],
+   [
+    "B260615-040042",
+    2
+   ],
+   [
+    "B260617-080054",
+    2
+   ],
+   [
+    "B260618-120102",
+    2
+   ],
+   [
+    "B260627-090009",
+    2
+   ],
+   [
+    "B260627-120026",
+    2
+   ]
+  ],
+  "row_count": 23,
+  "message": "23 row(s)."
+ },
+ "Q049": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "ontology",
+  "columns": [
+   "hour_of_day",
+   "average_basket_value_inr",
+   "bill_count"
+  ],
+  "rows": [
+   [
+    16,
+    608.8253034300791,
+    1895
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ }
+}
