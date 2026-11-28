@@ -1,0 +1,6501 @@
+{
+ "S8N01": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-30T23:59"
+     }
+    ],
+    "select": [
+     {
+      "as": "bags_sold_june",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     }
+    ],
+    "covers": "Bags of 5 kg atta sold in June 2026, using recorded till sales (daily-sales) as units sold."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-08T00:00",
+      "high": "2026-06-14T23:59"
+     }
+    ],
+    "select": [
+     {
+      "as": "bags_sold_week_8_june",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     }
+    ],
+    "covers": "Bags of 5 kg atta sold in the week of 8 June 2026 (8-14 June), using recorded till sales (daily-sales) as units sold."
+   }
+  ]
+ },
+ "S8N02": {
+  "cannot": "The records hold 11:00 shelf audits and daily closing book stock, but no hourly book stock table exists, so no plan can test an hourly book above zero at each audit."
+ },
+ "S8N03": {
+  "from": "inventory-book-june",
+  "where": [
+   {
+    "op": "<",
+    "args": [
+     {
+      "col": "inventory-book-june.book_on_hand_close"
+     },
+     {
+      "lit": 0
+     }
+    ]
+   }
+  ],
+  "group_by": [
+   {
+    "fn": "day",
+    "arg": {
+     "col": "inventory-book-june.date"
+    }
+   }
+  ],
+  "select": [
+   {
+    "as": "day",
+    "expr": {
+     "fn": "day",
+     "arg": {
+      "col": "inventory-book-june.date"
+     }
+    }
+   },
+   {
+    "as": "items_below_zero",
+    "expr": {
+     "agg": "count_distinct",
+     "arg": {
+      "col": "inventory-book-june.sku"
+     }
+    }
+   },
+   {
+    "as": "lowest_closing_book_stock_packs",
+    "expr": {
+     "agg": "min",
+     "arg": {
+      "col": "inventory-book-june.book_on_hand_close"
+     }
+    }
+   }
+  ],
+  "order_by": [
+   {
+    "by": "day",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "covers": "Days when any item's closing book stock was below zero, using inventory-book closing book stock in packs."
+ },
+ "S8N04": {
+  "from": "stock-counts-june",
+  "joins": [],
+  "where": [
+   {
+    "op": ">",
+    "args": [
+     {
+      "op": "/",
+      "args": [
+       {
+        "fn": "abs",
+        "arg": {
+         "op": "-",
+         "args": [
+          {
+           "col": "stock-counts-june.counted"
+          },
+          {
+           "col": "stock-counts-june.book_before"
+          }
+         ]
+        }
+       },
+       {
+        "col": "stock-counts-june.book_before"
+       }
+      ]
+     },
+     {
+      "lit": 0.02
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "count_ts",
+    "expr": {
+     "col": "stock-counts-june.count_ts"
+    }
+   },
+   {
+    "as": "sku",
+    "expr": {
+     "col": "stock-counts-june.sku"
+    }
+   },
+   {
+    "as": "book_before",
+    "expr": {
+     "col": "stock-counts-june.book_before"
+    }
+   },
+   {
+    "as": "counted",
+    "expr": {
+     "col": "stock-counts-june.counted"
+    }
+   },
+   {
+    "as": "adjustment",
+    "expr": {
+     "col": "stock-counts-june.adjustment"
+    }
+   },
+   {
+    "as": "trigger",
+    "expr": {
+     "col": "stock-counts-june.trigger"
+    }
+   },
+   {
+    "as": "pct_disagreement",
+    "expr": {
+     "op": "*",
+     "args": [
+      {
+       "op": "/",
+       "args": [
+        {
+         "op": "-",
+         "args": [
+          {
+           "col": "stock-counts-june.counted"
+          },
+          {
+           "col": "stock-counts-june.book_before"
+          }
+         ]
+        },
+        {
+         "col": "stock-counts-june.book_before"
+        }
+       ]
+      },
+      {
+       "lit": 100
+      }
+     ]
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [
+   {
+    "by": "count_ts",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "covers": "Store stock counts whose hand count differed from book_before by more than 2% of book stock, using stock-counts-june (store count adjustments) rather than warehouse corrections."
+ },
+ "S8N05": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "daily-sales-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "products.flow"
+       },
+       {
+        "lit": "DC"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "daily-sales-june.date"
+       },
+       {
+        "lit": "2026-06-01T00:00"
+       },
+       {
+        "lit": "2026-06-07T23:59"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "daily-sales-june.sku"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "daily-sales-june.sku"
+      }
+     },
+     {
+      "as": "week1_units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     }
+    ],
+    "covers": "Week 1 (2026-06-01 to 2026-06-07) unit sales per DC-flow product, using till-line daily sales as the sales definition."
+   },
+   {
+    "from": "daily-sales-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "daily-sales-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "products.flow"
+       },
+       {
+        "lit": "DC"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "daily-sales-june.date"
+       },
+       {
+        "lit": "2026-06-08T00:00"
+       },
+       {
+        "lit": "2026-06-14T23:59"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "daily-sales-june.sku"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "daily-sales-june.sku"
+      }
+     },
+     {
+      "as": "week2_units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     }
+    ],
+    "covers": "Week 2 (2026-06-08 to 2026-06-14) unit sales per DC-flow product; compare week2_units < week1_units / 2 across the two plans to find drops of more than half."
+   }
+  ]
+ },
+ "S8N06": {
+  "plans": [
+   {
+    "from": "pos-lines-may-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-lines-may-june.sku_scanned"
+       },
+       {
+        "lit": "MILK-TONED-500ML"
+       }
+      ]
+     },
+     {
+      "op": ">=",
+      "args": [
+       {
+        "col": "pos-lines-may-june.bill_ts"
+       },
+       {
+        "lit": "2026-06-01T00:00"
+       }
+      ]
+     },
+     {
+      "op": "<=",
+      "args": [
+       {
+        "col": "pos-lines-may-june.bill_ts"
+       },
+       {
+        "lit": "2026-06-28T23:59"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "sale_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-lines-may-june.bill_ts"
+       }
+      }
+     },
+     {
+      "as": "last_sale_time",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "pos-lines-may-june.bill_ts"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "sale_date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "For toned milk (MILK-TONED-500ML), the last recorded sale time each June day, using till lines as sales."
+   },
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.sku"
+       },
+       {
+        "lit": "MILK-TONED-500ML"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "pouches_written_off",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "write-offs-june.units"
+       }
+      }
+     }
+    ],
+    "limit": 200,
+    "covers": "Total toned milk pouches written off in June, summing write-off units for MILK-TONED-500ML."
+   }
+  ]
+ },
+ "S8N07": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "day",
+      "dir": "asc"
+     }
+    ],
+    "limit": 28,
+    "covers": "Checks the premise by showing daily 5 kg atta sales for June, including the week of 8 June; sales are till lines recorded as daily sales, not demand."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "shelf-audits-june.audit_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_ts",
+      "expr": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "audit_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 20,
+    "covers": "Shows the 11:00 shelf observations around the week of 8 June; on-shelf availability is the share of audits with status 'on shelf', while book stock is only a belief."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "inventory-book-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "inventory-book-june.date"
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 28,
+    "covers": "Provides daily closing book stock as evidence to compare with sales and shelf audits, without treating book stock as actual shelf availability."
+   },
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "write-offs-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "write-offs-june.date"
+      }
+     },
+     {
+      "as": "reason",
+      "expr": {
+       "col": "write-offs-june.reason"
+      }
+     },
+     {
+      "as": "units",
+      "expr": {
+       "col": "write-offs-june.units"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 50,
+    "covers": "Checks recorded damaged or expired 5 kg atta write-offs during June as additional stock evidence; the records do not establish why sales fell."
+   }
+  ]
+ },
+ "S8N08": {
+  "plans": [
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "shelf-audits-june.audit_ts"
+        }
+       },
+       {
+        "lit": "2026-06-11"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_ts",
+      "expr": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     },
+     {
+      "as": "shelf_status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "covers": "On-shelf availability on 2026-06-11 is the 11:00 shelf audit status for ATTA-WW-5KG; book stock is only a belief."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "inventory-book-june.date"
+        }
+       },
+       {
+        "lit": "2026-06-11"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "inventory-book-june.date"
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "covers": "Closing book stock on 2026-06-11 is supporting evidence only, not proof the product was on the shelf."
+   }
+  ]
+ },
+ "S8N09": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "daily-sales-june.sku"
+      },
+      "values": [
+       "ATTA-WW-5KG",
+       "ATTA-WW-1KG"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "daily-sales-june.sku"
+      }
+     },
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "sku",
+      "dir": "asc"
+     },
+     {
+      "by": "day",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Daily recorded sales of 5 kg and 1 kg atta, to check whether their sales trends are consistent with switching; sales are till lines/daily sales, not shopper behaviour."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "shelf-audits-june.sku"
+      },
+      "values": [
+       "ATTA-WW-5KG",
+       "ATTA-WW-1KG"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "shelf-audits-june.sku"
+     },
+     {
+      "fn": "day",
+      "arg": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "shelf-audits-june.sku"
+      }
+     },
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "shelf-audits-june.audit_ts"
+       }
+      }
+     },
+     {
+      "as": "audits",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "on_shelf_audits",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "shelf-audits-june.status"
+         },
+         {
+          "lit": "on shelf"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "sku",
+      "dir": "asc"
+     },
+     {
+      "by": "day",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "On-shelf availability evidence for both atta pack sizes, since empty shelves could change recorded sales without shoppers switching."
+   }
+  ]
+ },
+ "S8N10": {
+  "plans": [
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "shelf-audits-june.audit_ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-30T23:59"
+     }
+    ],
+    "select": [
+     {
+      "as": "audits",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "on_shelf_audits",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "shelf-audits-june.status"
+         },
+         {
+          "lit": "on shelf"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "covers": "On-shelf availability for 5 kg atta (ATTA-WW-5KG) in June is the share of 11:00 shelf audits with status 'on shelf'; book stock is a belief, not the shelf."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "inventory-book-june.date"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-30T23:59"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "inventory-book-june.date"
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "inventory-book-june.date"
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 30,
+    "covers": "Daily June closing book stock for ATTA-WW-5KG shows what the books believed was available, which is not on-shelf availability."
+   },
+   {
+    "from": "pos-lines-may-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-lines-may-june.sku_scanned"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-30T23:59"
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-lines-may-june.bill_ts"
+       }
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-lines-may-june.qty"
+       }
+      }
+     },
+     {
+      "as": "sales_value_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-lines-may-june.line_amount"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "day",
+      "dir": "asc"
+     }
+    ],
+    "limit": 30,
+    "covers": "Daily June till-line sales for ATTA-WW-5KG provide the sales evidence to compare with book stock and shelf audits; sales are not demand or availability."
+   }
+  ]
+ },
+ "S8N11": {
+  "cannot": "Demand is not recorded; only sales are. Daily sales of ATTA-WW-5KG in June can be planned from daily-sales-june, but that is not demand."
+ },
+ "S8N12": {
+  "cannot": "Shoppers who left without buying and the demand behind lost sales are not recorded; no table identifies shoppers or holds a product not bought, so neither a shopper count nor June lost sales for ATTA-WW-5KG can be computed from the records."
+ },
+ "S8E13": {
+  "from": "shipments-june",
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "shipments-june.arrived_ts"
+    },
+    "low": "2026-06-01T00:00",
+    "high": "2026-06-28T23:59"
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "fn": "hour",
+      "arg": {
+       "col": "shipments-june.slot_start"
+      }
+     },
+     {
+      "lit": 6
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "fn": "hour",
+      "arg": {
+       "col": "shipments-june.slot_end"
+      }
+     },
+     {
+      "lit": 6
+     }
+    ]
+   },
+   {
+    "op": ">=",
+    "args": [
+     {
+      "col": "shipments-june.arrived_ts"
+     },
+     {
+      "col": "shipments-june.slot_start"
+     }
+    ]
+   },
+   {
+    "op": "<=",
+    "args": [
+     {
+      "col": "shipments-june.arrived_ts"
+     },
+     {
+      "col": "shipments-june.slot_end"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "deliveries_in_slot",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "covers": "Counts June shipments whose booked slot is 06:00–06:30 and that arrived on time, using the definition arrived_ts between slot_start and slot_end."
+ },
+ "S8N14": {
+  "cannot": "The records do not show any pallet weighed at dispatch (pallets-june.weight_check is only 'not weighed') or any case-level scan at receipt (goods-receipts-june.receipt_method is only 'pallet label (SSCC) scan against the shipping notice'), so no pallet can be counted as weighed or case-scanned."
+ },
+ "S8N15": {
+  "from": "store-orders-june",
+  "joins": [
+   {
+    "table": "shipping-notice-lines-june",
+    "type": "left",
+    "on": [
+     [
+      {
+       "col": "store-orders-june.order_id"
+      },
+      {
+       "col": "shipping-notice-lines-june.order_id"
+      }
+     ],
+     [
+      {
+       "col": "store-orders-june.sku"
+      },
+      {
+       "col": "shipping-notice-lines-june.sku"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "store-orders-june.created_ts"
+    },
+    "low": "2026-06-01T00:00",
+    "high": "2026-06-30T23:59"
+   }
+  ],
+  "select": [
+   {
+    "as": "cases_ordered",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "store-orders-june.cases"
+     }
+    }
+   },
+   {
+    "as": "cases_shipped",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "shipping-notice-lines-june.cases"
+     }
+    }
+   },
+   {
+    "as": "case_fill_rate",
+    "expr": {
+     "op": "/",
+     "args": [
+      {
+       "agg": "sum",
+       "arg": {
+        "col": "shipping-notice-lines-june.cases"
+       }
+      },
+      {
+       "agg": "sum",
+       "arg": {
+        "col": "store-orders-june.cases"
+       }
+      }
+     ]
+    }
+   }
+  ],
+  "covers": "Case fill rate across June's store orders: total shipping-notice cases divided by total ordered cases, matched by order and SKU."
+ },
+ "S8N16": {
+  "plans": [
+   {
+    "from": "dc-stock-adjustments-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "dc-stock-adjustments-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "dc-stock-adjustments-june.sku"
+      },
+      "values": [
+       "ATTA-WW-10KG",
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG"
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "net_value_at_cost_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.value_at_cost_inr"
+       }
+      }
+     },
+     {
+      "as": "gross_value_at_cost_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "fn": "abs",
+        "arg": {
+         "col": "dc-stock-adjustments-june.value_at_cost_inr"
+        }
+       }
+      }
+     }
+    ],
+    "covers": "Warehouse atta corrections: net is the sum of signed value at cost and gross is the sum of absolute values."
+   },
+   {
+    "from": "stock-counts-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "stock-counts-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "stock-counts-june.sku"
+      },
+      "values": [
+       "ATTA-WW-10KG",
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG"
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "net_value_at_cost_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "*",
+        "args": [
+         {
+          "col": "stock-counts-june.adjustment"
+         },
+         {
+          "col": "products.cost_inr"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "as": "gross_value_at_cost_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "*",
+        "args": [
+         {
+          "fn": "abs",
+          "arg": {
+           "col": "stock-counts-june.adjustment"
+          }
+         },
+         {
+          "col": "products.cost_inr"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "covers": "Store atta count adjustments: net is the sum of signed adjustments times product cost and gross is the sum of absolute adjustments times product cost."
+   }
+  ]
+ },
+ "S8N17": {
+  "cannot": "Mirror-image pairing needs two rows of the same correction table compared to each other, but a table can appear only once per plan and no join key links a warehouse correction to a store count adjustment; the two correction types also live in different units (dc-stock-adjustments.cases versus stock-counts.adjustment in packs), so the within-15%-in-cases test cannot be planned without inventing a conversion or a self-join."
+ },
+ "S8N18": {
+  "cannot": "The records do not link a goods receipt to the stock it added, so a receipt cannot be followed into a later stock count. goods-receipts-june can be joined to stock-counts-june only by sku, which would compare a product's receipt with a product's count, not show that the received units survived. There is also no recorded definition of 'survive' (units still present, counted quantity, or adjustment), and no batch- or pallet-level stock balance to test it against."
+ },
+ "S8N19": {
+  "plans": [
+   {
+    "from": "shipments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "shipments-june.arrived_ts"
+        }
+       },
+       {
+        "lit": "2026-06-22"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "shipment_id",
+      "expr": {
+       "col": "shipments-june.shipment_id"
+      }
+     },
+     {
+      "as": "arrived_ts",
+      "expr": {
+       "col": "shipments-june.arrived_ts"
+      }
+     },
+     {
+      "as": "slot_start",
+      "expr": {
+       "col": "shipments-june.slot_start"
+      }
+     },
+     {
+      "as": "slot_end",
+      "expr": {
+       "col": "shipments-june.slot_end"
+      }
+     },
+     {
+      "as": "on_time",
+      "expr": {
+       "op": "between",
+       "arg": {
+        "col": "shipments-june.arrived_ts"
+       },
+       "low": {
+        "col": "shipments-june.slot_start"
+       },
+       "high": {
+        "col": "shipments-june.slot_end"
+       }
+      }
+     }
+    ],
+    "covers": "On time: whether the shipment that arrived on 22 June 2026 arrived between its slot_start and slot_end."
+   },
+   {
+    "from": "shipping-notice-lines-june",
+    "joins": [
+     {
+      "table": "shipments-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "shipping-notice-lines-june.shipment_id"
+        },
+        {
+         "col": "shipments-june.shipment_id"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "store-orders-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "shipping-notice-lines-june.order_id"
+        },
+        {
+         "col": "store-orders-june.order_id"
+        }
+       ],
+       [
+        {
+         "col": "shipping-notice-lines-june.sku"
+        },
+        {
+         "col": "store-orders-june.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "shipments-june.arrived_ts"
+        }
+       },
+       {
+        "lit": "2026-06-22"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "shipments-june.shipment_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "shipment_id",
+      "expr": {
+       "col": "shipments-june.shipment_id"
+      }
+     },
+     {
+      "as": "notice_cases",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "shipping-notice-lines-june.cases"
+       }
+      }
+     },
+     {
+      "as": "ordered_cases",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "store-orders-june.cases"
+       }
+      }
+     }
+    ],
+    "covers": "In full per delivery: shipping-notice cases against ordered cases for the 22 June 2026 shipment, using the notice-to-order fill-rate definition."
+   }
+  ]
+ },
+ "S8N20": {
+  "from": "shipments-june",
+  "joins": [
+   {
+    "table": "shipping-notice-lines-june",
+    "type": "left",
+    "on": [
+     [
+      {
+       "col": "shipments-june.shipment_id"
+      },
+      {
+       "col": "shipping-notice-lines-june.shipment_id"
+      }
+     ]
+    ]
+   },
+   {
+    "table": "store-orders-june",
+    "type": "left",
+    "on": [
+     [
+      {
+       "col": "shipping-notice-lines-june.order_id"
+      },
+      {
+       "col": "store-orders-june.order_id"
+      }
+     ],
+     [
+      {
+       "col": "shipping-notice-lines-june.sku"
+      },
+      {
+       "col": "store-orders-june.sku"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "shipments-june.arrived_ts"
+    },
+    "low": "2026-06-01T00:00",
+    "high": "2026-06-28T23:59"
+   }
+  ],
+  "group_by": [
+   {
+    "col": "shipments-june.shipment_id"
+   },
+   {
+    "col": "shipments-june.arrived_ts"
+   },
+   {
+    "col": "shipments-june.slot_start"
+   },
+   {
+    "col": "shipments-june.slot_end"
+   }
+  ],
+  "select": [
+   {
+    "as": "shipment_id",
+    "expr": {
+     "col": "shipments-june.shipment_id"
+    }
+   },
+   {
+    "as": "arrived_ts",
+    "expr": {
+     "col": "shipments-june.arrived_ts"
+    }
+   },
+   {
+    "as": "slot_start",
+    "expr": {
+     "col": "shipments-june.slot_start"
+    }
+   },
+   {
+    "as": "slot_end",
+    "expr": {
+     "col": "shipments-june.slot_end"
+    }
+   },
+   {
+    "as": "notice_cases",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "shipping-notice-lines-june.cases"
+     }
+    }
+   },
+   {
+    "as": "ordered_cases",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "store-orders-june.cases"
+     }
+    }
+   }
+  ],
+  "order_by": [
+   {
+    "by": "shipment_id",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "covers": "Per-delivery OTIF for June warehouse shipments: on time means arrived_ts between slot_start and slot_end, and in full means shipping-notice cases equal ordered cases; each shipment's evidence is returned for the OTIF share."
+ },
+ "S8N21": {
+  "plans": [
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "shelf-audits-june.audit_ts"
+       }
+      },
+      "low": "2026-06-23",
+      "high": "2026-06-26"
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_ts",
+      "expr": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "audit_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 20,
+    "covers": "Checks the 11:00 shelf audits for 5 kg atta on 23–26 June; on-shelf availability is the share of audits with status 'on shelf'."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "inventory-book-june.date"
+       }
+      },
+      "low": "2026-06-23",
+      "high": "2026-06-26"
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "inventory-book-june.date"
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 20,
+    "covers": "Shows the book stock belief for 5 kg atta on 23–26 June, since book stock is not the shelf and silence with stock on the books means the shelf should be checked."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      },
+      "low": "2026-06-23",
+      "high": "2026-06-26"
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "daily-sales-june.date"
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "col": "daily-sales-june.units_sold"
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "col": "daily-sales-june.revenue_inr"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 20,
+    "covers": "Shows recorded till sales of 5 kg atta on 23–26 June; sales are not demand and no-sales silence is a question, not a cause."
+   },
+   {
+    "from": "goods-receipts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "goods-receipts-june.sku_booked"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "goods-receipts-june.received_ts"
+       }
+      },
+      "low": "2026-06-23",
+      "high": "2026-06-26"
+     }
+    ],
+    "select": [
+     {
+      "as": "received_ts",
+      "expr": {
+       "col": "goods-receipts-june.received_ts"
+      }
+     },
+     {
+      "as": "units_booked",
+      "expr": {
+       "col": "goods-receipts-june.units_booked"
+      }
+     },
+     {
+      "as": "shipment_id",
+      "expr": {
+       "col": "goods-receipts-june.shipment_id"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "received_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 50,
+    "covers": "Lists back-door receipts of 5 kg atta on 23–26 June as the nearest recorded supply evidence; shelf restock times and the actual cause of the empty shelf are not recorded."
+   }
+  ]
+ },
+ "S8N22": {
+  "plans": [
+   {
+    "from": "stock-counts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "stock-counts-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "count_ts",
+      "expr": {
+       "col": "stock-counts-june.count_ts"
+      }
+     },
+     {
+      "as": "trigger",
+      "expr": {
+       "col": "stock-counts-june.trigger"
+      }
+     },
+     {
+      "as": "book_before",
+      "expr": {
+       "col": "stock-counts-june.book_before"
+      }
+     },
+     {
+      "as": "counted",
+      "expr": {
+       "col": "stock-counts-june.counted"
+      }
+     },
+     {
+      "as": "adjustment",
+      "expr": {
+       "col": "stock-counts-june.adjustment"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "count_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Physical stock counts for 5 kg atta show book-versus-counted gaps, but no table records the cause of a gap, so theft cannot be established."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_ts",
+      "expr": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "audit_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Shelf audits show when 5 kg atta was recorded empty versus on shelf, which is the recorded evidence of it missing at the store."
+   },
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "write-offs-june.date"
+      }
+     },
+     {
+      "as": "reason",
+      "expr": {
+       "col": "write-offs-june.reason"
+      }
+     },
+     {
+      "as": "units",
+      "expr": {
+       "col": "write-offs-june.units"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Recorded write-offs for 5 kg atta show stock removed for damaged or expired reasons, which are recorded reasons rather than theft."
+   },
+   {
+    "from": "dc-stock-adjustments-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "dc-stock-adjustments-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "dc-stock-adjustments-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "adjusted_ts",
+      "expr": {
+       "col": "dc-stock-adjustments-june.adjusted_ts"
+      }
+     },
+     {
+      "as": "slot",
+      "expr": {
+       "col": "dc-stock-adjustments-june.slot"
+      }
+     },
+     {
+      "as": "reason",
+      "expr": {
+       "col": "dc-stock-adjustments-june.reason"
+      }
+     },
+     {
+      "as": "units",
+      "expr": {
+       "col": "dc-stock-adjustments-june.units"
+      }
+     },
+     {
+      "as": "value_at_cost_inr",
+      "expr": {
+       "col": "dc-stock-adjustments-june.value_at_cost_inr"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "adjusted_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Warehouse corrections for 5 kg atta show recorded cycle-count or slot-count variances, which are evidence of corrections but not proof of theft."
+   }
+  ]
+ },
+ "S8N23": {
+  "plans": [
+   {
+    "from": "goods-receipts-june",
+    "joins": [
+     {
+      "table": "shipping-notice-lines-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "goods-receipts-june.shipment_id"
+        },
+        {
+         "col": "shipping-notice-lines-june.shipment_id"
+        }
+       ],
+       [
+        {
+         "col": "goods-receipts-june.sscc"
+        },
+        {
+         "col": "shipping-notice-lines-june.sscc"
+        }
+       ],
+       [
+        {
+         "col": "goods-receipts-june.line"
+        },
+        {
+         "col": "shipping-notice-lines-june.line"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "shipping-notice-lines-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "or",
+      "args": [
+       {
+        "op": "!=",
+        "args": [
+         {
+          "col": "goods-receipts-june.asn_sku"
+         },
+         {
+          "col": "goods-receipts-june.sku_booked"
+         }
+        ]
+       },
+       {
+        "op": "!=",
+        "args": [
+         {
+          "col": "goods-receipts-june.asn_units"
+         },
+         {
+          "col": "goods-receipts-june.units_booked"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "goods-receipts-june.shipment_id"
+     },
+     {
+      "col": "goods-receipts-june.sscc"
+     },
+     {
+      "col": "goods-receipts-june.line"
+     },
+     {
+      "col": "goods-receipts-june.grn_id"
+     },
+     {
+      "col": "goods-receipts-june.received_ts"
+     },
+     {
+      "col": "goods-receipts-june.asn_sku"
+     },
+     {
+      "col": "goods-receipts-june.sku_booked"
+     },
+     {
+      "col": "goods-receipts-june.asn_units"
+     },
+     {
+      "col": "goods-receipts-june.units_booked"
+     },
+     {
+      "col": "products.name"
+     },
+     {
+      "col": "products.cost_inr"
+     }
+    ],
+    "select": [
+     {
+      "as": "shipment_id",
+      "expr": {
+       "col": "goods-receipts-june.shipment_id"
+      }
+     },
+     {
+      "as": "sscc",
+      "expr": {
+       "col": "goods-receipts-june.sscc"
+      }
+     },
+     {
+      "as": "line",
+      "expr": {
+       "col": "goods-receipts-june.line"
+      }
+     },
+     {
+      "as": "grn_id",
+      "expr": {
+       "col": "goods-receipts-june.grn_id"
+      }
+     },
+     {
+      "as": "received_ts",
+      "expr": {
+       "col": "goods-receipts-june.received_ts"
+      }
+     },
+     {
+      "as": "asn_sku",
+      "expr": {
+       "col": "goods-receipts-june.asn_sku"
+      }
+     },
+     {
+      "as": "sku_booked",
+      "expr": {
+       "col": "goods-receipts-june.sku_booked"
+      }
+     },
+     {
+      "as": "asn_units",
+      "expr": {
+       "col": "goods-receipts-june.asn_units"
+      }
+     },
+     {
+      "as": "units_booked",
+      "expr": {
+       "col": "goods-receipts-june.units_booked"
+      }
+     },
+     {
+      "as": "product_name",
+      "expr": {
+       "col": "products.name"
+      }
+     },
+     {
+      "as": "unit_cost_inr",
+      "expr": {
+       "col": "products.cost_inr"
+      }
+     },
+     {
+      "as": "short_units",
+      "expr": {
+       "op": "-",
+       "args": [
+        {
+         "col": "goods-receipts-june.asn_units"
+        },
+        {
+         "col": "goods-receipts-june.units_booked"
+        }
+       ]
+      }
+     },
+     {
+      "as": "claim_value_inr",
+      "expr": {
+       "op": "*",
+       "args": [
+        {
+         "op": "-",
+         "args": [
+          {
+           "col": "goods-receipts-june.asn_units"
+          },
+          {
+           "col": "goods-receipts-june.units_booked"
+          }
+         ]
+        },
+        {
+         "col": "products.cost_inr"
+        }
+       ]
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "claim_value_inr",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Identifies delivery, pallet and receipt lines where booked receipt differs from the shipping notice, with shortage value at product cost for a claim."
+   },
+   {
+    "from": "pallets-june",
+    "joins": [
+     {
+      "table": "shipping-notice-lines-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "pallets-june.sscc"
+        },
+        {
+         "col": "shipping-notice-lines-june.sscc"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "goods-receipts-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "pallets-june.sscc"
+        },
+        {
+         "col": "goods-receipts-june.sscc"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "or",
+      "args": [
+       {
+        "op": "is_null",
+        "arg": {
+         "col": "shipping-notice-lines-june.sscc"
+        }
+       },
+       {
+        "op": "is_null",
+        "arg": {
+         "col": "goods-receipts-june.sscc"
+        }
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pallets-june.shipment_id"
+     },
+     {
+      "col": "pallets-june.sscc"
+     },
+     {
+      "col": "pallets-june.cases"
+     },
+     {
+      "col": "pallets-june.notice_kg"
+     },
+     {
+      "col": "pallets-june.weight_check"
+     }
+    ],
+    "select": [
+     {
+      "as": "shipment_id",
+      "expr": {
+       "col": "pallets-june.shipment_id"
+      }
+     },
+     {
+      "as": "sscc",
+      "expr": {
+       "col": "pallets-june.sscc"
+      }
+     },
+     {
+      "as": "cases",
+      "expr": {
+       "col": "pallets-june.cases"
+      }
+     },
+     {
+      "as": "notice_kg",
+      "expr": {
+       "col": "pallets-june.notice_kg"
+      }
+     },
+     {
+      "as": "weight_check",
+      "expr": {
+       "col": "pallets-june.weight_check"
+      }
+     },
+     {
+      "as": "notice_lines",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "shipping-notice-lines-june.line"
+       }
+      }
+     },
+     {
+      "as": "receipt_lines",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "goods-receipts-june.line"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "shipment_id",
+      "dir": "asc"
+     },
+     {
+      "by": "sscc",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Flags labelled pallets missing from shipping-notice or goods-receipt records as additional claim candidates; no line exists when the pallet itself is absent."
+   }
+  ]
+ },
+ "S8N24": {
+  "cannot": "Demand is not recorded: no table holds how many bags of ATTA-WW-5KG shoppers wanted and did not find (lost sales), and the 23-26 June window cannot be filled from sales or shelf audits, which only show what was sold or seen at 11:00."
+ },
+ "S8A25": {
+  "from": "pos-payments-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "upi_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "covers": "Counts every UPI payment attempt recorded at the tills in June 2026 (one row = one try)."
+ },
+ "S8E26": {
+  "from": "pos-payments-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed: no response"
+     }
+    ]
+   },
+   {
+    "op": "is_null",
+    "arg": {
+     "col": "pos-payments-june.rrn"
+    }
+   }
+  ],
+  "select": [
+   {
+    "as": "timed_out_upi_attempts_without_rrn",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "covers": "Counts UPI payment attempts with till status 'failed: no response' and no RRN recorded."
+ },
+ "S8N27": {
+  "from": "psp-upi-report-june",
+  "joins": [
+   {
+    "table": "pos-payments-june",
+    "type": "left",
+    "on": [
+     [
+      {
+       "col": "psp-upi-report-june.rrn"
+      },
+      {
+       "col": "pos-payments-june.rrn"
+      }
+     ],
+     [
+      {
+       "col": "pos-payments-june.till_status"
+      },
+      {
+       "lit": "approved"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "lit": "success"
+     }
+    ]
+   },
+   {
+    "op": "is_null",
+    "arg": {
+     "col": "pos-payments-june.attempt"
+    }
+   }
+  ],
+  "select": [
+   {
+    "as": "rrn",
+    "expr": {
+     "col": "psp-upi-report-june.rrn"
+    }
+   },
+   {
+    "as": "bill_ref",
+    "expr": {
+     "col": "psp-upi-report-june.bill_ref"
+    }
+   },
+   {
+    "as": "amount_inr",
+    "expr": {
+     "col": "psp-upi-report-june.amount_inr"
+    }
+   },
+   {
+    "as": "initiated_ts",
+    "expr": {
+     "col": "psp-upi-report-june.initiated_ts"
+    }
+   },
+   {
+    "as": "status_ts",
+    "expr": {
+     "col": "psp-upi-report-june.status_ts"
+    }
+   }
+  ],
+  "covers": "Provider UPI successes with no approved till payment on the same RRN, the definition of an extra debit."
+ },
+ "S8N28": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      }
+     },
+     {
+      "fn": "hour",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "hour",
+      "expr": {
+       "fn": "hour",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "timeouts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">=",
+      "args": [
+       {
+        "agg": "count",
+        "arg": "*"
+       },
+       {
+        "lit": 3
+       }
+      ]
+     }
+    ],
+    "order_by": [
+     {
+      "by": "day",
+      "dir": "asc"
+     },
+     {
+      "by": "hour",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Hours with 3+ UPI timeouts ('failed: no response'), the first burst condition; the monthly-rate comparison needs the monthly total."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "monthly_timeouts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "first_ts",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "last_ts",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     }
+    ],
+    "limit": 1,
+    "covers": "Monthly UPI timeout total and observed time span, to derive the monthly hourly rate for the >10× test."
+   }
+  ]
+ },
+ "S8N29": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-28T23:59"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "bill_amount",
+      "expr": {
+       "sum": "amount_inr",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "bill_amount"
+       },
+       {
+        "lit": 2000
+       }
+      ]
+     }
+    ],
+    "covers": "Identify approved UPI bills in June with total amount above ₹2,000, using one bill as the stand-in for one checkout."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-28T23:59"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "bill_amount",
+      "expr": {
+       "sum": "amount_inr",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     },
+     {
+      "as": "mdr_fee",
+      "expr": {
+       "fn": "round",
+       "arg": {
+        "op": "*",
+        "args": [
+         {
+          "lit": 0.004
+         },
+         {
+          "sum": "amount_inr",
+          "arg": {
+           "col": "pos-payments-june.amount_inr"
+          }
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "bill_amount"
+       },
+       {
+        "lit": 2000
+       }
+      ]
+     }
+    ],
+    "covers": "Compute the 0.4% MDR fee per qualifying UPI bill, with the ₹300 cap to be applied when reading the per-bill fees."
+   }
+  ]
+ },
+ "S8N30": {
+  "cannot": "No table identifies a customer, so 'which customers' cannot be answered; the records can only show bills with three debits (a bill is the stand-in for a shopper), not who was charged."
+ },
+ "S8N31": {
+  "plans": [
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ],
+       [
+        {
+         "col": "psp-upi-report-june.bill_ref"
+        },
+        {
+         "col": "pos-payments-june.bill_id"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "psp-upi-report-june.status_ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-30T23:59"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.bill_ref"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "psp-upi-report-june.bill_ref"
+      }
+     },
+     {
+      "as": "provider_successes",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "approved_till_payments",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "pos-payments-june.till_status"
+         },
+         {
+          "lit": "approved"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "provider_successes"
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    ],
+    "covers": "Counts bills with more than one provider success in June, using the definition that a provider success with no approved till payment is an extra debit and one bill should have one payment."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ],
+       [
+        {
+         "col": "psp-upi-report-june.bill_ref"
+        },
+        {
+         "col": "pos-payments-june.bill_id"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "psp-upi-report-june.status_ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-30T23:59"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.bill_ref"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "psp-upi-report-june.bill_ref"
+      }
+     },
+     {
+      "as": "provider_successes",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "approved_till_payments",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "pos-payments-june.till_status"
+         },
+         {
+          "lit": "approved"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "ref": "approved_till_payments"
+       },
+       {
+        "lit": 0
+       }
+      ]
+     }
+    ],
+    "covers": "Finds June bills with a provider success but no approved till payment, which the payment definition treats as an extra debit until proven otherwise."
+   }
+  ]
+ },
+ "S8N32": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "pos-payments-june.rrn"
+        },
+        {
+         "col": "psp-upi-report-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "pos-payments-june.ts"
+       },
+       {
+        "lit": "2026-06-20T18:20"
+       },
+       {
+        "lit": "2026-06-20T19:50"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     },
+     {
+      "col": "pos-payments-june.attempt"
+     },
+     {
+      "col": "pos-payments-june.ts"
+     },
+     {
+      "col": "pos-payments-june.amount_inr"
+     },
+     {
+      "col": "pos-payments-june.rrn"
+     },
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "col": "psp-upi-report-june.status_ts"
+     },
+     {
+      "col": "psp-upi-report-june.initiated_ts"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "attempt",
+      "expr": {
+       "col": "pos-payments-june.attempt"
+      }
+     },
+     {
+      "as": "till_ts",
+      "expr": {
+       "col": "pos-payments-june.ts"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "pos-payments-june.amount_inr"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "pos-payments-june.rrn"
+      }
+     },
+     {
+      "as": "provider_status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "provider_status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     },
+     {
+      "as": "provider_initiated_ts",
+      "expr": {
+       "col": "psp-upi-report-june.initiated_ts"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "till_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Lists each UPI attempt the till marked 'failed: no response' in the stated window with the provider's final status by RRN, the evidence for late credit vs returned vs never debited (Rule 9: a timeout means not known yet and UPI's final status decides)."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "pos-payments-june.rrn"
+        },
+        {
+         "col": "psp-upi-report-june.rrn"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "upi-refunds-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "upi-refunds-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "pos-payments-june.ts"
+       },
+       {
+        "lit": "2026-06-20T18:20"
+       },
+       {
+        "lit": "2026-06-20T19:50"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     },
+     {
+      "col": "pos-payments-june.rrn"
+     },
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "col": "upi-refunds-june.refund_id"
+     },
+     {
+      "col": "upi-refunds-june.amount_inr"
+     },
+     {
+      "col": "upi-refunds-june.requested_ts"
+     },
+     {
+      "col": "upi-refunds-june.completed_ts"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "pos-payments-june.rrn"
+      }
+     },
+     {
+      "as": "provider_status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "refund_amount_inr",
+      "expr": {
+       "col": "upi-refunds-june.amount_inr"
+      }
+     },
+     {
+      "as": "refund_requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "refund_completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "bill_id",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "For the same timed-out UPI attempts, shows which provider debits were returned via a recorded UPI refund (debited and returned) versus a late success with no refund."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "pos-payments-june.rrn"
+        },
+        {
+         "col": "psp-upi-report-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "pos-payments-june.ts"
+       },
+       {
+        "lit": "2026-06-20T18:20"
+       },
+       {
+        "lit": "2026-06-20T19:50"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "provider_status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "provider_status",
+      "dir": "asc"
+     }
+    ],
+    "limit": 20,
+    "covers": "Summarises the timed-out UPI attempts in the window by provider final status (success, returned, failed, or no provider row), giving the counts and rupees behind each outcome bucket."
+   }
+  ]
+ },
+ "S8N33": {
+  "plans": [
+   {
+    "from": "upi-settlements-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      },
+      "values": [
+       "2026-06-20",
+       "2026-06-21"
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "settlement_day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      }
+     },
+     {
+      "as": "credits",
+      "expr": {
+       "col": "upi-settlements-june.upi_credits"
+      }
+     },
+     {
+      "as": "gross",
+      "expr": {
+       "col": "upi-settlements-june.gross_inr"
+      }
+     },
+     {
+      "as": "refunds",
+      "expr": {
+       "col": "upi-settlements-june.refunds_inr"
+      }
+     },
+     {
+      "as": "mdr",
+      "expr": {
+       "col": "upi-settlements-june.mdr_inr"
+      }
+     },
+     {
+      "as": "net",
+      "expr": {
+       "col": "upi-settlements-june.net_inr"
+      }
+     }
+    ],
+    "covers": "Checks the stated 17 credits on 20 and 21 June and shows the settlement rows; the reason money is in suspense is not recorded."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.initiated_ts"
+       }
+      },
+      "values": [
+       "2026-06-20",
+       "2026-06-21"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "psp-upi-report-june.initiated_ts"
+      }
+     },
+     {
+      "col": "psp-upi-report-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "payment_day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.initiated_ts"
+       }
+      }
+     },
+     {
+      "as": "provider_status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "psp-upi-report-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "covers": "Shows the provider's final UPI statuses for 20 and 21 June, the recorded evidence behind the settlement figures."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "in",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      },
+      "values": [
+       "2026-06-20",
+       "2026-06-21"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      }
+     },
+     {
+      "col": "pos-payments-june.till_status"
+     }
+    ],
+    "select": [
+     {
+      "as": "till_day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "till_status",
+      "expr": {
+       "col": "pos-payments-june.till_status"
+      }
+     },
+     {
+      "as": "attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "covers": "Shows the till's UPI attempt outcomes on those dates so approved, failed and not-known-yet attempts can be compared with the provider report."
+   }
+  ]
+ },
+ "S8N34": {
+  "plans": [
+   {
+    "from": "customer-complaints-june",
+    "joins": [
+     {
+      "table": "upi-refunds-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "customer-complaints-june.bill_id"
+        },
+        {
+         "col": "upi-refunds-june.bill_id"
+        }
+       ],
+       [
+        {
+         "col": "customer-complaints-june.rrn"
+        },
+        {
+         "col": "upi-refunds-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "customer-complaints-june.kind"
+       },
+       {
+        "lit": "charged twice"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "customer-complaints-june.complaint"
+     },
+     {
+      "col": "customer-complaints-june.bill_id"
+     },
+     {
+      "col": "customer-complaints-june.rrn"
+     },
+     {
+      "col": "customer-complaints-june.complaint_ts"
+     },
+     {
+      "col": "customer-complaints-june.resolution"
+     },
+     {
+      "col": "customer-complaints-june.resolved_ts"
+     },
+     {
+      "col": "upi-refunds-june.refund_id"
+     },
+     {
+      "col": "upi-refunds-june.requested_ts"
+     },
+     {
+      "col": "upi-refunds-june.completed_ts"
+     }
+    ],
+    "select": [
+     {
+      "as": "complaint",
+      "expr": {
+       "col": "customer-complaints-june.complaint"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "customer-complaints-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "customer-complaints-june.rrn"
+      }
+     },
+     {
+      "as": "complaint_ts",
+      "expr": {
+       "col": "customer-complaints-june.complaint_ts"
+      }
+     },
+     {
+      "as": "resolution",
+      "expr": {
+       "col": "customer-complaints-june.resolution"
+      }
+     },
+     {
+      "as": "resolved_ts",
+      "expr": {
+       "col": "customer-complaints-june.resolved_ts"
+      }
+     },
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "refund_requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "refund_completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "as": "wait_from_complaint_hours",
+      "expr": {
+       "fn": "hours_between",
+       "args": [
+        {
+         "col": "customer-complaints-june.complaint_ts"
+        },
+        {
+         "col": "upi-refunds-june.completed_ts"
+        }
+       ]
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "complaint_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "For each charged-twice complaint, this gives the recorded refund completion and the wait from complaint to refund; the extra-debit timestamp is not held in this table and is established by the payment plan."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "pos-payments-june.rrn"
+        },
+        {
+         "col": "psp-upi-report-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "provider_successes",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "psp-upi-report-june.rrn"
+       }
+      }
+     },
+     {
+      "as": "approved_till_payments",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-payments-june.attempt"
+       }
+      }
+     },
+     {
+      "as": "first_success_ts",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "psp-upi-report-june.status_ts"
+       }
+      }
+     },
+     {
+      "as": "last_success_ts",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "psp-upi-report-june.status_ts"
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "provider_successes"
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    ],
+    "order_by": [
+     {
+      "by": "bill_id",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "This identifies bills with more than one provider-successful UPI debit and bounds the extra-debit time using the provider's final success timestamps, per the three-witness payment definition."
+   },
+   {
+    "from": "customer-complaints-june",
+    "joins": [
+     {
+      "table": "upi-refunds-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "customer-complaints-june.bill_id"
+        },
+        {
+         "col": "upi-refunds-june.bill_id"
+        }
+       ],
+       [
+        {
+         "col": "customer-complaints-june.rrn"
+        },
+        {
+         "col": "upi-refunds-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "customer-complaints-june.kind"
+       },
+       {
+        "lit": "charged twice"
+       }
+      ]
+     },
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     }
+    ],
+    "group_by": [
+     {
+      "col": "customer-complaints-june.complaint"
+     },
+     {
+      "col": "customer-complaints-june.bill_id"
+     },
+     {
+      "col": "customer-complaints-june.rrn"
+     },
+     {
+      "col": "customer-complaints-june.complaint_ts"
+     },
+     {
+      "col": "customer-complaints-june.resolution"
+     },
+     {
+      "col": "customer-complaints-june.resolved_ts"
+     }
+    ],
+    "select": [
+     {
+      "as": "complaint",
+      "expr": {
+       "col": "customer-complaints-june.complaint"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "customer-complaints-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "customer-complaints-june.rrn"
+      }
+     },
+     {
+      "as": "complaint_ts",
+      "expr": {
+       "col": "customer-complaints-june.complaint_ts"
+      }
+     },
+     {
+      "as": "resolution",
+      "expr": {
+       "col": "customer-complaints-june.resolution"
+      }
+     },
+     {
+      "as": "resolved_ts",
+      "expr": {
+       "col": "customer-complaints-june.resolved_ts"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "complaint_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "covers": "This lists charged-twice complaints with no matching completed refund record, the evidence for those still unrefunded at the end of the June records; a bank-return resolution without a store refund row is shown rather than assumed refunded."
+   }
+  ]
+ },
+ "S8N35": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "upi_attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "technical_declines",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "+",
+        "args": [
+         {
+          "lit": 0
+         },
+         {
+          "lit": 0
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "covers": "Counts June UPI attempts and technical declines at the till, where technical decline means till_status 'failed: no response' (a timeout, not a bank decline)."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "select": [
+     {
+      "as": "provider_transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "provider_failed",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "failed"
+       }
+      ]
+     }
+    ],
+    "covers": "Checks the provider's final UPI statuses for June as the deciding witness on failures, since a till timeout means not known yet."
+   }
+  ]
+ },
+ "S8N36": {
+  "plans": [
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ],
+       [
+        {
+         "col": "pos-payments-june.till_status"
+        },
+        {
+         "lit": "approved"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "pos-payments-june.rrn"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "psp-upi-report-june.rrn"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "psp-upi-report-june.bill_ref"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "psp-upi-report-june.amount_inr"
+      }
+     },
+     {
+      "as": "debit_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     }
+    ],
+    "covers": "Provider-success UPI debits with no approved till payment are extra debits (Rule 10), so these RRNs are refund candidates without waiting for a complaint."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ],
+       [
+        {
+         "col": "pos-payments-june.till_status"
+        },
+        {
+         "lit": "approved"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "upi-refunds-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "upi-refunds-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "pos-payments-june.rrn"
+      }
+     },
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "upi-refunds-june.rrn"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "psp-upi-report-june.rrn"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "psp-upi-report-june.bill_ref"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "psp-upi-report-june.amount_inr"
+      }
+     },
+     {
+      "as": "debit_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     }
+    ],
+    "covers": "Narrows the extra-debit candidates to RRNs with no recorded UPI refund yet, i.e. the customers the store should refund now."
+   }
+  ]
+ },
+ "S8N37": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "daily-sales-june.date"
+       },
+       {
+        "lit": "2026-06-20T00:00"
+       },
+       {
+        "lit": "2026-06-23T23:59"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "daily-sales-june.date"
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "col": "daily-sales-june.units_sold"
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "col": "daily-sales-june.revenue_inr"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 20,
+    "covers": "Checks the premise that 5 kg atta stopped selling, using recorded daily sales for the days around Tuesday 23 June 2026; sales are till lines/daily sales, not demand."
+   },
+   {
+    "from": "pos-lines-may-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-lines-may-june.sku_scanned"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "pos-lines-may-june.bill_ts"
+       },
+       {
+        "lit": "2026-06-23T00:00"
+       },
+       {
+        "lit": "2026-06-23T20:00"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_ts",
+      "expr": {
+       "col": "pos-lines-may-june.bill_ts"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-lines-may-june.bill_id"
+      }
+     },
+     {
+      "as": "line",
+      "expr": {
+       "col": "pos-lines-may-june.line"
+      }
+     },
+     {
+      "as": "qty",
+      "expr": {
+       "col": "pos-lines-may-june.qty"
+      }
+     },
+     {
+      "as": "line_amount",
+      "expr": {
+       "col": "pos-lines-may-june.line_amount"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "bill_ts",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Shows every recorded 5 kg atta till line on 23 June up to the stated 20:00 cutoff, so the claimed evening stop can be checked against actual sale timestamps."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "shelf-audits-june.audit_ts"
+       },
+       {
+        "lit": "2026-06-16T00:00"
+       },
+       {
+        "lit": "2026-06-23T20:00"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_ts",
+      "expr": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "audit_ts",
+      "dir": "desc"
+     }
+    ],
+    "limit": 20,
+    "covers": "Provides the available shelf evidence for 5 kg atta before 20:00 on 23 June; availability means the 11:00 audit status, while an empty shelf itself is not otherwise recorded."
+   },
+   {
+    "from": "goods-receipts-june",
+    "joins": [
+     {
+      "table": "shipping-notice-lines-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "goods-receipts-june.shipment_id"
+        },
+        {
+         "col": "shipping-notice-lines-june.shipment_id"
+        }
+       ],
+       [
+        {
+         "col": "goods-receipts-june.sscc"
+        },
+        {
+         "col": "shipping-notice-lines-june.sscc"
+        }
+       ],
+       [
+        {
+         "col": "goods-receipts-june.line"
+        },
+        {
+         "col": "shipping-notice-lines-june.line"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "shipments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "goods-receipts-june.shipment_id"
+        },
+        {
+         "col": "shipments-june.shipment_id"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "pallets-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "goods-receipts-june.shipment_id"
+        },
+        {
+         "col": "pallets-june.shipment_id"
+        }
+       ],
+       [
+        {
+         "col": "goods-receipts-june.sscc"
+        },
+        {
+         "col": "pallets-june.sscc"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "or",
+      "args": [
+       {
+        "op": "=",
+        "args": [
+         {
+          "col": "goods-receipts-june.sku_booked"
+         },
+         {
+          "lit": "ATTA-WW-5KG"
+         }
+        ]
+       },
+       {
+        "op": "=",
+        "args": [
+         {
+          "col": "goods-receipts-june.asn_sku"
+         },
+         {
+          "lit": "ATTA-WW-5KG"
+         }
+        ]
+       },
+       {
+        "op": "=",
+        "args": [
+         {
+          "col": "shipping-notice-lines-june.sku"
+         },
+         {
+          "lit": "ATTA-WW-5KG"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "goods-receipts-june.received_ts"
+       },
+       {
+        "lit": "2026-06-16T00:00"
+       },
+       {
+        "lit": "2026-06-23T20:00"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "shipment_id",
+      "expr": {
+       "col": "goods-receipts-june.shipment_id"
+      }
+     },
+     {
+      "as": "receipt_line",
+      "expr": {
+       "col": "goods-receipts-june.line"
+      }
+     },
+     {
+      "as": "grn_id",
+      "expr": {
+       "col": "goods-receipts-june.grn_id"
+      }
+     },
+     {
+      "as": "sscc",
+      "expr": {
+       "col": "goods-receipts-june.sscc"
+      }
+     },
+     {
+      "as": "received_ts",
+      "expr": {
+       "col": "goods-receipts-june.received_ts"
+      }
+     },
+     {
+      "as": "receipt_method",
+      "expr": {
+       "col": "goods-receipts-june.receipt_method"
+      }
+     },
+     {
+      "as": "asn_sku",
+      "expr": {
+       "col": "goods-receipts-june.asn_sku"
+      }
+     },
+     {
+      "as": "asn_units",
+      "expr": {
+       "col": "goods-receipts-june.asn_units"
+      }
+     },
+     {
+      "as": "sku_booked",
+      "expr": {
+       "col": "goods-receipts-june.sku_booked"
+      }
+     },
+     {
+      "as": "units_booked",
+      "expr": {
+       "col": "goods-receipts-june.units_booked"
+      }
+     },
+     {
+      "as": "notice_sku",
+      "expr": {
+       "col": "shipping-notice-lines-june.sku"
+      }
+     },
+     {
+      "as": "notice_gtin",
+      "expr": {
+       "col": "shipping-notice-lines-june.gtin"
+      }
+     },
+     {
+      "as": "notice_cases",
+      "expr": {
+       "col": "shipping-notice-lines-june.cases"
+      }
+     },
+     {
+      "as": "notice_units",
+      "expr": {
+       "col": "shipping-notice-lines-june.units"
+      }
+     },
+     {
+      "as": "dispatched_ts",
+      "expr": {
+       "col": "shipments-june.dispatched_ts"
+      }
+     },
+     {
+      "as": "arrived_ts",
+      "expr": {
+       "col": "shipments-june.arrived_ts"
+      }
+     },
+     {
+      "as": "slot_start",
+      "expr": {
+       "col": "shipments-june.slot_start"
+      }
+     },
+     {
+      "as": "slot_end",
+      "expr": {
+       "col": "shipments-june.slot_end"
+      }
+     },
+     {
+      "as": "pallet_cases",
+      "expr": {
+       "col": "pallets-june.cases"
+      }
+     },
+     {
+      "as": "notice_kg",
+      "expr": {
+       "col": "pallets-june.notice_kg"
+      }
+     },
+     {
+      "as": "weight_check",
+      "expr": {
+       "col": "pallets-june.weight_check"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "received_ts",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Identifies recent shipments and receipt lines involving 5 kg atta and compares the shipping notice with what was actually booked at the door, including pallet evidence; this supplies delivery evidence but cannot establish the unrecorded cause of the sales stop."
+   }
+  ]
+ },
+ "S8N38": {
+  "cannot": "The question asks for a meta-analysis of all 12 joins between tables to classify them as copies or observations, but the schema provides no table or column that records join relationships, agreement rates, or whether a record copies another record; computing 100% agreement across every join would require comparing arbitrary columns across tables, which the plan form cannot express, and the premise of exactly 12 joins is not verifiable from the listed schema."
+ },
+ "S9N01": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "daily-sales-june.date"
+       },
+       {
+        "lit": "2026-06-01T00:00"
+       },
+       {
+        "lit": "2026-06-14T23:59"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 14,
+    "covers": "Checks the stated 59% drop in 5 kg atta sales by comparing daily till sales for 1-7 June with 8-14 June; sales are till lines/daily sales, not demand."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "inventory-book-june.date"
+       },
+       {
+        "lit": "2026-06-08T00:00"
+       },
+       {
+        "lit": "2026-06-14T23:59"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "inventory-book-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "inventory-book-june.date"
+       }
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "inventory-book-june.book_on_hand_close"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 7,
+    "covers": "Checks the premise that 5 kg atta book stock was on hand throughout 8-14 June; book stock is a belief, not shelf availability."
+   },
+   {
+    "from": "shelf-audits-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "shelf-audits-june.sku"
+      },
+      "values": [
+       "ATTA-WW-5KG",
+       "ATTA-WW-1KG"
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "shelf-audits-june.audit_ts"
+       },
+       {
+        "lit": "2026-06-08T00:00"
+       },
+       {
+        "lit": "2026-06-14T23:59"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "shelf-audits-june.sku"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "shelf-audits-june.sku"
+      }
+     },
+     {
+      "as": "audits",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "on_shelf_audits",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "shelf-audits-june.status"
+         },
+         {
+          "lit": "on shelf"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "limit": 2,
+    "covers": "Provides the recorded 11:00 shelf-audit evidence for both atta packs in the week of 8 June; availability is the share of audits on shelf, and audits are not hours off shelf."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "daily-sales-june.sku"
+      },
+      "values": [
+       "ATTA-WW-5KG",
+       "ATTA-WW-1KG"
+      ]
+     },
+     {
+      "op": "between",
+      "args": [
+       {
+        "col": "daily-sales-june.date"
+       },
+       {
+        "lit": "2026-06-08T00:00"
+       },
+       {
+        "lit": "2026-06-14T23:59"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "daily-sales-june.sku"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "daily-sales-june.sku"
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     }
+    ],
+    "limit": 2,
+    "covers": "Compares recorded 5 kg and 1 kg atta sales in the week of 8 June as evidence only; no record holds demand, shelf-space allocation, or the cause of the drop, so it cannot determine how much space to reallocate."
+   }
+  ]
+ },
+ "S9N02": {
+  "cannot": "No table records shoppers who walked out without buying: there is no customer identity, no record of a shopper who did not buy, and demand (including unmet demand for ATTA-WW-5KG) is not recorded. Shelf audits are only 11:00 snapshots and bills are not shoppers, so the exact number of walkouts in June 2026 cannot be counted from these records."
+ },
+ "S9N03": {
+  "cannot": "The records cover June 2026, not June 2023, so no data exists for that period."
+ },
+ "S9N04": {
+  "raw": "{\"plans\": [{\"from\": \"forecasts-june\", \"joins\": [{\"table\": \"daily-sales-june\", \"type\": \"left\", \"on\": [[{\"col\": \"forecasts-june.sku\"}, {\"col\": \"daily-sales-june.sku\"}], [{\"fn\": \"day\", \"arg\": {\"col\": \"forecasts-june.date\"}}, {\"fn\": \"day\", \"arg\": {\"col\": \"daily-sales-june.date\"}}]]}], \"where\": [{\"op\": \"",
+  "error": "unparsable"
+ },
+ "S9N05": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "daily-sales-june.date"
+        }
+       },
+       {
+        "lit": "2026-06-11"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "units_sold",
+      "expr": {
+       "col": "daily-sales-june.units_sold"
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "col": "daily-sales-june.revenue_inr"
+      }
+     }
+    ],
+    "covers": "Checks the premise of zero sales on 11 June using recorded daily sales for 5 kg atta; sales are till lines/daily sales, not demand."
+   },
+   {
+    "from": "pos-lines-may-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-lines-may-june.sku_scanned"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "pos-lines-may-june.bill_ts"
+        }
+       },
+       {
+        "lit": "2026-06-11"
+       }
+      ]
+     },
+     {
+      "op": ">=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "pos-lines-may-june.bill_ts"
+        }
+       },
+       {
+        "lit": 12
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "afternoon_lines",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "afternoon_units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-lines-may-june.qty"
+       }
+      }
+     },
+     {
+      "as": "afternoon_revenue_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-lines-may-june.line_amount"
+       }
+      }
+     }
+    ],
+    "covers": "Checks recorded till lines for 5 kg atta specifically on the afternoon of 2026-06-11."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "shelf-audits-june.audit_ts"
+        }
+       },
+       {
+        "lit": "2026-06-11"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_ts",
+      "expr": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "covers": "Shows the nearest recorded shelf observation; on-shelf availability is the 11:00 audit status, not book stock."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "inventory-book-june.date"
+        }
+       },
+       {
+        "lit": "2026-06-11"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "covers": "Shows the recorded closing book stock behind the supply premise; book stock is a belief, not proof of shelf availability or a cause."
+   }
+  ]
+ },
+ "S9N06": {
+  "cannot": "No table identifies a cashier or shoplifter, and no table records the cause of a stock discrepancy; the records can only show the toned-milk count and its adjustment, not who caused it or why."
+ },
+ "S9N07": {
+  "cannot": "The records hold no shopper identity, no demand, and no record of a shopper who left without buying, so extra shoppers leaving cannot be counted; the stated margin figures and the 5% order cut are premises with no recorded cause or margin table to check them against, and a forecast or order change cannot be scored against demand, only against recorded sales."
+ },
+ "S9N08": {
+  "cannot": "No table identifies a person, so who took the bags cannot be answered; the premise is also uncheckable as stated because no date, product or quantity is recorded for a 22 June atta delivery, and no record holds a cause or a theft."
+ },
+ "S9N09": {
+  "plans": [
+   {
+    "from": "dc-stock-adjustments-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "dc-stock-adjustments-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "dc-stock-adjustments-june.sku"
+      },
+      "values": [
+       "ATTA-WW-10KG",
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "dc-stock-adjustments-june.sku"
+     },
+     {
+      "col": "products.name"
+     },
+     {
+      "col": "dc-stock-adjustments-june.slot"
+     },
+     {
+      "col": "dc-stock-adjustments-june.reason"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "dc-stock-adjustments-june.sku"
+      }
+     },
+     {
+      "as": "product",
+      "expr": {
+       "col": "products.name"
+      }
+     },
+     {
+      "as": "slot",
+      "expr": {
+       "col": "dc-stock-adjustments-june.slot"
+      }
+     },
+     {
+      "as": "reason",
+      "expr": {
+       "col": "dc-stock-adjustments-june.reason"
+      }
+     },
+     {
+      "as": "corrections",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.units"
+       }
+      }
+     },
+     {
+      "as": "net_value_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.value_at_cost_inr"
+       }
+      }
+     },
+     {
+      "as": "gross_value_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "fn": "abs",
+        "arg": {
+         "col": "dc-stock-adjustments-june.value_at_cost_inr"
+        }
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "gross_value_inr",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "June atta warehouse corrections by product, slot and reason, showing net and gross value; mirror-image corrections on lookalike items or neighboring slots are one event, so a small net can hide large opposite errors."
+   },
+   {
+    "from": "stock-counts-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "stock-counts-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "stock-counts-june.sku"
+      },
+      "values": [
+       "ATTA-WW-10KG",
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG"
+      ]
+     },
+     {
+      "op": ">=",
+      "args": [
+       {
+        "col": "stock-counts-june.count_ts"
+       },
+       {
+        "lit": "2026-06-01T00:00"
+       }
+      ]
+     },
+     {
+      "op": "<",
+      "args": [
+       {
+        "col": "stock-counts-june.count_ts"
+       },
+       {
+        "lit": "2026-07-01T00:00"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "stock-counts-june.sku"
+     },
+     {
+      "col": "products.name"
+     },
+     {
+      "col": "stock-counts-june.trigger"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "stock-counts-june.sku"
+      }
+     },
+     {
+      "as": "product",
+      "expr": {
+       "col": "products.name"
+      }
+     },
+     {
+      "as": "trigger",
+      "expr": {
+       "col": "stock-counts-june.trigger"
+      }
+     },
+     {
+      "as": "counts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "net_adjustment_packs",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "stock-counts-june.adjustment"
+       }
+      }
+     },
+     {
+      "as": "gross_adjustment_packs",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "fn": "abs",
+        "arg": {
+         "col": "stock-counts-june.adjustment"
+        }
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "gross_adjustment_packs",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "June atta store count adjustments by product and trigger, separating store count adjustments from warehouse corrections and showing the gross movement behind any small net."
+   },
+   {
+    "from": "dc-stock-adjustments-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "dc-stock-adjustments-june.sku"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "dc-stock-adjustments-june.sku"
+      },
+      "values": [
+       "ATTA-WW-10KG",
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG"
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "first_adjustment",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "dc-stock-adjustments-june.adjusted_ts"
+       }
+      }
+     },
+     {
+      "as": "last_adjustment",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "dc-stock-adjustments-june.adjusted_ts"
+       }
+      }
+     },
+     {
+      "as": "skus_affected",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "dc-stock-adjustments-june.sku"
+       }
+      }
+     },
+     {
+      "as": "slots_affected",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "dc-stock-adjustments-june.slot"
+       }
+      }
+     },
+     {
+      "as": "net_value_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.value_at_cost_inr"
+       }
+      }
+     },
+     {
+      "as": "gross_value_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "fn": "abs",
+        "arg": {
+         "col": "dc-stock-adjustments-june.value_at_cost_inr"
+        }
+       }
+      }
+     }
+    ],
+    "limit": 1,
+    "covers": "Checks the ₹80 premise for June atta warehouse corrections only, since the records cover Store 014 and its warehouse rather than the whole company, and contrasts net value with gross value."
+   }
+  ]
+ },
+ "S9N10": {
+  "cannot": "No dispatch weight check is recorded: pallets-june has only weight_check = 'not weighed' and notice_kg (the label weight), and no table holds an actual weighed weight or a pass/fail result, so no pallet can be said to have failed."
+ },
+ "S9N11": {
+  "cannot": "The records hold no OTIF scorecard and no counterfactual: pallets-june shows every pallet 'not weighed' and goods-receipts are booked by pallet-label scan, but nothing records what weighing at dispatch or case scanning at the store would find, so no improvement can be computed. What the records can show is the current evidence such a scorecard would rest on: per shipment, arrived_ts against slot_start/slot_end (on time), dc-pick-confirmations cases_confirmed against cases_ordered (in full), and goods-receipts units_booked against shipping-notice units (what the door scan actually booked)."
+ },
+ "S9N12": {
+  "plans": [
+   {
+    "from": "shipments-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "shipments-june.arrived_ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-28T23:59"
+     }
+    ],
+    "select": [
+     {
+      "as": "deliveries",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "on_time_deliveries",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": ">=",
+        "args": [
+         {
+          "col": "shipments-june.arrived_ts"
+         },
+         {
+          "col": "shipments-june.slot_start"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "covers": "Checks the on-time part of OTIF per delivery in June: arrived_ts between slot_start and slot_end."
+   },
+   {
+    "from": "shipping-notice-lines-june",
+    "joins": [
+     {
+      "table": "store-orders-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "shipping-notice-lines-june.order_id"
+        },
+        {
+         "col": "store-orders-june.order_id"
+        }
+       ],
+       [
+        {
+         "col": "shipping-notice-lines-june.sku"
+        },
+        {
+         "col": "store-orders-june.sku"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "shipments-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "shipping-notice-lines-june.shipment_id"
+        },
+        {
+         "col": "shipments-june.shipment_id"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "shipments-june.arrived_ts"
+      },
+      "low": "2026-06-01T00:00",
+      "high": "2026-06-28T23:59"
+     }
+    ],
+    "select": [
+     {
+      "as": "ordered_cases",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "store-orders-june.cases"
+       }
+      }
+     },
+     {
+      "as": "notice_cases",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "shipping-notice-lines-june.cases"
+       }
+      }
+     }
+    ],
+    "covers": "Checks the in-full part per case in June: shipping-notice cases against order cases, so OTIF can be computed per delivery and stated with that definition."
+   }
+  ]
+ },
+ "S9N13": {
+  "raw": "{\"plans\":[{\"from\":\"pos-payments-june\",\"where\":[{\"op\":\"=\",\"args\":[{\"col\":\"pos-payments-june.tender\"},{\"lit\":\"UPI\"}]},{\"op\":\"=\",\"args\":[{\"col\":\"pos-payments-june.till_status\"},{\"lit\":\"approved\"}]}],\"group_by\":[],\"select\":[{\"as\":\"approved_upi_payments\",\"expr\":{\"agg\":\"count\",\"arg\":\"*\"}},{\"as\":\"bills_wit",
+  "error": "unparsable"
+ },
+ "S9N14": {
+  "cannot": "A UPI timeout ('failed: no response') has no RRN, so pos-payments-june cannot be joined to psp-upi-report-june on rrn for those attempts; the 48 count is also a premise the records must check, not a fact to assume."
+ },
+ "S9N15": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "technical_declines",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "+",
+        "args": [
+         {
+          "lit": 0
+         },
+         {
+          "lit": 0
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "covers": "Checks the stated 0.76% UPI technical decline rate against June till attempts rather than accepting the premise."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "timeouts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "timeouts",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Finds June UPI timeout incidents, which are reliability failures even when the overall decline rate is below 1%."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "failed"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.status_ts"
+       }
+      }
+     },
+     {
+      "as": "provider_failures",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "provider_failures",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Uses the provider's final UPI status to identify failed transactions by day in June."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "!=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "psp-upi-report-june.rrn"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "psp-upi-report-june.bill_ref"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "psp-upi-report-june.amount_inr"
+      }
+     },
+     {
+      "as": "provider_status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     },
+     {
+      "as": "till_status",
+      "expr": {
+       "col": "pos-payments-june.till_status"
+      }
+     }
+    ],
+    "limit": 200,
+    "covers": "Identifies provider successes without an approved till payment, the records' definition of an extra UPI debit and a reliability incident."
+   }
+  ]
+ },
+ "S9N16": {
+  "plans": [
+   {
+    "from": "upi-settlements-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      },
+      "low": "2026-06-20",
+      "high": "2026-06-21"
+     }
+    ],
+    "select": [
+     {
+      "as": "settlement_day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      }
+     },
+     {
+      "as": "upi_credits",
+      "expr": {
+       "col": "upi-settlements-june.upi_credits"
+      }
+     },
+     {
+      "as": "gross_inr",
+      "expr": {
+       "col": "upi-settlements-june.gross_inr"
+      }
+     },
+     {
+      "as": "refunds_inr",
+      "expr": {
+       "col": "upi-settlements-june.refunds_inr"
+      }
+     },
+     {
+      "as": "mdr_inr",
+      "expr": {
+       "col": "upi-settlements-june.mdr_inr"
+      }
+     },
+     {
+      "as": "net_inr",
+      "expr": {
+       "col": "upi-settlements-june.net_inr"
+      }
+     }
+    ],
+    "covers": "Checks the stated 17 UPI credits on 20–21 June and shows the recorded settlement amounts; the records do not identify a suspense balance or a revenue-recognition date."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.initiated_ts"
+       }
+      },
+      "low": "2026-06-20",
+      "high": "2026-06-21"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "provider_status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "psp-upi-report-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "covers": "Shows the provider's final UPI statuses for 20–21 June as evidence around the credits, without treating them as proof of a cause."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.initiated_ts"
+       }
+      },
+      "low": "2026-06-20",
+      "high": "2026-06-21"
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.rrn"
+     },
+     {
+      "col": "psp-upi-report-june.bill_ref"
+     },
+     {
+      "col": "psp-upi-report-june.amount_inr"
+     },
+     {
+      "col": "psp-upi-report-june.status_ts"
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "psp-upi-report-june.rrn"
+      }
+     },
+     {
+      "as": "bill_ref",
+      "expr": {
+       "col": "psp-upi-report-june.bill_ref"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "psp-upi-report-june.amount_inr"
+      }
+     },
+     {
+      "as": "status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     },
+     {
+      "as": "till_attempts",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "pos-payments-june.attempt"
+       }
+      }
+     },
+     {
+      "as": "approved_till_attempts",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "*",
+        "args": [
+         {
+          "lit": 0
+         },
+         {
+          "col": "pos-payments-june.amount_inr"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "pos-payments-june.rrn"
+      }
+     }
+    ],
+    "limit": 200,
+    "covers": "Lists provider successes on 20–21 June with no till payment sharing the RRN, the recorded stand-in for unmatched debits rather than established unclaimed revenue."
+   }
+  ]
+ },
+ "S9N17": {
+  "plans": [
+   {
+    "from": "upi-refunds-june",
+    "where": [
+     {
+      "op": ">=",
+      "args": [
+       {
+        "col": "upi-refunds-june.requested_ts"
+       },
+       {
+        "lit": "2026-06-01T00:00"
+       }
+      ]
+     },
+     {
+      "op": "<",
+      "args": [
+       {
+        "col": "upi-refunds-june.requested_ts"
+       },
+       {
+        "lit": "2026-07-01T00:00"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "upi-refunds-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "upi-refunds-june.rrn"
+      }
+     },
+     {
+      "as": "requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "as": "turnaround_days",
+      "expr": {
+       "fn": "days_between",
+       "args": [
+        {
+         "col": "upi-refunds-june.requested_ts"
+        },
+        {
+         "col": "upi-refunds-june.completed_ts"
+        }
+       ]
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "turnaround_days",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Checks every June refund's request-to-completion turnaround against the 5-day limit and exposes the waits behind the claimed 3-day median; the refund clock here starts at the refund request because the extra debit timestamp is not held in this table."
+   },
+   {
+    "from": "upi-refunds-june",
+    "joins": [
+     {
+      "table": "customer-complaints-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "upi-refunds-june.rrn"
+        },
+        {
+         "col": "customer-complaints-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": ">=",
+      "args": [
+       {
+        "col": "upi-refunds-june.requested_ts"
+       },
+       {
+        "lit": "2026-06-01T00:00"
+       }
+      ]
+     },
+     {
+      "op": "<",
+      "args": [
+       {
+        "col": "upi-refunds-june.requested_ts"
+       },
+       {
+        "lit": "2026-07-01T00:00"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "upi-refunds-june.rrn"
+      }
+     },
+     {
+      "as": "complaint_ts",
+      "expr": {
+       "col": "customer-complaints-june.complaint_ts"
+      }
+     },
+     {
+      "as": "requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "as": "days_complaint_to_completion",
+      "expr": {
+       "fn": "days_between",
+       "args": [
+        {
+         "col": "customer-complaints-june.complaint_ts"
+        },
+        {
+         "col": "upi-refunds-june.completed_ts"
+        }
+       ]
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "days_complaint_to_completion",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "covers": "Uses the complaint timestamp as the nearest recorded start of the debit/refund clock to test the 5-day turnaround under Rule 11, since the original extra debit time is not directly recorded."
+   }
+  ]
+ }
+}
