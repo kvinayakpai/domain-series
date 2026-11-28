@@ -54,7 +54,12 @@ def planner_db():
 
 
 class PlanError(Exception):
-    pass
+    """layer 'ontology' by default; SchemaError is layer 'schema': the plan names a table, column or form that does not exist."""
+    layer = "ontology"
+
+
+class SchemaError(PlanError):
+    layer = "schema"
 
 
 def ps(info):
@@ -108,27 +113,27 @@ class Ctx:
 
     def need_table(self, name):
         if name not in self.o.tables:
-            raise PlanError(f"table '{name}' is not defined")
+            raise SchemaError(f"table '{name}' is not defined")
         if name in self.tables:
-            raise PlanError(f"table '{name}' appears twice (a self-join is not allowed)")
+            raise SchemaError(f"table '{name}' appears twice (a self-join is not allowed)")
 
 
 def col_of(ctx, ref):
     if not isinstance(ref, str) or ref.count(".") != 1:
-        raise PlanError(f"column reference '{ref}' must be table.column")
+        raise SchemaError(f"column reference '{ref}' must be table.column")
     t, c = ref.split(".")
     if t not in ctx.tables:
-        raise PlanError(f"table '{t}' is not in this plan's from or joins")
+        raise SchemaError(f"table '{t}' is not in this plan's from or joins")
     cols = ctx.o.tables[t]["cols"]
     if c not in cols:
-        raise PlanError(f"column '{c}' is not in table '{t}'")
+        raise SchemaError(f"column '{c}' is not in table '{t}'")
     return t, c, cols[c]
 
 
 def node(ctx, n, allow_agg=False, allow_ref=False, refs=None):
     """Return (sql, type, info) where type is number|time|id|code|text|bool and info carries the column for literal checks."""
     if not isinstance(n, dict):
-        raise PlanError("a node must be an object")
+        raise SchemaError("a node must be an object")
     keys = set(n)
     if keys == {"col"}:
         t, c, meta = col_of(ctx, n["col"])
@@ -154,7 +159,7 @@ def node(ctx, n, allow_agg=False, allow_ref=False, refs=None):
         if fn in ("abs", "round"):
             if ty != "number": raise PlanError(f"{fn}() needs a number")
             return f"{fn}({s})", "number", {"params": ps(info)}
-        raise PlanError(f"function '{fn}' is not defined")
+        raise SchemaError(f"function '{fn}' is not defined")
     if keys == {"fn", "args"} and n["fn"] in ("days_between", "hours_between") and isinstance(n["args"], list) and len(n["args"]) == 2:
         a, ta, ia = node(ctx, n["args"][0], allow_agg, allow_ref, refs); b, tb, ib = node(ctx, n["args"][1], allow_agg, allow_ref, refs)
         if ta != "time" or tb != "time": raise PlanError(f"{n['fn']} needs two time columns")
@@ -171,7 +176,7 @@ def node(ctx, n, allow_agg=False, allow_ref=False, refs=None):
         if not allow_agg: raise PlanError("an aggregate is not allowed here")
         ag = n["agg"]
         if ag not in ("count", "count_distinct", "sum", "avg", "min", "max"):
-            raise PlanError(f"aggregate '{ag}' is not defined")
+            raise SchemaError(f"aggregate '{ag}' is not defined")
         if n["arg"] == "*":
             if ag != "count": raise PlanError("only count can take *")
             return "count(*)", "number", {}
@@ -184,7 +189,7 @@ def node(ctx, n, allow_agg=False, allow_ref=False, refs=None):
             raise PlanError(f"{ag} needs a number or time column")
         sql = f"count(distinct {s})" if ag == "count_distinct" else f"{ag}({s})"
         return sql, "number" if ag != "min" and ag != "max" else ty, {"params": ps(info)}
-    raise PlanError(f"node {json.dumps(n)[:80]} is not in the plan form")
+    raise SchemaError(f"node {json.dumps(n)[:80]} is not in the plan form")
 
 
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?)?$")
@@ -253,7 +258,7 @@ def cond(ctx, c, having=False, refs=None):
         if set(c) != {"op", "arg"}: raise PlanError(f"'{op}' needs arg")
         a, ta, ia = node(ctx, c["arg"], **ar)
         return f"({a} is {'' if op == 'is_null' else 'not '}null)"
-    raise PlanError(f"condition op '{op}' is not defined")
+    raise SchemaError(f"condition op '{op}' is not defined")
 
 
 def expand_params(ctx, parts):
@@ -262,10 +267,10 @@ def expand_params(ctx, parts):
 
 def compile_plan(plan):
     """Return (sql, params, description). Raises PlanError for anything not defined."""
-    if not isinstance(plan, dict): raise PlanError("the plan is not an object")
+    if not isinstance(plan, dict): raise SchemaError("the plan is not an object")
     allowed = {"from", "joins", "where", "group_by", "select", "having", "order_by", "limit"}
     extra = set(plan) - allowed
-    if extra: raise PlanError(f"plan keys not defined: {sorted(extra)}")
+    if extra: raise SchemaError(f"plan keys not defined: {sorted(extra)}")
     ctx = Ctx(plan)
     seen_params = []
     # joins
@@ -401,30 +406,35 @@ def describe(plan):
 def run_plan(question, plan):
     """Check and run a plan. Returns a result dict like the resolver's."""
     if isinstance(plan, dict) and set(plan) == {"cannot"}:
-        return dict(decision="no_record", layers=["plan"], message="I can't answer this from Store 014's records: no valid query plan exists for it.", trace=[], model_reason=str(plan["cannot"])[:200])
+        return dict(decision="no_record", layers=["schema"], failed_layer="schema", message="I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).", trace=[], model_reason=str(plan["cannot"])[:200])
     try:
         sql, params, ctx = compile_plan(plan)
         date_check(question, ctx.dates, ctx.tables)
     except PlanError as e:
-        return dict(decision="no_record", layers=["plan"], message=f"I can't answer this from Store 014's records: the plan was refused ({e}).", trace=[])
+        return dict(decision="no_record", layers=[e.layer], failed_layer=e.layer, message=f"I can't answer this from Store 014's records: the {e.layer} layer refused the plan ({e}).", trace=[])
     cur = planner_db().execute(sql, params)
     cols = [d[0] for d in cur.description]; rows = cur.fetchall()
-    return dict(decision="answer", layers=["schema", "ontology", "plan"], columns=cols, rows=[list(r) for r in rows[:50]], row_count=len(rows),
+    return dict(decision="answer", layers=["schema", "ontology"], columns=cols, rows=[list(r) for r in rows[:50]], row_count=len(rows),
                 sql=sql, params=params, plan_in_words=describe(plan), message=("No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'." if not rows else f"{len(rows)} row(s)."), value=(rows[0][0] if len(rows) == 1 and len(cols) == 1 else None), trace=[])
 
 
-def answer_by_plan(question, planner):
-    """Registry first (final for 'not recorded' concepts), then the model's plan, checked and run by code."""
+def registry_veto(question, r):
+    """Layer 3, last: the knowledge layer. What the schema and ontology allowed is still refused when the registry says no record holds it."""
     hard, proxy = R.registry_layer(question)
     if hard:
-        return dict(decision="no_record", layers=["registry"], message="I can't answer this from Store 014's records: " + "; ".join(hard), trace=[])
+        return dict(decision="no_record", layers=["registry"], failed_layer="registry", message="I can't answer this from Store 014's records: the knowledge layer says " + "; ".join(hard), trace=[])
+    if proxy:
+        r = {**r, "proxy_notes": proxy, "layers": r["layers"] + ["registry (stand-in noted)"]}
+    return r
+
+
+def answer_by_plan(question, planner):
+    """One planner: layer 1 schema, layer 2 ontology, layer 3 registry."""
     plan = planner(question)
     if plan is None:
-        return dict(decision="no_record", layers=["plan"], message="I can't answer this from Store 014's records: no usable plan was returned.", trace=[])
+        return dict(decision="no_record", layers=["schema"], failed_layer="schema", message="I can't answer this from Store 014's records: no usable plan was returned.", trace=[])
     r = run_plan(question, plan)
-    if proxy and r["decision"] == "answer":
-        r["proxy_notes"] = proxy
-    return r
+    return registry_veto(question, r) if r["decision"] == "answer" else r
 
 
 def _vals(row):
@@ -445,13 +455,17 @@ def agree(a, b):
 
 
 def answer_by_plans(question, planners):
-    """Two or more independent planners. The answer is given only when every planner's plan passes the checks and the results agree."""
-    results = [answer_by_plan(question, p) for p in planners]
-    if any(r["layers"] == ["registry"] for r in results):
-        return next(r for r in results if r["layers"] == ["registry"])
+    """Two or more independent planners. Each plan goes through the schema layer, then the ontology layer; the results must agree; the registry has the last word."""
+    results = [run_plan(question, p) if (p := pl(question)) is not None and not isinstance(p, type(None)) else dict(decision="no_record", layers=["schema"], failed_layer="schema", message="no usable plan", trace=[]) for pl in planners]
     answered = [r for r in results if r["decision"] == "answer"]
     if len(answered) == len(results) and all(agree(answered[0], r) for r in answered[1:]):
         best = max(answered, key=lambda r: len(r["columns"]))
-        return {**best, "planners_agreeing": len(answered)}
-    why = "no plan was accepted" if not answered else ("only %d of %d plans were accepted" % (len(answered), len(results)) if len(answered) < len(results) else "the plans gave different results")
-    return dict(decision="no_record", layers=["plan"], message=f"I can't answer this from Store 014's records with confidence: {why}.", trace=[], answered=len(answered), planners=len(results))
+        return registry_veto(question, {**best, "planners_agreeing": len(answered)})
+    hard, _ = R.registry_layer(question)
+    if hard:   # whatever the planners did, the knowledge layer says no record holds it: say that, it is the real reason
+        return dict(decision="no_record", layers=["registry"], failed_layer="registry", message="I can't answer this from Store 014's records: the knowledge layer says " + "; ".join(hard), trace=[])
+    if not answered:
+        first = results[0]; layer = first.get("failed_layer", "schema")
+        return dict(decision="no_record", layers=[layer], failed_layer=layer, message=first["message"], trace=[], planners=len(results))
+    why = f"only {len(answered)} of {len(results)} plans passed the schema and ontology layers" if len(answered) < len(results) else "the plans gave different results"
+    return dict(decision="no_record", layers=["ontology"], failed_layer="agreement", message=f"I can't answer this from Store 014's records with confidence: {why}.", trace=[], answered=len(answered), planners=len(results))

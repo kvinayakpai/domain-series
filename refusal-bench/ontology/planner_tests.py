@@ -45,7 +45,6 @@ check("model says cannot", q, {"cannot": "no table holds this"}, False, why="no 
 check("add rupees to units", q, {"from": "daily-sales-june", "select": [{"as": "x", "expr": {"agg": "sum", "arg": {"op": "+", "args": [C("daily-sales-june", "units_sold"), C("daily-sales-june", "revenue_inr")]}}}]}, True)  # arithmetic on numbers is allowed; unit mixing is caught only in comparisons
 check("compare rupees with units", q, {**b, "where": [{"op": ">", "args": [C("daily-sales-june", "revenue_inr"), C("daily-sales-june", "units_sold")]}]}, False, why="cannot compare")
 check("select a bare literal", q, {"from": "daily-sales-june", "select": [{"as": "x", "expr": L(5)}]}, False, why="bare literal")
-check("registry stays final", "Why did 5 kg atta sales fall in the week of 8 June?", None, False)
-r = P.answer_by_plan("Why did 5 kg atta sales fall in the week of 8 June?", lambda q: b)
-ok = r["decision"] == "no_record" and "registry" in r["layers"]; print(("PASS " if ok else "FAIL ") + "a why question is refused by the registry before any plan is used"); fails += [] if ok else ["registry"]
+r = P.answer_by_plan("Why did units of 5 kg atta sales fall?", lambda q: b)
+ok = r["decision"] == "no_record" and "registry" in r["layers"]; print(("PASS " if ok else "FAIL ") + "a valid plan for a why question is still refused, by the registry, the last layer"); fails += [] if ok else ["registry"]
 print("ALL PASS" if not fails else f"FAILED: {fails}"); sys.exit(1 if fails else 0)
