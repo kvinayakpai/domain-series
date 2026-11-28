@@ -2,7 +2,7 @@ name: Thin model layer test, Gemini models
 
 # Runs the model-assisted flow (refusal-bench/ontology/thin_layer.py) over every question set plus a paraphrase set.
 # The model may only rewrite a question; the resolver and the verifier decide. Scores the FINAL answers and records every model call.
-# Starts on a push that changes this file (first Gemini attempt: set 8 plus the paraphrase set). A probe step first prints one raw reply so a failing call is visible at once.
+# Starts on a push that changes this file (second Gemini attempt: list the models). A probe step first prints one raw reply so a failing call is visible at once.
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        model: ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.5-flash-lite"]
+        model: ["gemini-3.1-pro-preview"]
     env:
       MODEL: ${{ matrix.model }}
       GEMINI_KEY: ${{ secrets.GEMINI_API_KEY_DOMAIN_SERIES }}
@@ -38,6 +38,9 @@ jobs:
         run: |
           python3 refusal-bench/ontology/thin_layer_tests.py
           python3 -I refusal-bench/build_paraphrase.py && git diff --exit-code refusal-bench/questions-paraphrase.json
+      - name: List the Gemini models
+        run: |
+          curl -s -H "Authorization: Bearer $GEMINI_KEY" "$BASE_URL/models" | python3 -c "import sys,json; print('CATALOGUE', ' '.join(sorted(m['id'] for m in json.load(sys.stdin)['data'])))" || true
       - name: Probe the model (raw reply to one question)
         run: |
           python3 - <<'PY'
