@@ -1,0 +1,1651 @@
+{
+ "Q196": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "refund_count"
+  ],
+  "rows": [
+   [
+    23
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q197": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "upi_payment_attempts"
+  ],
+  "rows": [
+   [
+    19166
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q198": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "timed_out_without_rrn"
+  ],
+  "rows": [
+   [
+    48
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q199": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (psp-upi-report-june.bill_ref is empty in every row, so it cannot group rows)."
+ },
+ "Q200": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q201": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (table 'pos-payments-jone' is not in this plan's from or joins)."
+ },
+ "Q202": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (table 'pos-payments-jone' is not in this plan's from or joins)."
+ },
+ "Q203": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "ontology",
+    "covers": "Counts provider-success UPI transactions whose rrn has no approved till payment, using the ontology's extra-debit definition; a timeout ('failed: no response') has no rrn and cannot be joined to the provider report.",
+    "columns": [
+     "extra_debit_count"
+    ],
+    "rows": [],
+    "row_count": 0,
+    "sql": "select count(distinct \"psp-upi-report-june\".\"rrn\") as \"extra_debit_count\" from \"psp-upi-report-june\" left join \"pos-payments-june\" on \"psp-upi-report-june\".\"rrn\" = \"pos-payments-june\".\"rrn\" where (\"psp-upi-report-june\".\"status\" = ?) and (\"pos-payments-june\".\"rrn\" is not null) and (\"pos-payments-june\".\"till_status\" != ?) group by \"psp-upi-report-june\".\"rrn\" having (\"extra_debit_count\" > ?) limit 200",
+    "params": [
+     "success",
+     "approved",
+     0
+    ],
+    "plan_in_words": "From UPI service provider's transaction records; left-join payment attempt records on psp upi report.rrn = pos payments.rrn; keep rows where psp upi report.status = 'success' and pos payments.rrn is not empty and pos payments.till_status != 'approved'; group by psp upi report.rrn; keep groups where extra_debit_count > 0; report extra_debit_count = count distinct of psp upi report.rrn.",
+    "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 1,
+  "columns": [
+   "extra_debit_count"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "message": "1 of 1 part(s) answered."
+ },
+ "Q204": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "no_record",
+    "layers": [
+     "schema"
+    ],
+    "failed_layer": "schema",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (table 'pos-payments-jone' is not in this plan's from or joins).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "For provider transactions marked 'returned' in that window, records whether a refund was actually sent back and when it completed; the customer's bank-side credit timing and the reason for the return are not recorded.",
+    "columns": [
+     "rrn",
+     "bill_id",
+     "refund_id",
+     "refund_requested_ts",
+     "refund_completed_ts",
+     "refund_amount_inr",
+     "provider_status_ts"
+    ],
+    "rows": [],
+    "row_count": 0,
+    "sql": "select \"upi-refunds-june\".\"rrn\" as \"rrn\", \"upi-refunds-june\".\"bill_id\" as \"bill_id\", \"upi-refunds-june\".\"refund_id\" as \"refund_id\", \"upi-refunds-june\".\"requested_ts\" as \"refund_requested_ts\", \"upi-refunds-june\".\"completed_ts\" as \"refund_completed_ts\", \"upi-refunds-june\".\"amount_inr\" as \"refund_amount_inr\", \"psp-upi-report-june\".\"status_ts\" as \"provider_status_ts\" from \"upi-refunds-june\" left join \"psp-upi-report-june\" on \"upi-refunds-june\".\"rrn\" = \"psp-upi-report-june\".\"rrn\" where (cast(substr(\"psp-upi-report-june\".\"status_ts\",12,2) as integer) between ? and ?) and (substr(substr(\"psp-upi-report-june\".\"status_ts\",1,10),1,10) = ?) and (\"psp-upi-report-june\".\"status\" = ?) order by \"refund_completed_ts\" asc limit 200",
+    "params": [
+     18,
+     19,
+     "2026-06-20",
+     "returned"
+    ],
+    "plan_in_words": "From UPI refund records; left-join UPI service provider's transaction records on upi refunds.rrn = psp upi report.rrn; keep rows where hour(psp upi report.status_ts) between 18 and 19 and day(psp upi report.status_ts) = '2026-06-20' and psp upi report.status = 'returned'; report rrn = upi refunds.rrn, bill_id = upi refunds.bill_id, refund_id = upi refunds.refund_id, refund_requested_ts = upi refunds.requested_ts, refund_completed_ts = upi refunds.completed_ts, refund_amount_inr = upi refunds.amount_inr, provider_status_ts = psp upi report.status_ts; sorted by refund_completed_ts asc.",
+    "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 2,
+  "columns": [
+   "rrn",
+   "bill_id",
+   "refund_id",
+   "refund_requested_ts",
+   "refund_completed_ts",
+   "refund_amount_inr",
+   "provider_status_ts"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "message": "1 of 2 part(s) answered."
+ },
+ "Q205": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Checks the recorded premise that 17 UPI credits were credited on 20–21 June and shows each day's gross credits, refunds, MDR and net settlement; the records do not state why any credits are 'sitting in suspense' (no cause is recorded), so o",
+    "columns": [
+     "settlement_date",
+     "upi_credits",
+     "gross_inr",
+     "refunds_inr",
+     "mdr_inr",
+     "net_inr"
+    ],
+    "rows": [
+     [
+      "2026-06-20",
+      824.0,
+      510195.41,
+      0.0,
+      0.0,
+      510195.41
+     ],
+     [
+      "2026-06-21",
+      607.0,
+      367003.47,
+      0.0,
+      0.0,
+      367003.47
+     ]
+    ],
+    "row_count": 2,
+    "sql": "select \"upi-settlements-june\".\"settlement_date\" as \"settlement_date\", \"upi-settlements-june\".\"upi_credits\" as \"upi_credits\", \"upi-settlements-june\".\"gross_inr\" as \"gross_inr\", \"upi-settlements-june\".\"refunds_inr\" as \"refunds_inr\", \"upi-settlements-june\".\"mdr_inr\" as \"mdr_inr\", \"upi-settlements-june\".\"net_inr\" as \"net_inr\" from \"upi-settlements-june\"  where (substr(\"upi-settlements-june\".\"settlement_date\",1,10) between ? and ?) order by \"settlement_date\" asc limit 200",
+    "params": [
+     "2026-06-20",
+     "2026-06-21"
+    ],
+    "plan_in_words": "From UPI settlement records; keep rows where upi settlements.settlement_date between 2026-06-20 and 2026-06-21; report settlement_date = upi settlements.settlement_date, upi_credits = upi settlements.upi_credits, gross_inr = upi settlements.gross_inr, refunds_inr = upi settlements.refunds_inr, mdr_inr = upi settlements.mdr_inr, net_inr = upi settlements.net_inr; sorted by settlement_date asc.",
+    "message": "2 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Counts UPI payment attempts by till status on 20–21 June to show recorded failed, no-response and declined attempts that could relate to unsettled credits; the records do not record the cause of suspense or link a specific credit to a speci",
+    "columns": [
+     "till_status",
+     "attempts",
+     "amount_inr"
+    ],
+    "rows": [
+     [
+      "approved",
+      1260,
+      782487.45
+     ],
+     [
+      "declined",
+      42,
+      21183.14
+     ],
+     [
+      "failed",
+      19,
+      12841.46
+     ],
+     [
+      "failed: no response",
+      29,
+      14253.82
+     ]
+    ],
+    "row_count": 4,
+    "sql": "select \"pos-payments-june\".\"till_status\" as \"till_status\", count(*) as \"attempts\", sum(\"pos-payments-june\".\"amount_inr\") as \"amount_inr\" from \"pos-payments-june\"  where (substr(\"pos-payments-june\".\"ts\",1,10) between ? and ?) and (\"pos-payments-june\".\"tender\" = ?) group by \"pos-payments-june\".\"till_status\" order by \"till_status\" asc limit 200",
+    "params": [
+     "2026-06-20",
+     "2026-06-21",
+     "UPI"
+    ],
+    "plan_in_words": "From payment attempt records; keep rows where pos payments.ts between 2026-06-20 and 2026-06-21 and pos payments.tender = 'UPI'; group by pos payments.till_status; report till_status = pos payments.till_status, attempts = count of *, amount_inr = sum of pos payments.amount_inr; sorted by till_status asc.",
+    "message": "4 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Summarises the provider's own view of UPI transactions initiated on 20–21 June by final status (success, failed, returned) as recorded evidence about unsettled money; the records do not state why credits are in suspense and the provider's b",
+    "columns": [
+     "status",
+     "transactions",
+     "amount_inr"
+    ],
+    "rows": [
+     [
+      "failed",
+      72,
+      40259.62
+     ],
+     [
+      "returned",
+      1,
+      193.11
+     ],
+     [
+      "success",
+      1277,
+      790313.14
+     ]
+    ],
+    "row_count": 3,
+    "sql": "select \"psp-upi-report-june\".\"status\" as \"status\", count(*) as \"transactions\", sum(\"psp-upi-report-june\".\"amount_inr\") as \"amount_inr\" from \"psp-upi-report-june\"  where (substr(\"psp-upi-report-june\".\"initiated_ts\",1,10) between ? and ?) group by \"psp-upi-report-june\".\"status\" order by \"status\" asc limit 200",
+    "params": [
+     "2026-06-20",
+     "2026-06-21"
+    ],
+    "plan_in_words": "From UPI service provider's transaction records; keep rows where psp upi report.initiated_ts between 2026-06-20 and 2026-06-21; group by psp upi report.status; report status = psp upi report.status, transactions = count of *, amount_inr = sum of psp upi report.amount_inr; sorted by status asc.",
+    "message": "3 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Counts refunds completed on 20–21 June and their rupees as recorded deductions that could explain part of the gap between gross credits and net settlement; the records do not record the cause of suspense or the bank's view of any credit.",
+    "columns": [
+     "refunds_completed",
+     "refund_amount_inr"
+    ],
+    "rows": [
+     [
+      0,
+      null
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(*) as \"refunds_completed\", sum(\"upi-refunds-june\".\"amount_inr\") as \"refund_amount_inr\" from \"upi-refunds-june\"  where (substr(\"upi-refunds-june\".\"completed_ts\",1,10) between ? and ?) limit 200",
+    "params": [
+     "2026-06-20",
+     "2026-06-21"
+    ],
+    "plan_in_words": "From UPI refund records; keep rows where upi refunds.completed_ts between 2026-06-20 and 2026-06-21; report refunds_completed = count of *, refund_amount_inr = sum of upi refunds.amount_inr.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 4,
+  "total_parts": 4,
+  "columns": [
+   "settlement_date",
+   "upi_credits",
+   "gross_inr",
+   "refunds_inr",
+   "mdr_inr",
+   "net_inr"
+  ],
+  "rows": [
+   [
+    "2026-06-20",
+    824.0,
+    510195.41,
+    0.0,
+    0.0,
+    510195.41
+   ],
+   [
+    "2026-06-21",
+    607.0,
+    367003.47,
+    0.0,
+    0.0,
+    367003.47
+   ]
+  ],
+  "row_count": 2,
+  "message": "4 of 4 part(s) answered."
+ },
+ "Q206": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"or\", \"args\": [{\"op\": \"is_null\", \"arg\": {\"col\": \"upi-refunds-june.refund_ is not in the plan form)."
+ },
+ "Q207": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q208": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"max\": {\"col\": \"psp-upi-report-june.amount_inr\"}} is not in the plan form)."
+ },
+ "Q209": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "ontology",
+    "covers": "Counts provider-success UPI transactions whose rrn has no approved till payment, i.e. extra debits under the one-bill/one-payment rule; a zero result confirms no recorded extra debit, though customer identity and the customer's bank side ar",
+    "columns": [
+     "extra_debit_rrns"
+    ],
+    "rows": [],
+    "row_count": 0,
+    "sql": "select count(distinct \"psp-upi-report-june\".\"rrn\") as \"extra_debit_rrns\" from \"psp-upi-report-june\" left join \"pos-payments-june\" on \"psp-upi-report-june\".\"rrn\" = \"pos-payments-june\".\"rrn\" where (\"psp-upi-report-june\".\"status\" = ?) and (\"pos-payments-june\".\"rrn\" is not null) and (\"pos-payments-june\".\"till_status\" != ?) group by \"psp-upi-report-june\".\"rrn\" having (\"extra_debit_rrns\" > ?) limit 200",
+    "params": [
+     "success",
+     "approved",
+     0
+    ],
+    "plan_in_words": "From UPI service provider's transaction records; left-join payment attempt records on psp upi report.rrn = pos payments.rrn; keep rows where psp upi report.status = 'success' and pos payments.rrn is not empty and pos payments.till_status != 'approved'; group by psp upi report.rrn; keep groups where extra_debit_rrns > 0; report extra_debit_rrns = count distinct of psp upi report.rrn.",
+    "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 1,
+  "columns": [
+   "extra_debit_rrns"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "message": "1 of 1 part(s) answered."
+ },
+ "Q210": {
+  "decision": "answer",
+  "layer": "ontology",
+  "declared_layer": "ontology",
+  "columns": [
+   "final_bank_status",
+   "timeout_count"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'."
+ },
+ "Q211": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "upi_technical_failure_count"
+  ],
+  "rows": [
+   [
+    0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q212": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (group_by without an aggregate)."
+ },
+ "Q213": {
+  "decision": "no_plan",
+  "message": "no usable plan"
+ },
+ "Q214": {
+  "decision": "no_plan",
+  "message": "no usable plan"
+ },
+ "Q215": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "non_null_bill_ref_rows"
+  ],
+  "rows": [
+   [
+    0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q216": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (arithmetic needs numbers)."
+ },
+ "Q217": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "total_mdr_inr"
+  ],
+  "rows": [
+   [
+    0.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q218": {
+  "decision": "answer",
+  "layer": "ontology",
+  "declared_layer": "ontology",
+  "columns": [
+   "median_refund_wait_hours"
+  ],
+  "rows": [
+   [
+    120.0
+   ],
+   [
+    48.0
+   ],
+   [
+    96.0
+   ],
+   [
+    72.0
+   ],
+   [
+    48.0
+   ],
+   [
+    48.0
+   ],
+   [
+    120.0
+   ],
+   [
+    120.0
+   ],
+   [
+    48.0
+   ],
+   [
+    48.0
+   ],
+   [
+    120.0
+   ],
+   [
+    72.0
+   ],
+   [
+    72.0
+   ],
+   [
+    48.0
+   ],
+   [
+    72.0
+   ],
+   [
+    72.0
+   ],
+   [
+    72.0
+   ],
+   [
+    120.0
+   ],
+   [
+    48.0
+   ],
+   [
+    96.0
+   ],
+   [
+    72.0
+   ],
+   [
+    72.0
+   ],
+   [
+    72.0
+   ]
+  ],
+  "row_count": 23,
+  "message": "23 row(s)."
+ },
+ "Q219": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (select 'median_resolution_hours' must be aggregated or in group_by)."
+ },
+ "Q220": {
+  "decision": "answer",
+  "layer": "ontology",
+  "declared_layer": "ontology",
+  "columns": [
+   "rrn",
+   "bill_id",
+   "complaint_ts",
+   "kind",
+   "amount_inr",
+   "resolution",
+   "resolved_ts"
+  ],
+  "rows": [
+   [
+    "615416001875",
+    "B260603-090023",
+    "2026-06-04T10:00:00",
+    "debited but the till said failed",
+    73.65,
+    "customer's bank returned the money",
+    "2026-06-06T11:00:00"
+   ],
+   [
+    "616112006197",
+    "B260610-050041",
+    "2026-06-11T10:00:00",
+    "debited but the till said failed",
+    378.31,
+    "customer's bank returned the money",
+    "2026-06-11T11:00:00"
+   ],
+   [
+    "617613016497",
+    "B260625-060004",
+    "2026-06-26T10:00:00",
+    "debited but the till said failed",
+    215.34,
+    "customer's bank returned the money",
+    "2026-06-27T11:00:00"
+   ]
+  ],
+  "row_count": 3,
+  "message": "3 row(s)."
+ },
+ "Q221": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "no_record",
+    "layers": [
+     "ontology"
+    ],
+    "failed_layer": "ontology",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (select 'refunds_inr' must be aggregated or in group_by).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "schema",
+    "covers": "Totals amount_inr across all UPI refunds for comparison with the settlement refunds total.",
+    "columns": [
+     "total_refund_amount_inr"
+    ],
+    "rows": [
+     [
+      11301.86
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"upi-refunds-june\".\"amount_inr\") as \"total_refund_amount_inr\" from \"upi-refunds-june\"  limit 200",
+    "params": [],
+    "plan_in_words": "From UPI refund records; report total_refund_amount_inr = sum of upi refunds.amount_inr.",
+    "message": "1 row(s).",
+    "value": 11301.86,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 2,
+  "columns": [
+   "total_refund_amount_inr"
+  ],
+  "rows": [
+   [
+    11301.86
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 of 2 part(s) answered."
+ },
+ "Q222": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q223": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q225": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (select 'attempt_sequence' must be aggregated or in group_by)."
+ },
+ "Q226": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q227": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "ontology",
+    "covers": "Uses the settlement definition (one day's UPI money credited to the store) to total June 2026 mdr_inr and its components gross_inr, refunds_inr and net_inr, so the ₹8,082 premise can be checked against the recorded settlement totals.",
+    "columns": [
+     "total_mdr_inr",
+     "total_gross_inr",
+     "total_refunds_inr",
+     "total_net_inr",
+     "total_upi_credits"
+    ],
+    "rows": [
+     [
+      0.0,
+      10798593.78,
+      11301.86,
+      10787291.92,
+      18410.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"upi-settlements-june\".\"mdr_inr\") as \"total_mdr_inr\", sum(\"upi-settlements-june\".\"gross_inr\") as \"total_gross_inr\", sum(\"upi-settlements-june\".\"refunds_inr\") as \"total_refunds_inr\", sum(\"upi-settlements-june\".\"net_inr\") as \"total_net_inr\", sum(\"upi-settlements-june\".\"upi_credits\") as \"total_upi_credits\" from \"upi-settlements-june\"  where (substr(\"upi-settlements-june\".\"settlement_date\",1,10) between ? and ?) limit 200",
+    "params": [
+     "2026-06-01",
+     "2026-06-30"
+    ],
+    "plan_in_words": "From UPI settlement records; keep rows where upi settlements.settlement_date between 2026-06-01 and 2026-06-30; report total_mdr_inr = sum of upi settlements.mdr_inr, total_gross_inr = sum of upi settlements.gross_inr, total_refunds_inr = sum of upi settlements.refunds_inr, total_net_inr = sum of upi settlements.net_inr, total_upi_credits = sum of upi settlements.upi_credits.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 1,
+  "columns": [
+   "total_mdr_inr",
+   "total_gross_inr",
+   "total_refunds_inr",
+   "total_net_inr",
+   "total_upi_credits"
+  ],
+  "rows": [
+   [
+    0.0,
+    10798593.78,
+    11301.86,
+    10787291.92,
+    18410.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 of 1 part(s) answered."
+ },
+ "Q228": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "no_record",
+    "layers": [
+     "schema"
+    ],
+    "failed_layer": "schema",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (table 'pos-payments-jone' is not in this plan's from or joins).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Records the provider-side UPI transactions (RRN, amount, initiated/status timestamps, final status) that are the candidate counterparts; bill_ref is empty and cannot be used to link, and the provider's own view of a timeout is not recorded.",
+    "columns": [
+     "provider_rrn",
+     "provider_amount_inr",
+     "provider_initiated_ts",
+     "provider_status_ts",
+     "provider_status"
+    ],
+    "rows": [
+     [
+      "615207000001",
+      161.31,
+      "2026-06-01T07:01:03",
+      "2026-06-01T07:01:03",
+      "success"
+     ],
+     [
+      "615207000002",
+      1404.32,
+      "2026-06-01T07:01:36",
+      "2026-06-01T07:01:36",
+      "success"
+     ],
+     [
+      "615207000003",
+      120.45,
+      "2026-06-01T07:01:39",
+      "2026-06-01T07:01:39",
+      "success"
+     ],
+     [
+      "615207000007",
+      275.07,
+      "2026-06-01T07:02:22",
+      "2026-06-01T07:02:22",
+      "success"
+     ],
+     [
+      "615207000005",
+      344.92,
+      "2026-06-01T07:02:37",
+      "2026-06-01T07:02:37",
+      "failed"
+     ],
+     [
+      "615207000004",
+      955.86,
+      "2026-06-01T07:02:41",
+      "2026-06-01T07:02:41",
+      "success"
+     ],
+     [
+      "615207000006",
+      344.92,
+      "2026-06-01T07:02:52",
+      "2026-06-01T07:02:52",
+      "success"
+     ],
+     [
+      "615207000008",
+      1577.15,
+      "2026-06-01T07:04:57",
+      "2026-06-01T07:04:57",
+      "success"
+     ],
+     [
+      "615207000009",
+      731.38,
+      "2026-06-01T07:05:20",
+      "2026-06-01T07:05:20",
+      "success"
+     ],
+     [
+      "615207000010",
+      55.22,
+      "2026-06-01T07:06:16",
+      "2026-06-01T07:06:16",
+      "success"
+     ],
+     [
+      "615207000012",
+      528.92,
+      "2026-06-01T07:07:19",
+      "2026-06-01T07:07:19",
+      "success"
+     ],
+     [
+      "615207000011",
+      534.48,
+      "2026-06-01T07:07:23",
+      "2026-06-01T07:07:23",
+      "success"
+     ],
+     [
+      "615207000015",
+      956.13,
+      "2026-06-01T07:08:11",
+      "2026-06-01T07:08:11",
+      "success"
+     ],
+     [
+      "615207000013",
+      638.61,
+      "2026-06-01T07:08:28",
+      "2026-06-01T07:08:28",
+      "success"
+     ],
+     [
+      "615207000014",
+      900.79,
+      "2026-06-01T07:08:34",
+      "2026-06-01T07:08:34",
+      "success"
+     ],
+     [
+      "615207000019",
+      244.86,
+      "2026-06-01T07:09:25",
+      "2026-06-01T07:09:25",
+      "success"
+     ],
+     [
+      "615207000017",
+      484.01,
+      "2026-06-01T07:09:29",
+      "2026-06-01T07:09:29",
+      "success"
+     ],
+     [
+      "615207000016",
+      186.76,
+      "2026-06-01T07:09:42",
+      "2026-06-01T07:09:42",
+      "success"
+     ],
+     [
+      "615207000018",
+      270.27,
+      "2026-06-01T07:09:44",
+      "2026-06-01T07:09:44",
+      "success"
+     ],
+     [
+      "615207000020",
+      1385.53,
+      "2026-06-01T07:10:04",
+      "2026-06-01T07:10:04",
+      "success"
+     ],
+     [
+      "615207000021",
+      68.7,
+      "2026-06-01T07:11:38",
+      "2026-06-01T07:11:38",
+      "success"
+     ],
+     [
+      "615207000023",
+      463.01,
+      "2026-06-01T07:13:14",
+      "2026-06-01T07:13:14",
+      "success"
+     ],
+     [
+      "615207000022",
+      379.22,
+      "2026-06-01T07:13:33",
+      "2026-06-01T07:13:33",
+      "success"
+     ],
+     [
+      "615207000024",
+      844.96,
+      "2026-06-01T07:14:43",
+      "2026-06-01T07:14:43",
+      "success"
+     ],
+     [
+      "615207000025",
+      907.66,
+      "2026-06-01T07:16:51",
+      "2026-06-01T07:16:51",
+      "success"
+     ],
+     [
+      "615207000028",
+      345.7,
+      "2026-06-01T07:18:08",
+      "2026-06-01T07:18:08",
+      "success"
+     ],
+     [
+      "615207000026",
+      197.59,
+      "2026-06-01T07:18:27",
+      "2026-06-01T07:18:27",
+      "success"
+     ],
+     [
+      "615207000027",
+      383.71,
+      "2026-06-01T07:18:35",
+      "2026-06-01T07:18:35",
+      "success"
+     ],
+     [
+      "615207000029",
+      898.18,
+      "2026-06-01T07:19:16",
+      "2026-06-01T07:19:16",
+      "success"
+     ],
+     [
+      "615207000030",
+      395.49,
+      "2026-06-01T07:20:13",
+      "2026-06-01T07:20:13",
+      "failed"
+     ],
+     [
+      "615207000031",
+      395.49,
+      "2026-06-01T07:20:28",
+      "2026-06-01T07:20:28",
+      "success"
+     ],
+     [
+      "615207000032",
+      149.48,
+      "2026-06-01T07:21:16",
+      "2026-06-01T07:21:16",
+      "success"
+     ],
+     [
+      "615207000033",
+      63.8,
+      "2026-06-01T07:23:02",
+      "2026-06-01T07:23:02",
+      "success"
+     ],
+     [
+      "615207000034",
+      912.02,
+      "2026-06-01T07:24:17",
+      "2026-06-01T07:24:17",
+      "success"
+     ],
+     [
+      "615207000035",
+      1354.57,
+      "2026-06-01T07:25:24",
+      "2026-06-01T07:25:24",
+      "success"
+     ],
+     [
+      "615207000036",
+      312.38,
+      "2026-06-01T07:25:47",
+      "2026-06-01T07:25:47",
+      "success"
+     ],
+     [
+      "615207000038",
+      537.59,
+      "2026-06-01T07:26:31",
+      "2026-06-01T07:26:31",
+      "success"
+     ],
+     [
+      "615207000037",
+      99.92,
+      "2026-06-01T07:26:38",
+      "2026-06-01T07:26:38",
+      "success"
+     ],
+     [
+      "615207000040",
+      164.69,
+      "2026-06-01T07:27:01",
+      "2026-06-01T07:27:01",
+      "success"
+     ],
+     [
+      "615207000039",
+      1029.05,
+      "2026-06-01T07:27:43",
+      "2026-06-01T07:27:43",
+      "success"
+     ],
+     [
+      "615207000041",
+      265.74,
+      "2026-06-01T07:29:17",
+      "2026-06-01T07:29:17",
+      "success"
+     ],
+     [
+      "615207000042",
+      872.74,
+      "2026-06-01T07:30:33",
+      "2026-06-01T07:30:33",
+      "success"
+     ],
+     [
+      "615207000043",
+      1191.79,
+      "2026-06-01T07:31:47",
+      "2026-06-01T07:31:47",
+      "success"
+     ],
+     [
+      "615207000044",
+      1669.45,
+      "2026-06-01T07:35:09",
+      "2026-06-01T07:35:09",
+      "success"
+     ],
+     [
+      "615207000045",
+      235.13,
+      "2026-06-01T07:36:00",
+      "2026-06-01T07:36:00",
+      "success"
+     ],
+     [
+      "615207000046",
+      472.95,
+      "2026-06-01T07:37:10",
+      "2026-06-01T07:37:10",
+      "success"
+     ],
+     [
+      "615207000048",
+      329.74,
+      "2026-06-01T07:38:20",
+      "2026-06-01T07:38:20",
+      "success"
+     ],
+     [
+      "615207000049",
+      513.13,
+      "2026-06-01T07:38:27",
+      "2026-06-01T07:38:27",
+      "success"
+     ],
+     [
+      "615207000047",
+      492.83,
+      "2026-06-01T07:38:30",
+      "2026-06-01T07:38:30",
+      "success"
+     ],
+     [
+      "615207000050",
+      738.89,
+      "2026-06-01T07:42:03",
+      "2026-06-01T07:42:03",
+      "success"
+     ]
+    ],
+    "row_count": 200,
+    "sql": "select \"psp-upi-report-june\".\"rrn\" as \"provider_rrn\", \"psp-upi-report-june\".\"amount_inr\" as \"provider_amount_inr\", \"psp-upi-report-june\".\"initiated_ts\" as \"provider_initiated_ts\", \"psp-upi-report-june\".\"status_ts\" as \"provider_status_ts\", \"psp-upi-report-june\".\"status\" as \"provider_status\" from \"psp-upi-report-june\"  order by \"provider_status_ts\" asc limit 200",
+    "params": [],
+    "plan_in_words": "From UPI service provider's transaction records; report provider_rrn = psp upi report.rrn, provider_amount_inr = psp upi report.amount_inr, provider_initiated_ts = psp upi report.initiated_ts, provider_status_ts = psp upi report.status_ts, provider_status = psp upi report.status; sorted by provider_status_ts asc.",
+    "message": "200 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 2,
+  "columns": [
+   "provider_rrn",
+   "provider_amount_inr",
+   "provider_initiated_ts",
+   "provider_status_ts",
+   "provider_status"
+  ],
+  "rows": [
+   [
+    "615207000001",
+    161.31,
+    "2026-06-01T07:01:03",
+    "2026-06-01T07:01:03",
+    "success"
+   ],
+   [
+    "615207000002",
+    1404.32,
+    "2026-06-01T07:01:36",
+    "2026-06-01T07:01:36",
+    "success"
+   ],
+   [
+    "615207000003",
+    120.45,
+    "2026-06-01T07:01:39",
+    "2026-06-01T07:01:39",
+    "success"
+   ],
+   [
+    "615207000007",
+    275.07,
+    "2026-06-01T07:02:22",
+    "2026-06-01T07:02:22",
+    "success"
+   ],
+   [
+    "615207000005",
+    344.92,
+    "2026-06-01T07:02:37",
+    "2026-06-01T07:02:37",
+    "failed"
+   ],
+   [
+    "615207000004",
+    955.86,
+    "2026-06-01T07:02:41",
+    "2026-06-01T07:02:41",
+    "success"
+   ],
+   [
+    "615207000006",
+    344.92,
+    "2026-06-01T07:02:52",
+    "2026-06-01T07:02:52",
+    "success"
+   ],
+   [
+    "615207000008",
+    1577.15,
+    "2026-06-01T07:04:57",
+    "2026-06-01T07:04:57",
+    "success"
+   ],
+   [
+    "615207000009",
+    731.38,
+    "2026-06-01T07:05:20",
+    "2026-06-01T07:05:20",
+    "success"
+   ],
+   [
+    "615207000010",
+    55.22,
+    "2026-06-01T07:06:16",
+    "2026-06-01T07:06:16",
+    "success"
+   ],
+   [
+    "615207000012",
+    528.92,
+    "2026-06-01T07:07:19",
+    "2026-06-01T07:07:19",
+    "success"
+   ],
+   [
+    "615207000011",
+    534.48,
+    "2026-06-01T07:07:23",
+    "2026-06-01T07:07:23",
+    "success"
+   ],
+   [
+    "615207000015",
+    956.13,
+    "2026-06-01T07:08:11",
+    "2026-06-01T07:08:11",
+    "success"
+   ],
+   [
+    "615207000013",
+    638.61,
+    "2026-06-01T07:08:28",
+    "2026-06-01T07:08:28",
+    "success"
+   ],
+   [
+    "615207000014",
+    900.79,
+    "2026-06-01T07:08:34",
+    "2026-06-01T07:08:34",
+    "success"
+   ],
+   [
+    "615207000019",
+    244.86,
+    "2026-06-01T07:09:25",
+    "2026-06-01T07:09:25",
+    "success"
+   ],
+   [
+    "615207000017",
+    484.01,
+    "2026-06-01T07:09:29",
+    "2026-06-01T07:09:29",
+    "success"
+   ],
+   [
+    "615207000016",
+    186.76,
+    "2026-06-01T07:09:42",
+    "2026-06-01T07:09:42",
+    "success"
+   ],
+   [
+    "615207000018",
+    270.27,
+    "2026-06-01T07:09:44",
+    "2026-06-01T07:09:44",
+    "success"
+   ],
+   [
+    "615207000020",
+    1385.53,
+    "2026-06-01T07:10:04",
+    "2026-06-01T07:10:04",
+    "success"
+   ],
+   [
+    "615207000021",
+    68.7,
+    "2026-06-01T07:11:38",
+    "2026-06-01T07:11:38",
+    "success"
+   ],
+   [
+    "615207000023",
+    463.01,
+    "2026-06-01T07:13:14",
+    "2026-06-01T07:13:14",
+    "success"
+   ],
+   [
+    "615207000022",
+    379.22,
+    "2026-06-01T07:13:33",
+    "2026-06-01T07:13:33",
+    "success"
+   ],
+   [
+    "615207000024",
+    844.96,
+    "2026-06-01T07:14:43",
+    "2026-06-01T07:14:43",
+    "success"
+   ],
+   [
+    "615207000025",
+    907.66,
+    "2026-06-01T07:16:51",
+    "2026-06-01T07:16:51",
+    "success"
+   ],
+   [
+    "615207000028",
+    345.7,
+    "2026-06-01T07:18:08",
+    "2026-06-01T07:18:08",
+    "success"
+   ],
+   [
+    "615207000026",
+    197.59,
+    "2026-06-01T07:18:27",
+    "2026-06-01T07:18:27",
+    "success"
+   ],
+   [
+    "615207000027",
+    383.71,
+    "2026-06-01T07:18:35",
+    "2026-06-01T07:18:35",
+    "success"
+   ],
+   [
+    "615207000029",
+    898.18,
+    "2026-06-01T07:19:16",
+    "2026-06-01T07:19:16",
+    "success"
+   ],
+   [
+    "615207000030",
+    395.49,
+    "2026-06-01T07:20:13",
+    "2026-06-01T07:20:13",
+    "failed"
+   ],
+   [
+    "615207000031",
+    395.49,
+    "2026-06-01T07:20:28",
+    "2026-06-01T07:20:28",
+    "success"
+   ],
+   [
+    "615207000032",
+    149.48,
+    "2026-06-01T07:21:16",
+    "2026-06-01T07:21:16",
+    "success"
+   ],
+   [
+    "615207000033",
+    63.8,
+    "2026-06-01T07:23:02",
+    "2026-06-01T07:23:02",
+    "success"
+   ],
+   [
+    "615207000034",
+    912.02,
+    "2026-06-01T07:24:17",
+    "2026-06-01T07:24:17",
+    "success"
+   ],
+   [
+    "615207000035",
+    1354.57,
+    "2026-06-01T07:25:24",
+    "2026-06-01T07:25:24",
+    "success"
+   ],
+   [
+    "615207000036",
+    312.38,
+    "2026-06-01T07:25:47",
+    "2026-06-01T07:25:47",
+    "success"
+   ],
+   [
+    "615207000038",
+    537.59,
+    "2026-06-01T07:26:31",
+    "2026-06-01T07:26:31",
+    "success"
+   ],
+   [
+    "615207000037",
+    99.92,
+    "2026-06-01T07:26:38",
+    "2026-06-01T07:26:38",
+    "success"
+   ],
+   [
+    "615207000040",
+    164.69,
+    "2026-06-01T07:27:01",
+    "2026-06-01T07:27:01",
+    "success"
+   ],
+   [
+    "615207000039",
+    1029.05,
+    "2026-06-01T07:27:43",
+    "2026-06-01T07:27:43",
+    "success"
+   ],
+   [
+    "615207000041",
+    265.74,
+    "2026-06-01T07:29:17",
+    "2026-06-01T07:29:17",
+    "success"
+   ],
+   [
+    "615207000042",
+    872.74,
+    "2026-06-01T07:30:33",
+    "2026-06-01T07:30:33",
+    "success"
+   ],
+   [
+    "615207000043",
+    1191.79,
+    "2026-06-01T07:31:47",
+    "2026-06-01T07:31:47",
+    "success"
+   ],
+   [
+    "615207000044",
+    1669.45,
+    "2026-06-01T07:35:09",
+    "2026-06-01T07:35:09",
+    "success"
+   ],
+   [
+    "615207000045",
+    235.13,
+    "2026-06-01T07:36:00",
+    "2026-06-01T07:36:00",
+    "success"
+   ],
+   [
+    "615207000046",
+    472.95,
+    "2026-06-01T07:37:10",
+    "2026-06-01T07:37:10",
+    "success"
+   ],
+   [
+    "615207000048",
+    329.74,
+    "2026-06-01T07:38:20",
+    "2026-06-01T07:38:20",
+    "success"
+   ],
+   [
+    "615207000049",
+    513.13,
+    "2026-06-01T07:38:27",
+    "2026-06-01T07:38:27",
+    "success"
+   ],
+   [
+    "615207000047",
+    492.83,
+    "2026-06-01T07:38:30",
+    "2026-06-01T07:38:30",
+    "success"
+   ],
+   [
+    "615207000050",
+    738.89,
+    "2026-06-01T07:42:03",
+    "2026-06-01T07:42:03",
+    "success"
+   ]
+  ],
+  "row_count": 200,
+  "message": "1 of 2 part(s) answered."
+ },
+ "Q229": {
+  "decision": "answer",
+  "layer": "ontology",
+  "declared_layer": "ontology",
+  "columns": [
+   "complaints_returned_by_bank"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'."
+ },
+ "Q230": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"+\", \"args\": [{\"agg\": \"count\", \"arg\": \"*\"}, {\"op\": \"*\", \"args\": [{\"op\": \" is not in the plan form)."
+ },
+ "Q231": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (group_by without an aggregate)."
+ },
+ "Q232": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q233": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q234": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Records the single listed price and cost for 5 kg atta; no price-change history or price series is recorded, so a price change cannot be measured.",
+    "columns": [
+     "sku",
+     "name",
+     "pack",
+     "price_inr",
+     "cost_inr"
+    ],
+    "rows": [
+     [
+      "ATTA-WW-5KG",
+      "Whole wheat atta 5 kg",
+      "5 kg",
+      265.0,
+      228.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select \"products\".\"sku\" as \"sku\", \"products\".\"name\" as \"name\", \"products\".\"pack\" as \"pack\", \"products\".\"price_inr\" as \"price_inr\", \"products\".\"cost_inr\" as \"cost_inr\" from \"products\"  where (\"products\".\"sku\" = ?) limit 200",
+    "params": [
+     "ATTA-WW-5KG"
+    ],
+    "plan_in_words": "From product records; keep rows where products.sku = 'ATTA-WW-5KG'; report sku = products.sku, name = products.name, pack = products.pack, price_inr = products.price_inr, cost_inr = products.cost_inr.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "no_record",
+    "layers": [
+     "ontology"
+    ],
+    "failed_layer": "ontology",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (group_by without an aggregate).",
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 2,
+  "columns": [
+   "sku",
+   "name",
+   "pack",
+   "price_inr",
+   "cost_inr"
+  ],
+  "rows": [
+   [
+    "ATTA-WW-5KG",
+    "Whole wheat atta 5 kg",
+    "5 kg",
+    265.0,
+    228.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 of 2 part(s) answered."
+ },
+ "Q235": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q236": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (the question names 2026 but the plan has no date in that year and the records are not from that year)."
+ },
+ "Q237": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q238": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q239": {
+  "decision": "no_plan",
+  "message": "no usable plan"
+ },
+ "Q240": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "selling_price_inr"
+  ],
+  "rows": [
+   [
+    265.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q242": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (the question names day 12 of month 6 but no part of the plan covers that date)."
+ }
+}
