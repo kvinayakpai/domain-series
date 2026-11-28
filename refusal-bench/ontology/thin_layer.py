@@ -176,13 +176,13 @@ def model_rewrite(question):
     import requests
     base = os.environ.get("BASE_URL", "https://integrate.api.nvidia.com/v1")
     model = os.environ["MODEL"]
-    think_off = True            # a reasoning model can use its whole budget thinking and return nothing: ask it not to think, fall back if refused
+    think_off = "nvidia" in base   # a reasoning model can use its whole budget thinking and return nothing: ask it not to think, fall back if refused
     for attempt in range(4):
         try:
             body = {"model": model, "messages": [{"role": "user", "content": prompt_for(question)}], "temperature": 0, "max_tokens": 16000}
             if think_off:
                 body["chat_template_kwargs"] = {"enable_thinking": False}
-            r = requests.post(f"{base}/chat/completions", timeout=240, headers={"Authorization": "Bearer " + os.environ[os.environ.get("KEY_ENV", "NVIDIA_API_KEY")]}, json=body)
+            r = requests.post(f"{base}/chat/completions", timeout=int(os.environ.get("TIMEOUT", "240")), headers={"Authorization": "Bearer " + os.environ[os.environ.get("KEY_ENV", "NVIDIA_API_KEY")]}, json=body)
             if r.status_code in (400, 422) and think_off:
                 LAST_ERROR = f"thinking switch refused: HTTP {r.status_code} {r.text[:150]}"; think_off = False; continue
             if r.status_code in (429, 503, 529):
