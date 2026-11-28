@@ -1,3 +1,4 @@
+import json
 """Tests for the planning layer with hand-written plans, good and hostile. Every good plan's answer is compared with a number computed directly from the CSV files."""
 import csv, json, sys
 from pathlib import Path
@@ -40,7 +41,7 @@ check("join on unlike keys", q, {**b, "joins": [{"table": "products", "type": "i
 check("self join", q, {**b, "joins": [{"table": "daily-sales-june", "type": "inner", "on": [[C("daily-sales-june", "sku"), C("daily-sales-june", "sku")]]}]}, False, why="twice")
 check("2023 outside the records", "How many bags of 5 kg atta were sold in June 2023?", {**b, "where": [EQ(C("daily-sales-june", "date"), L("2023-06-05"))]}, False, why="outside the records")
 check("the plan drops the year in the question", "How many bags of 5 kg atta were sold in June 2023?", {**b, "where": [EQ(C("daily-sales-june", "sku"), L("ATTA-WW-5KG"))]}, False, why="2023")
-check("the plan drops the day in the question", "How many bags of 5 kg atta were sold on 11 June 2026?", {**b, "where": [EQ(C("daily-sales-june", "sku"), L("ATTA-WW-5KG"))]}, False, why="no such date")
+check("the plan drops the day in the question", "How many bags of 5 kg atta were sold on 11 June 2026?", {**b, "where": [EQ(C("daily-sales-june", "sku"), L("ATTA-WW-5KG"))]}, False, why="covers that date")
 check("limit too big", q, {**b, "limit": 10**6}, False, why="limit")
 check("model says cannot", q, {"cannot": "no table holds this"}, False, why="no valid query plan")
 check("add rupees to units", q, {"from": "daily-sales-june", "select": [{"as": "x", "expr": {"agg": "sum", "arg": {"op": "+", "args": [C("daily-sales-june", "units_sold"), C("daily-sales-june", "revenue_inr")]}}}]}, True)  # arithmetic on numbers is allowed; unit mixing is caught only in comparisons
@@ -48,4 +49,27 @@ check("compare rupees with units", q, {**b, "where": [{"op": ">", "args": [C("da
 check("select a bare literal", q, {"from": "daily-sales-june", "select": [{"as": "x", "expr": L(5)}]}, False, why="bare literal")
 r = P.answer_by_plan("Why did units of 5 kg atta sales fall?", lambda q: b)
 ok = r["decision"] == "no_record" and "registry" in r["layers"]; print(("PASS " if ok else "FAIL ") + "a valid plan for a why question is still refused, by the registry, the last layer"); fails += [] if ok else ["registry"]
+
+# ---- fixes of 28 Nov, each replayed from a real plan a model wrote
+import json as _j
+PL = {m: _j.load(open(f)) for m, f in [("opus", "/tmp/ct/plans-opus-v2.json"), ("sonnet", "/tmp/ct/plans-sonnet-v2.json"), ("haiku", "/tmp/ct/plans-haiku-v2.json")]} if Path("/tmp/ct/plans-opus-v2.json").exists() else {}
+KIMI = Path(__file__).parent.parent / "results/planner-nvidia-run-1/moonshotai_kimi-k3_1-pro/plans.json"
+MINI = Path(__file__).parent.parent / "results/planner-nvidia-run-1/minimaxai_minimax-m3_1-flash/plans.json"
+QS = {x["id"]: x["question"] for x in _j.load(open(Path(__file__).parent.parent / "questions-plan-v2.json"))}
+def part_rows(r, i): return (r.get("parts") or [r])[i].get("rows")
+def fix(name, ok):
+    global fails
+    print(("PASS " if ok else "FAIL ") + name); fails += [] if ok else [name]
+if PL:
+    r = P.run_plan(QS["S8N18"], PL["opus"]["S8N18"]); fix("day count runs from start to end: all 15 receipts that failed a count within a week (16 rows: one receipt also meets a second count)", r["decision"] == "answer" and r["row_count"] == 16 and len({(x[0], x[1]) for x in r["rows"]}) == 15)
+    r = P.run_plan(QS["S9N17"], PL["opus"]["S9N17"]); fix("refunds over 5 days from the extra debit: 10", r["decision"] == "answer" and part_rows(r, 1) == [[10]])
+    r = P.run_plan(QS["S8N30"], PL["opus"]["S8N30"]); fix("grouping on the empty bill reference is refused", r["decision"] == "no_record" and "empty in every row" in r["message"])
+    r = P.run_plan(QS["S8N32"], PL["opus"]["S8N32"]); fix("joining on the empty bill reference is refused", "empty in every row" in json.dumps(r))
+    r = P.run_plan(QS["S8N07"], PL["opus"]["S8N07"]); fix("a range of 1 to 21 June covers 8 June", r["decision"] == "answer")
+    r = P.run_plan(QS["S8N01"], PL["opus"]["S8N01"]); fix("the dates are checked over the whole plan, so the June total part also answers", r["decision"] == "answer" and r.get("answered_parts") == 2)
+    r = P.run_plan(QS["S8N38"], PL["sonnet"]["S8N38"]); fix("count over a many-to-many join is refused (Sonnet's 124 phantom mismatches)", "many rows to many rows" in json.dumps(r))
+if KIMI.exists():
+    r = P.run_plan(QS["S8N01"], _j.load(open(KIMI))["S8N01"]); fix("a date-only column compared with a date-time keeps the first day (88, not 79)", part_rows(r, 1) == [[88.0]])
+if MINI.exists():
+    r = P.run_plan(QS["S8N15"], _j.load(open(MINI))["S8N15"]); fix("a sum over a join that repeats rows is refused (MiniMax fill rate)", r["decision"] == "no_record" and "more than once" in r["message"])
 print("ALL PASS" if not fails else f"FAILED: {fails}"); sys.exit(1 if fails else 0)

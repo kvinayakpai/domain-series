@@ -19,7 +19,7 @@ def table(stem, label, nouns, grain, key, date, kind, columns, sku=None, window=
 
 C = dict  # column spec shorthand
 
-table("pos-lines-may-june", "till line", [["till", "lines"], ["bill", "lines"]], "one product line on a bill", "bill_id", "bill_ts", "observes",
+table("pos-lines-may-june", "till line", [["till", "lines"], ["bill", "lines"]], "one product line on a bill, for the eleven followed items only (a bill's other items are not in this table)", "bill_id", "bill_ts", "observes",
       dict(bill_id=C(kind="id"), bill_ts=C(kind="time"), line=C(kind="id"), gtin_scanned=C(kind="id"), sku_scanned=C(kind="id"),
            qty=C(kind="number", unit="units", additive=True, cues=[["items", "scanned"]]),
            unit_price=C(kind="number", unit="rupees", additive=False),
@@ -44,7 +44,7 @@ table("upi-settlements-june", "UPI settlement", [["upi", "settlements"], ["upi",
       dict(settlement_date=C(kind="time"), upi_credits=C(kind="number", unit="credits", additive=True), gross_inr=C(kind="number", unit="rupees", additive=True, cues=[["gross"]]),
            refunds_inr=C(kind="number", unit="rupees", additive=True), mdr_inr=C(kind="number", unit="rupees", additive=True, cues=[["mdr"]]),
            net_inr=C(kind="number", unit="rupees", additive=True, cues=[["net", "upi", "amount"], ["net"]])), record="settlements", default="net_inr")
-table("shipments-june", "shipment", [["shipments"], ["shipment"], ["trucks"], ["truck"]], "one truck from the warehouse carry carried marked across settled one", "shipment_id", "dispatched_ts", "observes",
+table("shipments-june", "shipment", [["shipments"], ["shipment"], ["trucks"], ["truck"]], "one truck from the warehouse (DC)", "shipment_id", "dispatched_ts", "observes",
       dict(shipment_id=C(kind="id"), vehicle=C(kind="id"), dispatched_ts=C(kind="time"), slot_start=C(kind="time"), slot_end=C(kind="time"), arrived_ts=C(kind="time"),
            pallets=C(kind="number", unit="pallets", additive=True, cues=[["pallets"]])))
 table("stock-counts-june", "stock count", [["stock", "counts"], ["stock", "count"]], "one product counted by hand", None, "count_ts", "observes",
@@ -62,12 +62,12 @@ table("goods-receipts-june", "goods-receipt line", [["goods-receipt", "lines"], 
       dict(grn_id=C(kind="id"), shipment_id=C(kind="id"), sscc=C(kind="id"), line=C(kind="id"), received_ts=C(kind="time"), asn_sku=C(kind="id"),
            asn_units=C(kind="number", unit="units", additive=True), sku_booked=C(kind="id"), units_booked=C(kind="number", unit="units", additive=True, cues=[["units", "booked"], ["units", "received"]]),
            receipt_method=C(kind="code")), sku="sku_booked", record="goods-receipts")
-table("store-orders-june", "store order line", [["store", "order", "lines"], ["store", "order", "line"], ["order", "lines"]], "one product on an order to the warehouse carry carried marked across settled one", "order_id", "created_ts", "observes",
+table("store-orders-june", "store order line", [["store", "order", "lines"], ["store", "order", "line"], ["order", "lines"]], "one product on an order to the warehouse (DC)", "order_id", "created_ts", "observes",
       dict(order_id=C(kind="id"), sku=C(kind="id"), units=C(kind="number", unit="units", additive=True, cues=[["units", "order"], ["units", "ordered"], ["units", "in", "total", "order"]]),
            cases=C(kind="number", unit="cases", additive=True, cues=[["cases", "order"], ["cases", "ordered"]]), created_ts=C(kind="time"), reason=C(kind="code")), sku="sku",
       distinct=dict(label="store order", nouns=[["store", "orders"], ["store", "order"]], column="order_id"))
 table("forecasts-june", "forecast row", [["forecast", "rows"], ["forecast", "row"], ["forecasts"]], "one product's forecast for one day", None, "date", "copies",
-      dict(date=C(kind="time"), sku=C(kind="id"), forecast_units_per_day=C(kind="number", unit="units", additive=False), sigma=C(kind="number", unit="units", additive=False),
+      dict(date=C(kind="time"), sku=C(kind="id"), forecast_units_per_day=C(kind="number", unit="units", additive=True), sigma=C(kind="number", unit="units", additive=False),
            reorder_point=C(kind="number", unit="units", additive=False), order_up_to=C(kind="number", unit="units", additive=False), book_on_hand=C(kind="number", unit="units", additive=False),
            on_order=C(kind="number", unit="units", additive=False), ordered_units=C(kind="number", unit="units", additive=True), method=C(kind="code")), sku="sku", record="forecasts")
 table("pallets-june", "pallet", [["pallets"], ["pallet"]], "one pallet with its label", "sscc", None, "copies",
@@ -80,7 +80,7 @@ table("dc-pick-confirmations-june", "pick confirmation", [["pick", "confirmation
       dict(pick_ts=C(kind="time"), order_id=C(kind="id"), shipment_id=C(kind="id"), line=C(kind="id"), sku=C(kind="id"), slot=C(kind="id"),
            cases_ordered=C(kind="number", unit="cases", additive=True, cues=[["cases", "ordered"]]), cases_confirmed=C(kind="number", unit="cases", additive=True, cues=[["cases", "confirmed"]]),
            confirmed_by=C(kind="code")), sku="sku", record="pick-confirmations")
-table("dc-stock-adjustments-june", "warehouse carry carried marked across settled one stock adjustment", [["warehouse carry carried marked across settled one", "stock", "adjustments"], ["warehouse carry carried marked across settled one", "adjustments"], ["dc", "stock", "adjustments"]], "one correction to warehouse carry carried marked across settled one stock", None, "adjusted_ts", "observes",
+table("dc-stock-adjustments-june", "warehouse (DC) stock adjustment", [["warehouse", "stock", "adjustments"], ["warehouse", "adjustments"], ["dc", "stock", "adjustments"]], "one correction to warehouse (DC) stock", None, "adjusted_ts", "observes",
       dict(adjusted_ts=C(kind="time"), sku=C(kind="id"), slot=C(kind="id"), cases=C(kind="number", unit="cases", additive=True), units=C(kind="number", unit="units", additive=True),
            value_at_cost_inr=C(kind="number", unit="rupees", additive=True), reason=C(kind="code")), sku="sku")
 table("inventory-book-june", "book-stock row", [["book", "stock", "rows"], ["book-stock", "rows"], ["book", "stock"]], "one product's closing book stock for a day", None, "date", "copies",
@@ -109,7 +109,7 @@ VALUE_ALT = {
 # words that only join a question together and carry no business meaning
 GLUE = """a an the of in on at to for from by with and or is are was were be been do does did done has have had it its this that these those there their they them we you your
 i my me our what which how many much store 014 s t than then as per each every any all some into over about up out between during while when where
-rupees rupee inr warehouse carry carried marked across settled one total number count counts sum average mean highest lowest biggest largest smallest maximum minimum single most least days day
+rupees rupee inr warehouse dc total number count counts sum average mean highest lowest biggest largest smallest maximum minimum single most least days day
 rung ring made make log logged recorded record recorded receive received arrive arrived show shows showed were being get got give gave sent send include included
 tills till records these row rows line lines different distinct unique amount amounts""".split()
 
