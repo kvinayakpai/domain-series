@@ -268,7 +268,7 @@ def expand_params(ctx, parts):
 def compile_plan(plan):
     """Return (sql, params, description). Raises PlanError for anything not defined."""
     if not isinstance(plan, dict): raise SchemaError("the plan is not an object")
-    allowed = {"from", "joins", "where", "group_by", "select", "having", "order_by", "limit"}
+    allowed = {"from", "joins", "where", "group_by", "select", "having", "order_by", "limit", "covers"}
     extra = set(plan) - allowed
     if extra: raise SchemaError(f"plan keys not defined: {sorted(extra)}")
     ctx = Ctx(plan)
@@ -405,6 +405,8 @@ def describe(plan):
 
 def run_plan(question, plan):
     """Check and run a plan. Returns a result dict like the resolver's."""
+    if isinstance(plan, dict) and set(plan) == {"plans"}:
+        return run_parts(question, plan["plans"])
     if isinstance(plan, dict) and set(plan) == {"cannot"}:
         return dict(decision="no_record", layers=["schema"], failed_layer="schema", message="I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).", trace=[], model_reason=str(plan["cannot"])[:200])
     try:
@@ -416,7 +418,8 @@ def run_plan(question, plan):
         return dict(decision="no_record", layers=[e.layer], failed_layer=e.layer, message=f"I can't answer this from Store 014's records: the {e.layer} layer refused the plan ({e}).", trace=[])
     cur = planner_db().execute(sql, params)
     cols = [d[0] for d in cur.description]; rows = cur.fetchall()
-    return dict(decision="answer", layers=["schema", "ontology"], columns=cols, rows=[list(r) for r in rows[:50]], row_count=len(rows),
+    used = "schema" if not plan.get("joins") and not any(k in json.dumps(plan) for k in ('"fn"', '"op": "/"', '"agg": "count_distinct"')) else "ontology"
+    return dict(decision="answer", layers=[used], covers=str(plan.get("covers", ""))[:240], columns=cols, rows=[list(r) for r in rows[:50]], row_count=len(rows),
                 sql=sql, params=params, plan_in_words=describe(plan), message=("No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'." if not rows else f"{len(rows)} row(s)."), value=(rows[0][0] if len(rows) == 1 and len(cols) == 1 else None), trace=[])
 
 
@@ -494,3 +497,63 @@ def model_plan_raw(question):
         except Exception as e:  # noqa: BLE001
             LAST_ERROR = f"{type(e).__name__}: {str(e)[:150]}"; time.sleep(3)
     return None
+
+
+def run_parts(question, parts):
+    """A question with several parts: every part is checked and run on its own. Parts that pass are answered; the rest are listed with the layer that refused them."""
+    if not isinstance(parts, list) or not 1 <= len(parts) <= 4:
+        return dict(decision="no_record", layers=["schema"], failed_layer="schema", message="I can't answer this from Store 014's records: the plan has no valid parts.", trace=[])
+    out = [run_plan(question, p) for p in parts]
+    ok = [r for r in out if r["decision"] == "answer"]
+    if not ok:
+        return out[0]
+    return dict(decision="answer", layers=sorted({l for r in ok for l in r["layers"]}), parts=out, answered_parts=len(ok), total_parts=len(out), columns=ok[0]["columns"], rows=ok[0]["rows"], row_count=ok[0]["row_count"], message=f"{len(ok)} of {len(out)} part(s) answered.", trace=[])
+
+
+def knowledge_notes(question):
+    """Layer 3, the knowledge layer, as notes: what the records do not hold, and which stand-ins apply."""
+    hard, proxy = R.registry_layer(question)
+    return {"not_recorded": hard, "stand_ins": proxy}
+
+
+def render(question, r):
+    """The reply, written by code from the checked result. The model's words appear only as the labelled 'plan covers' note."""
+    k = knowledge_notes(question)
+    lines = []
+    def table(res):
+        if res["row_count"] == 0: return ["No rows matched."]
+        cols = res["columns"]; out = []
+        if res["row_count"] == 1 and len(cols) <= 6:
+            out.append("; ".join(f"{c} = {v}" for c, v in zip(cols, res["rows"][0])))
+        else:
+            out.append(f"{res['row_count']} rows (columns: {', '.join(cols)}):")
+            out += ["  " + " | ".join("" if v is None else str(v) for v in row) for row in res["rows"][:10]]
+            if res["row_count"] > 10: out.append(f"  ... and {res['row_count'] - 10} more")
+        return out
+    if r["decision"] != "answer":
+        lines.append(r["message"])
+        if k["not_recorded"]: lines.append("Not recorded: " + "; ".join(k["not_recorded"]))
+        return "\n".join(lines)
+    parts = r.get("parts") or [r]
+    for i, part in enumerate(parts, 1):
+        head = f"Part {i}: " if len(parts) > 1 else ""
+        if part["decision"] != "answer":
+            lines.append(f"{head}not answered: {part['message'][38:]}")
+            continue
+        lines.append(f"{head}answered from the {'/'.join(part['layers'])} layer. " + (f"(Plan covers: {part['covers']})" if part.get("covers") else ""))
+        lines += table(part)
+        lines.append("  How it was found: " + part["plan_in_words"])
+    if k["not_recorded"]: lines.append("Not recorded, so not answered: " + "; ".join(k["not_recorded"]))
+    if k["stand_ins"]: lines.append("Stand-ins used (not the real thing): " + "; ".join(k["stand_ins"]))
+    return "\n".join(lines)
+
+
+def answer_cascade(question, planner):
+    """Opus-style single planner. Schema, then ontology (inside the plan checks), then the knowledge layer as notes. A refusal says which layer could not help."""
+    plan = planner(question)
+    if plan is None:
+        r = dict(decision="no_record", layers=["schema"], failed_layer="schema", message="I can't answer this from Store 014's records: no usable plan was returned.", trace=[])
+    else:
+        r = run_plan(question, plan)
+    r["reply"] = render(question, r)
+    return r
