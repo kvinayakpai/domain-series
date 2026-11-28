@@ -362,7 +362,7 @@ def question_dates(question):
 def date_check(question, ctx_dates, tables):
     """Every day, month-day and year named in the question must be in the plan, unless the plan's tables lie wholly inside that year."""
     o = R.onto().tables
-    years_covered = {y for t in tables for y in {o[t]["start"][:4], o[t]["end"][:4]} if o[t]["start"]}
+    years_covered = {y for t in tables if o[t]["start"] for y in (o[t]["start"][:4], o[t]["end"][:4])}
     lits = [d for _, d in ctx_dates]
     for item in question_dates(question):
         if item[0] == "year":
@@ -410,7 +410,9 @@ def run_plan(question, plan):
     try:
         sql, params, ctx = compile_plan(plan)
         date_check(question, ctx.dates, ctx.tables)
-    except PlanError as e:
+    except Exception as e:  # noqa: BLE001  fail closed: anything unexpected is a refusal, never an answer
+        if not isinstance(e, PlanError):
+            return dict(decision="no_record", layers=["schema"], failed_layer="schema", message=f"I can't answer this from Store 014's records: the plan could not be checked ({type(e).__name__}).", trace=[])
         return dict(decision="no_record", layers=[e.layer], failed_layer=e.layer, message=f"I can't answer this from Store 014's records: the {e.layer} layer refused the plan ({e}).", trace=[])
     cur = planner_db().execute(sql, params)
     cols = [d[0] for d in cur.description]; rows = cur.fetchall()
