@@ -469,3 +469,26 @@ def answer_by_plans(question, planners):
         return dict(decision="no_record", layers=[layer], failed_layer=layer, message=first["message"], trace=[], planners=len(results))
     why = f"only {len(answered)} of {len(results)} plans passed the schema and ontology layers" if len(answered) < len(results) else "the plans gave different results"
     return dict(decision="no_record", layers=["ontology"], failed_layer="agreement", message=f"I can't answer this from Store 014's records with confidence: {why}.", trace=[], answered=len(answered), planners=len(results))
+
+
+LAST_ERROR = ""
+
+
+def model_plan_raw(question):
+    """Ask an OpenAI-compatible endpoint (NVIDIA or Gemini, chosen by BASE_URL, MODEL, KEY_ENV) for a plan. Returns the raw reply text or None."""
+    global LAST_ERROR
+    import os, time, requests
+    base = os.environ.get("BASE_URL", "https://integrate.api.nvidia.com/v1"); model = os.environ["MODEL"]
+    think_off = "nvidia" in base
+    for attempt in range(4):
+        try:
+            body = {"model": model, "messages": [{"role": "user", "content": prompt_for(question)}], "temperature": 0, "max_tokens": 16000}
+            if think_off: body["chat_template_kwargs"] = {"enable_thinking": False}
+            r = requests.post(f"{base}/chat/completions", timeout=int(os.environ.get("TIMEOUT", "240")), headers={"Authorization": "Bearer " + os.environ[os.environ.get("KEY_ENV", "NVIDIA_API_KEY")]}, json=body)
+            if r.status_code in (400, 422) and think_off: think_off = False; continue
+            if r.status_code in (429, 503, 529): LAST_ERROR = f"HTTP {r.status_code}"; time.sleep(min(30, 5 * (attempt + 1))); continue
+            if r.status_code >= 400: LAST_ERROR = f"HTTP {r.status_code}: {r.text[:200]}"; return None
+            return r.json()["choices"][0]["message"].get("content") or ""
+        except Exception as e:  # noqa: BLE001
+            LAST_ERROR = f"{type(e).__name__}: {str(e)[:150]}"; time.sleep(3)
+    return None
