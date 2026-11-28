@@ -1,0 +1,3020 @@
+{
+ "Q050": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": {
+     "op": "and",
+     "args": [
+      {
+       "op": "=",
+       "args": [
+        {
+         "col": "daily-sales-june.sku"
+        },
+        {
+         "lit": "RICE-SM-5KG"
+        }
+       ]
+      },
+      {
+       "op": "between",
+       "arg": {
+        "col": "daily-sales-june.date"
+       },
+       "low": "2026-05-01",
+       "high": "2026-05-31"
+      }
+     ]
+    },
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "sale_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "weekday",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "May 2026 daily unit sales for RICE-SM-5KG from daily-sales-june; weekday/weekend split must be computed outside the plan from the sale_date."
+   }
+  ]
+ },
+ "Q051": {
+  "plans": [
+   {
+    "from": "pos-lines-may-june",
+    "select": [
+     {
+      "as": "distinct_gtin_scanned",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-lines-may-june.gtin_scanned"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "counts distinct gtin_scanned values in pos-lines-may-june"
+   },
+   {
+    "from": "pos-lines-may-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       {
+        "col": "pos-lines-may-june.gtin_scanned"
+       },
+       {
+        "col": "products.gtin"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "matched_gtin_scanned",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-lines-may-june.gtin_scanned"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "counts distinct gtin_scanned values that match products.gtin"
+   },
+   {
+    "from": "pos-lines-may-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "left",
+      "on": [
+       {
+        "col": "pos-lines-may-june.gtin_scanned"
+       },
+       {
+        "col": "products.gtin"
+       }
+      ]
+     }
+    ],
+    "where": {
+     "op": "is_null",
+     "arg": {
+      "col": "products.gtin"
+     }
+    },
+    "select": [
+     {
+      "as": "unmatched_gtin_scanned",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-lines-may-june.gtin_scanned"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "counts distinct gtin_scanned values with no matching products.gtin"
+   }
+  ]
+ },
+ "Q052": {
+  "raw": "{\"plans\": [{\"from\": \"pos-lines-may-june\", \"where\": [{\"op\": \"and\", \"args\": [{\"op\": \">=\", \"args\": [{\"col\": \"pos-lines-may-june.bill_ts\"}, {\"lit\": \"2026-06-01\"}], \"op\": \">=\"}, {\"op\": \"<\", \"args\": [{\"col\": \"pos-lines-may-june.bill_ts\"}, {\"lit\": \"2026-07-01\"}]}]}, \"group_by\": [\"pos-lines-may-june.bill_id\"], \"select\": [{\"as\": \"bill_id\", \"expr\": {\"col\": \"pos-lines-may-june.bill_id\"}}, {\"as\": \"line_count\"",
+  "error": "unparsable"
+ },
+ "Q053": {
+  "from": "daily-sales-june",
+  "joins": [],
+  "where": [],
+  "group_by": [
+   {
+    "col": "daily-sales-june.sku"
+   },
+   {
+    "col": "daily-sales-june.date"
+   }
+  ],
+  "select": [
+   {
+    "as": "sku",
+    "expr": {
+     "col": "daily-sales-june.sku"
+    }
+   },
+   {
+    "as": "date",
+    "expr": {
+     "col": "daily-sales-june.date"
+    }
+   },
+   {
+    "as": "units",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "daily-sales-june holds units_sold per sku per day for June 2026; consecutive-day percentage drops are computed from these rows after the plan runs."
+ },
+ "Q054": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "june_total_sales",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "June total sales from daily-sales-june"
+   },
+   {
+    "from": "pos-lines-may-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      },
+      "low": "2026-05-01",
+      "high": "2026-05-31"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "may_total_sales",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-lines-may-june.line_amount"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "May total sales from pos-lines-may-june (only the eleven followed items)"
+   }
+  ],
+  "layer": "schema",
+  "covers": "May and June total sales; June from daily-sales-june, May from pos-lines-may-june because daily-sales-june starts 2026-06-01"
+ },
+ "Q055": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "daily-sales-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "units_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "All 30 days of June 2026 for ATTA-WW-5KG units sold from daily-sales-june."
+ },
+ "Q056": {
+  "from": "pos-lines-may-june",
+  "joins": [
+   {
+    "table": "products",
+    "type": "inner",
+    "on": [
+     {
+      "col": "pos-lines-may-june.sku_scanned"
+     },
+     {
+      "col": "products.sku"
+     }
+    ]
+   }
+  ],
+  "where": [],
+  "group_by": [
+   {
+    "col": "products.name"
+   }
+  ],
+  "select": [
+   {
+    "as": "product_name",
+    "expr": {
+     "col": "products.name"
+    }
+   },
+   {
+    "as": "revenue_inr",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "pos-lines-may-june.line_amount"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [
+   {
+    "by": "revenue_inr",
+    "dir": "desc"
+   }
+  ],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Revenue by product name from till lines joined to products on sku; note pos-lines-may-june covers only the eleven followed items, not the whole store."
+ },
+ "Q057": {
+  "plans": [
+   {
+    "from": "customer-complaints-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "customer-complaints-june.kind"
+       },
+       {
+        "lit": "debited but the till said failed"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "customer-complaints-june.complaint_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "select": [
+     {
+      "as": "complaints",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Units returned for a refund are not recorded; only complaints about debits exist, with no product, units, or refund linkage."
+   }
+  ]
+ },
+ "Q058": {
+  "from": "pos-payments-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "approved"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "total_sales_inr",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "pos-payments-june.amount_inr"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Total sales in rupees for June 2026 from approved till payments."
+ },
+ "Q059": {
+  "from": "shelf-audits-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "shelf-audits-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "shelf-audits-june.status"
+     },
+     {
+      "lit": "empty"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "shelf-audits-june.audit_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "empty_audits",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "knowledge",
+  "covers": "Shelf audits are 11:00 snapshots twice a week (Tuesdays and Fridays), not continuous hours; the number of empty audits is a stand-in for hours off the shelf, and actual off-shelf hours are not recorded."
+ },
+ "Q060": {
+  "raw": "{\"plans\": [{\"from\": \"stock-counts-june\", \"where\": {\"op\": \"and\", \"args\": [{\"op\": \"between\", \"arg\": {\"col\": \"stock-counts-june.count_ts\"}, \"low\": \"2026-06-01\", \"high\": \"2026-06-28\"}, {\"op\": \"=\", \"args\": [{\"col\": \"stock-counts-june.trigger\"}, \"lit\": \"manager request after complaints\"}]}, \"group_by\": [{\"col\": \"stock-counts-june.sku\"}], \"select\": [{\"as\": \"sku\", \"expr\": {\"col\": \"stock-counts-june.sku\"}}",
+  "error": "unparsable"
+ },
+ "Q061": {
+  "plans": [
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "shelf-audits-june.audit_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "shelf-audits-june.audit_ts"
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "shelf-audits-june.audit_ts"
+       }
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "audit_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Restock times are not recorded; shelf audits are 11:00 snapshots twice a week, so only audit dates and empty/on-shelf status can be shown, not when restocking happened or how long it took."
+   }
+  ]
+ },
+ "Q062": {
+  "plans": [
+   {
+    "from": "forecasts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "forecasts-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "forecasts-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "select": [
+     {
+      "as": "forecast_units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "forecasts-june.forecast_units_per_day"
+       }
+      }
+     },
+     {
+      "as": "forecast_days",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Forecast accuracy for 5 kg atta cannot be measured against real customer demand because demand is not recorded; sales for the eleven followed items are used as the stand-in, per Rule 4 and the knowledge layer."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "select": [
+     {
+      "as": "sold_units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "sales_days",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Sales for 5 kg atta in June 2026 are used as a stand-in for real customer demand, since demand itself is not recorded."
+   }
+  ]
+ },
+ "Q063": {
+  "from": "write-offs-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "write-offs-june.reason"
+     },
+     {
+      "lit": "expired"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "write-offs-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "expired_write_off_lines",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts write-off lines in June 2026 with reason 'expired' from the write-offs table."
+ },
+ "Q064": {
+  "raw": "{\"from\": \"write-offs-june\", \"where\": [{\"op\": \"and\", \"args\": [{\"op\": \"=\", \"args\": [{\"col\": \"write-offs-june.reason\"}, {\"lit\": \"expired\"}]}, {\"op\": \">=\", \"args\": [{\"col\": \"write-offs-june.date\"}, {\"lit\": \"2026-06-01\"}]}, {\"op\": \"<=\", \"args\": [{\"col\": \"write-offs-june.date\"}, {\"lit\": \"2026-06-30\"}]}]}, \"group_by\": [], \"select\": [{\"as\": \"expired_units\", \"expr\": {\"agg\": \"sum\", \"arg\": {\"col\": \"write-off",
+  "error": "unparsable"
+ },
+ "Q065": {
+  "from": "shelf-audits-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "shelf-audits-june.status"
+     },
+     {
+      "lit": "empty"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "empty_audit_rows",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts shelf-audit rows in June 2026 with status 'empty'."
+ },
+ "Q066": {
+  "layer": "knowledge",
+  "covers": "The cause of damage (rough handling, faulty fridge, late delivery) is not recorded; write-offs-june only records the damaged units and reason 'damaged' without any cause."
+ },
+ "Q067": {
+  "plans": [
+   {
+    "from": "forecasts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "forecasts-june.method"
+       },
+       {
+        "lit": "28-day mean of recorded sales"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "method",
+      "expr": {
+       "col": "forecasts-june.method"
+      }
+     },
+     {
+      "as": "products_using_method",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "forecasts-june.sku"
+       }
+      }
+     }
+    ],
+    "group_by": [
+     {
+      "col": "forecasts-june.method"
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "The records show which method was used but not why it was chosen; no table records a cause or reason for selecting the forecast method."
+   }
+  ]
+ },
+ "Q068": {
+  "cannot": "No table records fridge temperature or any temperature inside Store 014."
+ },
+ "Q069": {
+  "plans": [
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "inventory-book-june.date"
+        }
+       },
+       {
+        "lit": "2026-06-10"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "The shelf quantity at 3 pm is not recorded; only the closing book stock for 10 June is available as a stand-in, and book stock is a belief, not the shelf."
+   }
+  ]
+ },
+ "Q070": {
+  "from": "stock-counts-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "stock-counts-june.trigger"
+     },
+     {
+      "lit": "manager request after complaints"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "stock-counts-june.count_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "counts_triggered_by_manager_request_after_complaints",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts stock-count rows in June 2026 whose trigger is 'manager request after complaints'."
+ },
+ "Q071": {
+  "from": "write-offs-june",
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "write-offs-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [
+   {
+    "col": "write-offs-june.date"
+   }
+  ],
+  "select": [
+   {
+    "as": "day",
+    "expr": {
+     "col": "write-offs-june.date"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts distinct days in June 2026 with at least one write-off recorded."
+ },
+ "Q072": {
+  "cannot": "stock-counts-june covers only June 2026; no table records stock counts for January–March 2026"
+ },
+ "Q073": {
+  "plans": [
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.sku"
+       },
+       {
+        "lit": "CURD-500G"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.reason"
+       },
+       {
+        "lit": "expired"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "write-offs-june.date"
+     }
+    ],
+    "select": [
+     {
+      "as": "write_off_date",
+      "expr": {
+       "col": "write-offs-june.date"
+      }
+     },
+     {
+      "as": "units_written_off",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "write-offs-june.units"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "write_off_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded curd expiry write-offs by day in June 2026."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "CURD-500G"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "daily-sales-june.date"
+     }
+    ],
+    "select": [
+     {
+      "as": "sale_date",
+      "expr": {
+       "col": "daily-sales-june.date"
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "sale_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded curd units sold by day in June 2026."
+   },
+   {
+    "from": "fresh-deliveries-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "fresh-deliveries-june.sku"
+       },
+       {
+        "lit": "CURD-500G"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "fresh-deliveries-june.delivery_ts"
+     }
+    ],
+    "select": [
+     {
+      "as": "delivery_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "fresh-deliveries-june.delivery_ts"
+       }
+      }
+     },
+     {
+      "as": "units_delivered",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "fresh-deliveries-june.units"
+       }
+      }
+     },
+     {
+      "as": "earliest_use_by",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "fresh-deliveries-june.use_by"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "delivery_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded curd fresh deliveries by day with use-by dates in June 2026."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "CURD-500G"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "inventory-book-june.date"
+     }
+    ],
+    "select": [
+     {
+      "as": "book_date",
+      "expr": {
+       "col": "inventory-book-june.date"
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "inventory-book-june.book_on_hand_close"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "book_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded curd book stock by day in June 2026."
+   }
+  ],
+  "layer": "knowledge",
+  "covers": "The records hold curd write-offs, sales, deliveries and book stock, but not over-ordering decisions, slow-sales causes, or fridge temperature; a warm-fridge cause cannot be determined from any table."
+ },
+ "Q074": {
+  "raw": "{\"plans\":[{\"from\":\"write-offs-june\",\"where\":[{\"op\":\"between\",\"arg\":{\"col\":\"write-offs-june.date\"},\"low\":\"2026-06-01\",\"high\":\"2026-06-30\"},{\"op\":\"in\",\"arg\":{\"col\":\"write-offs-june.reason\"},\"values\":[\"damaged\",\"expired\"]}],\"group_by\":[],\"select\":[{\"as\":\"damage_expiry_units\",\"expr\":{\"agg\":\"sum\",\"arg\":{\"col\":\"write-offs-june.units\"}}}],\"layer\":\"schema\",\"covers\":\"damage and expiry write-offs only; thef",
+  "error": "unparsable"
+ },
+ "Q075": {
+  "from": "write-offs-june",
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "write-offs-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [
+   {
+    "col": "write-offs-june.sku"
+   }
+  ],
+  "select": [
+   {
+    "as": "sku",
+    "expr": {
+     "col": "write-offs-june.sku"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "counts distinct products with at least one write-off row in June 2026"
+ },
+ "Q076": {
+  "from": "stock-counts-june",
+  "where": [
+   {
+    "op": "!=",
+    "args": [
+     {
+      "col": "stock-counts-june.book_before"
+     },
+     {
+      "col": "stock-counts-june.counted"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "counts_with_difference",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts the stock-counts rows where book_before differs from counted, covering all June 2026 stock counts."
+ },
+ "Q077": {
+  "plans": [
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.status"
+       },
+       {
+        "lit": "empty"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "missed_rows",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Records only show whether a product was seen or not seen at the 11:00 audit; nothing records a product that was on the shelf but hidden behind another, so the question cannot be answered from the records."
+   }
+  ]
+ },
+ "Q078": {
+  "raw": "{\"from\": \"shelf-audits-june\", \"where\": [{\"op\": \"and\", \"args\": [{\"op\": \"=\", \"args\": [{\"col\": \"shelf-audits-june.sku\"}, {\"lit\": \"ATTA-WW-5KG\"}]}, {\"op\": \"=\", \"args\": [{\"col\": \"shelf-audits-june.status\"}, {\"lit\": \"empty\"}]}, {\"op\": \">=\", \"args\": [{\"col\": \"shelf-audits-june.audit_ts\"}, {\"lit\": \"2026-06-01\"}]}, {\"op\": \"<=\", \"args\": [{\"col\": \"shelf-audits-june.audit_ts\"}, {\"lit\": \"2026-06-30\"}]}]}, \"sel",
+  "error": "unparsable"
+ },
+ "Q079": {
+  "from": "shelf-audits-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "shelf-audits-june.status"
+     },
+     {
+      "lit": "empty"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "shelf-audits-june.audit_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [
+   {
+    "col": "shelf-audits-june.sku"
+   }
+  ],
+  "select": [
+   {
+    "as": "sku",
+    "expr": {
+     "col": "shelf-audits-june.sku"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts distinct products with an empty shelf-audit row in June 2026."
+ },
+ "Q080": {
+  "plans": [
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "write-offs-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "write-offs-june.reason"
+     }
+    ],
+    "select": [
+     {
+      "as": "total_units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "write-offs-june.units"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "total_units",
+      "dir": "desc"
+     }
+    ],
+    "limit": 1,
+    "layer": "schema",
+    "covers": "The reason for the largest write-off by units in June 2026; the cause behind each reason is not recorded."
+   }
+  ]
+ },
+ "Q081": {
+  "from": "shelf-audits-june",
+  "joins": [
+   {
+    "table": "inventory-book-june",
+    "type": "inner",
+    "on": [
+     {
+      "col": "shelf-audits-june.sku"
+     },
+     {
+      "col": "inventory-book-june.sku"
+     }
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "shelf-audits-june.status"
+     },
+     {
+      "lit": "empty"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     },
+     {
+      "fn": "day",
+      "arg": {
+       "col": "inventory-book-june.date"
+      }
+     }
+    ]
+   },
+   {
+    "op": ">",
+    "args": [
+     {
+      "col": "inventory-book-june.book_on_hand_close"
+     },
+     {
+      "lit": 0
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "audit_ts",
+    "expr": {
+     "col": "shelf-audits-june.audit_ts"
+    }
+   },
+   {
+    "as": "sku",
+    "expr": {
+     "col": "shelf-audits-june.sku"
+    }
+   },
+   {
+    "as": "book_on_hand_close",
+    "expr": {
+     "col": "inventory-book-june.book_on_hand_close"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "shelf audits with status empty on the same day as book stock above zero"
+ },
+ "Q082": {
+  "from": "inventory-book-june",
+  "where": [
+   {
+    "op": "<",
+    "args": [
+     {
+      "col": "inventory-book-june.book_on_hand_close"
+     },
+     {
+      "lit": 0
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "date",
+    "expr": {
+     "col": "inventory-book-june.date"
+    }
+   }
+  ],
+  "order_by": [
+   {
+    "by": "date",
+    "dir": "asc"
+   }
+  ],
+  "layer": "schema",
+  "covers": "Closing book stock below zero on any day for any product."
+ },
+ "Q083": {
+  "raw": "{\"from\": \"stock-counts-june\", \"where\": [{\"op\": \"and\", \"args\": [{\"op\": \"not_null\", \"arg\": {\"col\": \"stock-counts-june.book_before\"}}, {\"op\": \">\", \"args\": [{\"col\": \"stock-counts-june.book_before\"}, {\"lit\": 0}]}, {\"op\": \"or\", \"args\": [{\"op\": \">\", \"args\": [{\"fn\": \"abs\", \"arg\": {\"op\": \"-\", \"args\": [{\"col\": \"stock-counts-june.counted\"}, {\"col\": \"stock-counts-june.book_before\"}]}}, {\"op\": \"*\", \"args\": [{\"",
+  "error": "unparsable"
+ },
+ "Q084": {
+  "plans": [
+   {
+    "from": "pos-lines-may-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-lines-may-june.sku_scanned"
+       },
+       {
+        "lit": "MILK-TONED-500ML"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "sale_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-lines-may-june.bill_ts"
+       }
+      }
+     },
+     {
+      "as": "last_sale_time",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "pos-lines-may-june.bill_ts"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "sale_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "last sale time per day for toned milk from till lines"
+   },
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.sku"
+       },
+       {
+        "lit": "MILK-TONED-500ML"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "write-offs-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "write-offs-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "writeoff_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "write-offs-june.date"
+       }
+      }
+     },
+     {
+      "as": "pouches_written_off",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "write-offs-june.units"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "writeoff_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "pouches written off per day for toned milk"
+   }
+  ]
+ },
+ "Q085": {
+  "plans": [
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "and",
+      "args": [
+       {
+        "op": "=",
+        "args": [
+         {
+          "col": "inventory-book-june.sku"
+         },
+         {
+          "lit": "ATTA-WW-5KG"
+         }
+        ]
+       },
+       {
+        "op": "=",
+        "args": [
+         {
+          "fn": "day",
+          "arg": {
+           "col": "inventory-book-june.date"
+          }
+         },
+         {
+          "lit": "2026-06-11"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Book stock for 5 kg atta on 11 June; book stock is a belief, not the shelf, so it does not prove on-shelf availability."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "and",
+      "args": [
+       {
+        "op": "=",
+        "args": [
+         {
+          "col": "shelf-audits-june.sku"
+         },
+         {
+          "lit": "ATTA-WW-5KG"
+         }
+        ]
+       },
+       {
+        "op": "=",
+        "args": [
+         {
+          "fn": "day",
+          "arg": {
+           "col": "shelf-audits-june.audit_ts"
+          }
+         },
+         {
+          "lit": "2026-06-11"
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Shelf audit status for 5 kg atta on 11 June; audits are 11:00 snapshots twice a week, so absence of an audit means no shelf observation for that day."
+   }
+  ]
+ },
+ "Q086": {
+  "raw": "{\"plans\": [{\"from\": \"shelf-audits-june\", \"where\": [{\"op\": \"=\", \"args\": [{\"col\": \"shelf-audits-june.sku\"}, {\"lit\": \"ATTA-WW-5KG\"}]}, {\"op\": \"between\", \"arg\": {\"col\": \"shelf-audits-june.audit_ts\"}, \"low\": \"2026-06-01\", \"high\": \"2026-06-30\"}], \"group_by\": [], \"select\": [{\"as\": \"audits\", \"expr\": {\"agg\": \"count\", \"arg\": \"*\"}}, {\"as\": \"on_shelf\", \"expr\": {\"agg\": \"count\", \"arg\": {\"col\": \"shelf-audits-jun",
+  "error": "unparsable"
+ },
+ "Q087": {
+  "plans": [
+   {
+    "from": "dc-stock-adjustments-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "dc-stock-adjustments-june.sku"
+      },
+      "values": [
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG",
+       "ATTA-WW-10KG"
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "dc_value_at_cost_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.value_at_cost_inr"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "warehouse (DC) stock corrections for atta SKUs at cost"
+   },
+   {
+    "from": "stock-counts-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "stock-counts-june.sku"
+      },
+      "values": [
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG",
+       "ATTA-WW-10KG"
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "store_adjustment_packs",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "stock-counts-june.adjustment"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "store stock-count adjustments for atta SKUs in packs"
+   },
+   {
+    "from": "products",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "products.sku"
+      },
+      "values": [
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG",
+       "ATTA-WW-10KG"
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "products.sku"
+      }
+     },
+     {
+      "as": "cost_inr",
+      "expr": {
+       "col": "products.cost_inr"
+      }
+     },
+     {
+      "as": "case_units",
+      "expr": {
+       "col": "products.case_units"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "product cost and pack size for atta SKUs"
+   },
+   {
+    "plans": [
+     {
+      "from": "stock-counts-june",
+      "where": [
+       {
+        "op": "in",
+        "arg": {
+         "col": "stock-counts-june.sku"
+        },
+        "values": [
+         "ATTA-WW-1KG",
+         "ATTA-WW-5KG",
+         "ATTA-WW-10KG"
+        ]
+       }
+      ],
+      "group_by": [
+       {
+        "col": "stock-counts-june.sku"
+       }
+      ],
+      "select": [
+       {
+        "as": "sku",
+        "expr": {
+         "col": "stock-counts-june.sku"
+        }
+       },
+       {
+        "as": "total_adjustment_packs",
+        "expr": {
+         "agg": "sum",
+         "arg": {
+          "col": "stock-counts-june.adjustment"
+         }
+        }
+       }
+      ],
+      "layer": "schema",
+      "covers": "per-SKU store stock-count adjustments for atta"
+     },
+     {
+      "from": "products",
+      "where": [
+       {
+        "op": "in",
+        "arg": {
+         "col": "products.sku"
+        },
+        "values": [
+         "ATTA-WW-1KG",
+         "ATTA-WW-5KG",
+         "ATTA-WW-10KG"
+        ]
+       }
+      ],
+      "group_by": [
+       {
+        "col": "products.sku"
+       }
+      ],
+      "select": [
+       {
+        "as": "sku",
+        "expr": {
+         "col": "products.sku"
+        }
+       },
+       {
+        "as": "cost_inr",
+        "expr": {
+         "col": "products.cost_inr"
+        }
+       },
+       {
+        "as": "case_units",
+        "expr": {
+         "col": "products.case_units"
+        }
+       }
+      ],
+      "layer": "schema",
+      "covers": "per-SKU product cost and pack size for atta"
+     }
+    ],
+    "layer": "ontology",
+    "covers": "net vs gross value at cost of atta stock corrections across warehouse and store"
+   }
+  ]
+ },
+ "Q088": {
+  "plans": [
+   {
+    "from": "dc-stock-adjustments-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "dc-stock-adjustments-june.adjusted_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "dc-stock-adjustments-june.sku"
+     },
+     {
+      "col": "dc-stock-adjustments-june.slot"
+     }
+    ],
+    "select": [
+     {
+      "as": "dc_sku",
+      "expr": {
+       "col": "dc-stock-adjustments-june.sku"
+      }
+     },
+     {
+      "as": "dc_slot",
+      "expr": {
+       "col": "dc-stock-adjustments-june.slot"
+      }
+     },
+     {
+      "as": "dc_cases",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.cases"
+       }
+      }
+     },
+     {
+      "as": "dc_min_ts",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "dc-stock-adjustments-june.adjusted_ts"
+       }
+      }
+     },
+     {
+      "as": "dc_max_ts",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "dc-stock-adjustments-june.adjusted_ts"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Warehouse (DC) stock corrections by product and slot, with net cases and date range."
+   },
+   {
+    "from": "stock-counts-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "stock-counts-june.count_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "stock-counts-june.sku"
+     }
+    ],
+    "select": [
+     {
+      "as": "sc_sku",
+      "expr": {
+       "col": "stock-counts-june.sku"
+      }
+     },
+     {
+      "as": "sc_adjustment",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "stock-counts-june.adjustment"
+       }
+      }
+     },
+     {
+      "as": "sc_min_ts",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "stock-counts-june.count_ts"
+       }
+      }
+     },
+     {
+      "as": "sc_max_ts",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "stock-counts-june.count_ts"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Store stock-count adjustments by product, with net packs and date range."
+   },
+   {
+    "from": "products",
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "products.sku"
+      }
+     },
+     {
+      "as": "family",
+      "expr": {
+       "col": "products.sku"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Product family stand-in: the SKU code itself, since no family column exists."
+   }
+  ],
+  "layer": "ontology",
+  "covers": "Mirror-image pairs require joining DC adjustments and store count adjustments on product family, comparing opposite signs, cases within 15%, and dates within 7 days; the code checks the premise and finds no such column or join path, so it reports what is missing."
+ },
+ "Q089": {
+  "plans": [
+   {
+    "from": "goods-receipts-june",
+    "joins": [
+     {
+      "table": "stock-counts-june",
+      "type": "left",
+      "on": [
+       {
+        "col": "stock-counts-june.sku"
+       }
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "and",
+      "args": [
+       {
+        "op": "<",
+        "args": [
+         {
+          "col": "goods-receipts-june.received_ts"
+         },
+         {
+          "col": "stock-counts-june.count_ts"
+         }
+        ]
+       },
+       {
+        "op": "<=",
+        "args": [
+         {
+          "fn": "days_between",
+          "args": [
+           {
+            "col": "goods-receipts-june.received_ts"
+           },
+           {
+            "col": "stock-counts-june.count_ts"
+           }
+          ]
+         },
+         {
+          "lit": 7
+         }
+        ]
+       }
+      ]
+     },
+     {
+      "op": "or",
+      "args": [
+       {
+        "op": "is_null",
+        "arg": {
+         "col": "stock-counts-june.count_ts"
+        }
+       },
+       {
+        "op": ">",
+        "args": [
+         {
+          "fn": "days_between",
+          "args": [
+           {
+            "col": "goods-receipts-june.received_ts"
+           },
+           {
+            "col": "stock-counts-june.count_ts"
+           }
+          ]
+         },
+         {
+          "lit": 7
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "goods-receipts-june.grn_id"
+     },
+     {
+      "col": "goods-receipts-june.line"
+     }
+    ],
+    "select": [
+     {
+      "as": "grn_id",
+      "expr": {
+       "col": "goods-receipts-june.grn_id"
+      }
+     },
+     {
+      "as": "line",
+      "expr": {
+       "col": "goods-receipts-june.line"
+      }
+     },
+     {
+      "as": "sku_booked",
+      "expr": {
+       "col": "goods-receipts-june.sku_booked"
+      }
+     },
+     {
+      "as": "received_ts",
+      "expr": {
+       "col": "goods-receipts-june.received_ts"
+      }
+     },
+     {
+      "as": "next_count_ts",
+      "expr": {
+       "col": "stock-counts-june.count_ts"
+      }
+     },
+     {
+      "as": "days_to_count",
+      "expr": {
+       "fn": "days_between",
+       "args": [
+        {
+         "col": "goods-receipts-june.received_ts"
+        },
+        {
+         "col": "stock-counts-june.count_ts"
+        }
+       ]
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "grn_id",
+      "dir": "asc"
+     },
+     {
+      "by": "line",
+      "dir": "asc"
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Goods receipts whose next stock count for the same SKU is missing or more than a week after receipt; stock-counts-june is the only count record and may not cover every receipt."
+   }
+  ]
+ },
+ "Q090": {
+  "plans": [
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "shelf-audits-june.audit_ts"
+      },
+      "low": "2026-06-23",
+      "high": "2026-06-26"
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "shelf-audits-june.audit_ts"
+       }
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "audit_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded shelf status for 5 kg atta on 23-26 June; the reason for being off the shelf is not recorded."
+   },
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "write-offs-june.date"
+      },
+      "low": "2026-06-23",
+      "high": "2026-06-26"
+     }
+    ],
+    "select": [
+     {
+      "as": "writeoff_date",
+      "expr": {
+       "col": "write-offs-june.date"
+      }
+     },
+     {
+      "as": "reason",
+      "expr": {
+       "col": "write-offs-june.reason"
+      }
+     },
+     {
+      "as": "units",
+      "expr": {
+       "col": "write-offs-june.units"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded write-offs for 5 kg atta in the period; the cause of the shelf gap is not recorded."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-23",
+      "high": "2026-06-26"
+     }
+    ],
+    "select": [
+     {
+      "as": "sales_date",
+      "expr": {
+       "col": "daily-sales-june.date"
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "col": "daily-sales-june.units_sold"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded sales for 5 kg atta in the period; sales absence does not record why the shelf was empty."
+   }
+  ],
+  "layer": "knowledge",
+  "covers": "No table records why a product was off the shelf; only shelf audits, write-offs and sales can be shown as evidence."
+ },
+ "Q091": {
+  "plans": [
+   {
+    "from": "stock-counts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "stock-counts-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "count_ts",
+      "expr": {
+       "col": "stock-counts-june.count_ts"
+      }
+     },
+     {
+      "as": "book_before",
+      "expr": {
+       "col": "stock-counts-june.book_before"
+      }
+     },
+     {
+      "as": "counted",
+      "expr": {
+       "col": "stock-counts-june.counted"
+      }
+     },
+     {
+      "as": "adjustment",
+      "expr": {
+       "col": "stock-counts-june.adjustment"
+      }
+     },
+     {
+      "as": "trigger",
+      "expr": {
+       "col": "stock-counts-june.trigger"
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Theft is not recorded; only stock counts and their adjustments are shown, with no cause."
+   },
+   {
+    "from": "write-offs-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "write-offs-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "write-offs-june.date"
+      }
+     },
+     {
+      "as": "reason",
+      "expr": {
+       "col": "write-offs-june.reason"
+      }
+     },
+     {
+      "as": "units",
+      "expr": {
+       "col": "write-offs-june.units"
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Write-offs record damaged or expired units, not theft."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "col": "inventory-book-june.date"
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Book stock is a belief, not evidence of theft."
+   }
+  ],
+  "layer": "knowledge",
+  "covers": "No record holds theft as a cause; only stock counts, write-offs and book stock can be checked as recorded evidence."
+ },
+ "Q092": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "daily-sales-june.date"
+        }
+       },
+       {
+        "lit": "2026-06-23"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "daily-sales-june.date"
+        }
+       },
+       {
+        "lit": 20
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.units_sold"
+       },
+       {
+        "lit": 0
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "units_sold_2026-06-23_20",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "revenue_inr_2026-06-23_20",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     },
+     {
+      "as": "sales_rows_2026-06-23_20",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Recorded sales of 5 kg atta at 20:00 on 2026-06-23; zero sales would confirm the premise that it stopped selling this evening, but the records do not say why."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "inventory-book-june.date"
+        }
+       },
+       {
+        "lit": "2026-06-23"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "book_on_hand_close_2026-06-23",
+      "expr": {
+       "col": "inventory-book-june.book_on_hand_close"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Book stock belief for 5 kg atta on 2026-06-23; not the shelf, so it cannot explain why sales stopped."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "shelf-audits-june.audit_ts"
+        }
+       },
+       {
+        "lit": "2026-06-23"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "audit_status_2026-06-23",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     },
+     {
+      "as": "audit_ts_2026-06-23",
+      "expr": {
+       "col": "shelf-audits-june.audit_ts"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "11:00 shelf-audit snapshot for 5 kg atta on 2026-06-23; an 'empty' status would show the shelf was bare earlier that day, but no audit exists at 20:00 and no restock time is recorded."
+   },
+   {
+    "from": "goods-receipts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "goods-receipts-june.sku_booked"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "goods-receipts-june.received_ts"
+      },
+      "low": "2026-06-23T00:00",
+      "high": "2026-06-23T20:00"
+     }
+    ],
+    "select": [
+     {
+      "as": "receipt_grn_id",
+      "expr": {
+       "col": "goods-receipts-june.grn_id"
+      }
+     },
+     {
+      "as": "receipt_line",
+      "expr": {
+       "col": "goods-receipts-june.line"
+      }
+     },
+     {
+      "as": "receipt_shipment_id",
+      "expr": {
+       "col": "goods-receipts-june.shipment_id"
+      }
+     },
+     {
+      "as": "receipt_units_booked",
+      "expr": {
+       "col": "goods-receipts-june.units_booked"
+      }
+     },
+     {
+      "as": "receipt_asn_units",
+      "expr": {
+       "col": "goods-receipts-june.asn_units"
+      }
+     },
+     {
+      "as": "receipt_ts",
+      "expr": {
+       "col": "goods-receipts-june.received_ts"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Back-door receipt lines for 5 kg atta received on 2026-06-23 up to 20:00, including the shipment and line on each delivery."
+   },
+   {
+    "from": "shipments-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "shipments-june.shipment_id"
+      },
+      "values": [
+       {
+        "ref": "receipt_shipment_id"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "shipment_id",
+      "expr": {
+       "col": "shipments-june.shipment_id"
+      }
+     },
+     {
+      "as": "dispatched_ts",
+      "expr": {
+       "col": "shipments-june.dispatched_ts"
+      }
+     },
+     {
+      "as": "arrived_ts",
+      "expr": {
+       "col": "shipments-june.arrived_ts"
+      }
+     },
+     {
+      "as": "slot_start",
+      "expr": {
+       "col": "shipments-june.slot_start"
+      }
+     },
+     {
+      "as": "slot_end",
+      "expr": {
+       "col": "shipments-june.slot_end"
+      }
+     },
+     {
+      "as": "pallets",
+      "expr": {
+       "col": "shipments-june.pallets"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Shipment timing and slot for any delivery of 5 kg atta on 2026-06-23; arrival after 20:00 or a missed slot would point to a late delivery, but the records do not state what was really on the truck."
+   },
+   {
+    "from": "dc-pick-confirmations-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "dc-pick-confirmations-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "dc-pick-confirmations-june.shipment_id"
+      },
+      "values": [
+       {
+        "ref": "receipt_shipment_id"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "pick_line",
+      "expr": {
+       "col": "dc-pick-confirmations-june.line"
+      }
+     },
+     {
+      "as": "pick_order_id",
+      "expr": {
+       "col": "dc-pick-confirmations-june.order_id"
+      }
+     },
+     {
+      "as": "cases_ordered",
+      "expr": {
+       "col": "dc-pick-confirmations-june.cases_ordered"
+      }
+     },
+     {
+      "as": "cases_confirmed",
+      "expr": {
+       "col": "dc-pick-confirmations-june.cases_confirmed"
+      }
+     },
+     {
+      "as": "pick_ts",
+      "expr": {
+       "col": "dc-pick-confirmations-june.pick_ts"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Pick confirmation for 5 kg atta on the relevant shipment, showing what the DC confirmed versus what was ordered; it does not record what was really on the truck."
+   },
+   {
+    "from": "shipping-notice-lines-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shipping-notice-lines-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "shipping-notice-lines-june.shipment_id"
+      },
+      "values": [
+       {
+        "ref": "receipt_shipment_id"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "notice_line",
+      "expr": {
+       "col": "shipping-notice-lines-june.line"
+      }
+     },
+     {
+      "as": "notice_order_id",
+      "expr": {
+       "col": "shipping-notice-lines-june.order_id"
+      }
+     },
+     {
+      "as": "notice_units",
+      "expr": {
+       "col": "shipping-notice-lines-june.units"
+      }
+     },
+     {
+      "as": "notice_cases",
+      "expr": {
+       "col": "shipping-notice-lines-june.cases"
+      }
+     },
+     {
+      "as": "notice_sscc",
+      "expr": {
+       "col": "shipping-notice-lines-june.sscc"
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Shipping-notice line for 5 kg atta on the relevant shipment, the closest record to what was supposed to be on it; it is a notice, not an observation of the truck's contents."
+   },
+   {
+    "layer": "knowledge",
+    "covers": "The cause of the evening sales stop is not recorded: no table identifies a person, records why a product stopped selling, or shows what was really on a shipment; a delivery being to blame and the real contents of the truck are outside the records."
+   }
+  ]
+ },
+ "Q093": {
+  "plans": [
+   {
+    "from": "forecasts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "forecasts-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "forecasts-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "forecast_total",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "forecasts-june.forecast_units_per_day"
+       }
+      }
+     },
+     {
+      "as": "forecast_days",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Forecast is scored against recorded sales (demand is not recorded); sales cover only the eleven followed items, so this is a stand-in for shopper demand."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "sales_total",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "sales_days",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Recorded sales are used as a stand-in for shopper demand; demand itself is not recorded."
+   }
+  ]
+ },
+ "Q094": {
+  "raw": "{\"plans\": [{\"from\": \"daily-sales-june\", \"where\": [{\"op\": \"and\", \"args\": [{\"op\": \"=\", \"args\": [{\"col\": \"daily-sales-june.sku\"}, {\"lit\": \"ATTA-WW-5KG\"}]}, {\"op\": \"=\", \"args\": [{\"fn\": \"day\", \"arg\": {\"col\": \"daily-sales-june.date\"}}, {\"lit\": \"2026-06-11\"}]}]}, \"select\": [{\"as\": \"units_sold\", \"expr\": {\"agg\": \"sum\", \"arg\": {\"col\": \"daily-sales-june.units_sold\"}}}], \"layer\": \"schema\", \"covers\": \"recorded",
+  "error": "unparsable"
+ },
+ "Q095": {
+  "cannot": "no table records a cashier, a shoplifter, or the cause of missing stock"
+ },
+ "Q096": {
+  "cannot": "Demand, lost sales, shoppers who leave without buying, standing orders, margin lift, and the effect of an order cut are not recorded; till records only show sales of the eleven followed items, not unmet demand."
+ },
+ "Q097": {
+  "raw": "{\"plans\": [{\"from\": \"shipments-june\", \"where\": [{\"op\": \"and\", \"args\": [{\"op\": \"=\", \"args\": [{\"col\": \"shipments-june.shipment_id\"}, {\"lit\": \"22 June delivery\"}]}]}, {\"op\": \"and\", \"args\": [{\"op\": \">=\", \"args\": [{\"col\": \"shipments-june.arrived_ts\"}, {\"col\": \"shipments-june.slot_start\"}]}, {\"op\": \"<=\", \"args\": [{\"col\": \"shipments-june.arrived_ts\"}, {\"col\": \"shipments-june.slot_end\"}]}]}]}, {\"select\": ",
+  "error": "unparsable"
+ },
+ "Q098": {
+  "plans": [
+   {
+    "from": "dc-stock-adjustments-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "dc-stock-adjustments-june.adjusted_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "dc-stock-adjustments-june.sku"
+      },
+      "values": [
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG",
+       "ATTA-WW-10KG"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "dc-stock-adjustments-june.sku"
+     },
+     {
+      "col": "dc-stock-adjustments-june.reason"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "dc-stock-adjustments-june.sku"
+      }
+     },
+     {
+      "as": "reason",
+      "expr": {
+       "col": "dc-stock-adjustments-june.reason"
+      }
+     },
+     {
+      "as": "adjustment_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "total_value_at_cost_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.value_at_cost_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "total_value_at_cost_inr",
+      "dir": "desc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "June DC stock adjustments for atta SKUs, grouped by SKU and reason, with count and summed cost value; the net ₹80 premise is checked against the summed value rather than trusted."
+   },
+   {
+    "from": "stock-counts-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "stock-counts-june.count_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "stock-counts-june.sku"
+      },
+      "values": [
+       "ATTA-WW-1KG",
+       "ATTA-WW-5KG",
+       "ATTA-WW-10KG"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "stock-counts-june.sku"
+     },
+     {
+      "col": "stock-counts-june.trigger"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "stock-counts-june.sku"
+      }
+     },
+     {
+      "as": "trigger",
+      "expr": {
+       "col": "stock-counts-june.trigger"
+      }
+     },
+     {
+      "as": "count_events",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "total_adjustment_packs",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "stock-counts-june.adjustment"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "total_adjustment_packs",
+      "dir": "desc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "June hand stock counts for atta SKUs, grouped by SKU and trigger, with count and summed adjustment in packs; shows whether adjustments were complaint-triggered or scheduled."
+   }
+  ],
+  "layer": "knowledge",
+  "covers": "The reason or cause for investigating despite a small net value is not recorded; only the recorded adjustments and counts can be shown."
+ }
+}
