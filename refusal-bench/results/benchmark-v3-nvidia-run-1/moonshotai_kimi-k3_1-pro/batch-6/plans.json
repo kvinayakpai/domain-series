@@ -1,0 +1,1824 @@
+{
+ "Q246": {
+  "from": "products",
+  "select": [
+   {
+    "as": "sku",
+    "expr": {
+     "col": "products.sku"
+    }
+   },
+   {
+    "as": "gross_margin_percentage",
+    "expr": {
+     "op": "*",
+     "args": [
+      {
+       "op": "/",
+       "args": [
+        {
+         "op": "-",
+         "args": [
+          {
+           "col": "products.price_inr"
+          },
+          {
+           "col": "products.cost_inr"
+          }
+         ]
+        },
+        {
+         "col": "products.price_inr"
+        }
+       ]
+      },
+      {
+       "lit": 100
+      }
+     ]
+    }
+   }
+  ],
+  "order_by": [
+   {
+    "by": "gross_margin_percentage",
+    "dir": "desc"
+   }
+  ],
+  "layer": "schema",
+  "covers": "Calculates the list gross margin percentage for every SKU using the single recorded price and cost per product, ranked highest to lowest; this is a list margin, not a realized margin."
+ },
+ "Q247": {
+  "plans": [
+   {
+    "from": "pos-lines-may-june",
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28T23:59"
+     }
+    ],
+    "select": [
+     {
+      "as": "june_lines",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "lines_not_qty_times_price",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "-",
+        "args": [
+         {
+          "lit": 1
+         },
+         {
+          "lit": 1
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Checks the June 2026 till-line premise that line_amount equals qty times unit_price; this arithmetic alone cannot establish whether any discount was offered."
+   },
+   {
+    "from": "pos-lines-may-june",
+    "joins": [
+     {
+      "table": "products",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "pos-lines-may-june.sku_scanned"
+        },
+        {
+         "col": "products.sku"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-lines-may-june.bill_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28T23:59"
+     }
+    ],
+    "select": [
+     {
+      "as": "june_lines",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "lines_below_list_unit_price",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "-",
+        "args": [
+         {
+          "lit": 1
+         },
+         {
+          "lit": 1
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Uses unit_price below products.price_inr as a labelled stand-in for a possible discount; no table records a discount, promotion, or its cause, and the till lines cover only the eleven followed items."
+   }
+  ]
+ },
+ "Q248": {
+  "cannot": "The records list only one 5 kg atta product, ATTA-WW-5KG (Whole wheat atta 5 kg), and no table records a brand or manufacturer for any product."
+ },
+ "Q249": {
+  "cannot": "No table records a markdown or a reduced selling price, and no table links a sale to a unit's expiry date; daily-sales-june and pos-lines-may-june hold units and amounts but no markdown flag, and write-offs-june records expired units, not units sold before expiring."
+ },
+ "Q250": {
+  "cannot": "No table holds a GST rate or tax amount per bill; pos-lines-may-june has only line_amount, qty and unit_price, and no tax column or tax rule is recorded, so tax cannot be computed or separated from the line amounts."
+ },
+ "Q251": {
+  "cannot": "No table records staff, shifts, staffing levels or workload per hour, and no recorded stand-in can determine how many staff are needed in each hour."
+ },
+ "Q252": {
+  "cannot": "No table identifies a delivery driver or links a person to a fresh route; fresh-deliveries-june records route R-07 and delivery times but no driver identity, and shipments-june vehicle IDs belong to DC trucks, not milk route drivers."
+ },
+ "Q253": {
+  "cannot": "No table identifies a cashier, and the records hold no bill sequence or timestamp that can establish which bill was the 5,000th of June 2026."
+ },
+ "Q254": {
+  "cannot": "No table identifies a cashier or links bills to one; pos-payments-june can count June 2026 bills but cannot attribute them to a person."
+ },
+ "Q255": {
+  "cannot": "No table identifies a supplier; fresh-deliveries-june records route, sku, delivery time and quantities but no supplier identity, so the supplier behind the R-12 curd deliveries is not recorded."
+ },
+ "Q256": {
+  "cannot": "No table identifies the manager who requested a stock count; stock-counts-june only records the trigger 'manager request after complaints', and person_identity is not recorded."
+ },
+ "Q257": {
+  "cannot": "No table identifies an individual picker: dc-pick-confirmations-june records only confirmed_by = 'slot label scan', not a person, and no other table holds picker identities; the slot A-07-03 and date 2026-06-22 cannot be checked against any picker record."
+ },
+ "Q258": {
+  "cannot": "The records hold no customer identity, no shopper who did not buy, no competitor or other-store data, and no recorded cause for a shopper's choice, so why shoppers chose another store in June 2026 cannot be planned or checked."
+ },
+ "Q259": {
+  "cannot": "Market share requires the area's total market sales and competitor sales, which are not recorded; the records cover only Store 014's eleven followed products and contain no external market data."
+ },
+ "Q260": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "daily-sales-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "group_by": [
+   {
+    "col": "daily-sales-june.date"
+   }
+  ],
+  "select": [
+   {
+    "as": "date",
+    "expr": {
+     "col": "daily-sales-june.date"
+    }
+   },
+   {
+    "as": "units_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   },
+   {
+    "as": "revenue_inr",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.revenue_inr"
+     }
+    }
+   }
+  ],
+  "order_by": [
+   {
+    "by": "date",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "layer": "knowledge",
+  "covers": "Daily June 2026 sales for the eleven followed items are the recorded evidence; weather, festivals, local events and their causes are not recorded (external, cause), so no sales change can be attributed to them."
+ },
+ "Q261": {
+  "cannot": "The records cover only Store 014 and its eleven followed products; no table holds other stores' sales, stock, payments, deliveries or any chain-wide figures, so there is nothing to compare against."
+ },
+ "Q262": {
+  "cannot": "The records hold no food-safety or labelling compliance data: no inspection results, licence or certification records, label or ingredient checks, temperature logs, or hygiene audits. The only adjacent evidence is operational (fresh-deliveries-june use_by dates and write-offs-june with reason 'expired'), which shows expiry handling for the eleven followed products, not whether Store 014 complies with any regulation, and no rule text or pass/fail standard exists in the schema to test it against."
+ },
+ "Q263": {
+  "cannot": "Competitor prices are not recorded; the records cover only Store 014's own products and transactions, with no outside facts about competitors."
+ },
+ "Q264": {
+  "cannot": "Lost sales are not recorded, and no table records a road closure on 2026-06-14 or its effect on demand; sales and forecasts cover only the eleven followed items, so the number of sales lost to that closure cannot be measured or reliably estimated from these records."
+ },
+ "Q265": {
+  "cannot": "No table records festivals, holidays, or the cause of a sales spike; the records cover only the eleven followed products in Store 014, so no festival can be identified or checked against an outside calendar."
+ },
+ "Q266": {
+  "cannot": "No table records power outages, internet disruptions, or any store infrastructure or connectivity events, so no plan can identify which June 2026 days had one."
+ },
+ "Q267": {
+  "from": "products",
+  "where": [],
+  "group_by": [],
+  "select": [
+   {
+    "as": "product_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts the distinct product rows recorded for Store 014 in the products table."
+ },
+ "Q268": {
+  "cannot": "The records do not define a fixed set of 12 joins or label table pairs as copies versus observations, and no single plan can compare every pair across all their rows; the question needs the specific join pairs and keys to check."
+ },
+ "Q269": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "first_open_day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "agg": "min",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       }
+      }
+     },
+     {
+      "as": "last_open_day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "agg": "max",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       }
+      }
+     },
+     {
+      "as": "days_with_approved_payments",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "fn": "day",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Checks the 30-versus-28 premise using approved-payment days as a stand-in for days open; the records cover June 1-28 and hold no explicit opening calendar or closure record, so they cannot prove the store was shut on June 29-30."
+   },
+   {
+    "from": "upi-settlements-june",
+    "select": [
+     {
+      "as": "first_settlement_date",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      }
+     },
+     {
+      "as": "last_settlement_date",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      }
+     },
+     {
+      "as": "settlement_days",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      }
+     },
+     {
+      "as": "june_29_or_30_settlement_rows",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "+",
+        "args": [
+         {
+          "lit": 0
+         },
+         {
+          "lit": 0
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "upi-settlements-june.settlement_date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Checks whether settlement records extend to June 29-30; settlements are evidence of credited UPI money, not direct proof that the store was open, and no opening calendar is recorded."
+   }
+  ]
+ },
+ "Q270": {
+  "cannot": "Ghee is not one of the eleven followed products in the records, so no table holds its sales for Store 014 in June 2026."
+ },
+ "Q271": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "in",
+    "arg": {
+     "col": "daily-sales-june.sku"
+    },
+    "values": [
+     "ATTA-WW-10KG",
+     "ATTA-WW-1KG",
+     "ATTA-WW-5KG"
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "daily-sales-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "select": [
+   {
+    "as": "atta_units_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Total recorded units sold in June 2026 for the three atta products (whole wheat atta 10 kg, 1 kg and 5 kg); daily-sales covers 2026-06-01 to 2026-06-28 and only the eleven followed items."
+ },
+ "Q272": {
+  "from": "write-offs-june",
+  "where": [],
+  "group_by": [],
+  "select": [
+   {
+    "as": "write_off_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts every write-off row in June 2026 across all products and reasons."
+ },
+ "Q273": {
+  "cannot": "The records are for Store 014 only; no table holds Store 015's sales, so its June 2026 sales of 5 kg atta (ATTA-WW-5KG) cannot be planned."
+ },
+ "Q274": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "MILK-TONED-500ML"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "daily-sales-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "select": [
+   {
+    "as": "pouches_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Total recorded units sold of toned milk in June 2026; note the followed item is the 500 ml pouch, not a 1-litre pouch."
+ },
+ "Q275": {
+  "from": "daily-sales-june",
+  "joins": [
+   {
+    "table": "products",
+    "type": "inner",
+    "on": [
+     [
+      {
+       "col": "daily-sales-june.sku"
+      },
+      {
+       "col": "products.sku"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "daily-sales-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   },
+   {
+    "op": "in",
+    "arg": {
+     "col": "daily-sales-june.sku"
+    },
+    "values": [
+     "ATTA-WW-10KG",
+     "ATTA-WW-1KG",
+     "ATTA-WW-5KG"
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "atta_kg_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "op": "*",
+      "args": [
+       {
+        "col": "daily-sales-june.units_sold"
+       },
+       {
+        "col": "products.case_kg"
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "ontology",
+  "covers": "June 2026 atta sales in kilograms for the three followed atta SKUs, using recorded units sold and products.case_kg as the pack-weight stand-in; the table covers June 1-28 only, case_kg includes packaging, and these are sales rather than demand."
+ },
+ "Q276": {
+  "from": "upi-settlements-june",
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-settlements-june.settlement_date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   },
+   {
+    "op": ">",
+    "args": [
+     {
+      "col": "upi-settlements-june.net_inr"
+     },
+     {
+      "lit": 400000
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "days_above_4_lakh",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts June 2026 settlement dates whose recorded net UPI settlement exceeded ₹4,00,000."
+ },
+ "Q277": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     },
+     {
+      "lit": "2026-06-05"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "bags_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Units of Whole wheat atta 5 kg (ATTA-WW-5KG) sold on 2026-06-05, interpreting 06/05/2026 as 5 June 2026; each unit is one 5 kg bag."
+ },
+ "Q278": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     },
+     {
+      "lit": "2026-06-11"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "bags_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Total units of Whole wheat atta 5 kg (ATTA-WW-5KG) sold on 2026-06-11 from the daily sales record."
+ },
+ "Q279": {
+  "from": "shipments-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "shipments-june.shipment_id"
+     },
+     {
+      "lit": "SHP-260612"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "pallets",
+    "expr": {
+     "col": "shipments-june.pallets"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Reads the recorded pallet count for shipment SHP-260612 from the shipment record."
+ },
+ "Q280": {
+  "plans": [
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "shelf-audits-june.status"
+       },
+       {
+        "lit": "empty"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "shelf-audits-june.audit_ts"
+       }
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "select": [
+     {
+      "as": "empty_audits",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "first_empty_audit",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "shelf-audits-june.audit_ts"
+       }
+      }
+     },
+     {
+      "as": "last_empty_audit",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "shelf-audits-june.audit_ts"
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Counts the June 11:00 audits that found 5 kg atta empty; these snapshots are the only recorded stand-in for times a shopper could not buy it, and no record holds shoppers who walked out."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "select": [
+     {
+      "as": "june_units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "days_with_sales",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "avg_units_per_day",
+      "expr": {
+       "agg": "avg",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Gives June 2026 sales of 5 kg atta as a baseline for a ballpark of unmet demand; sales are not demand and lost sales are not recorded."
+   },
+   {
+    "from": "forecasts-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "forecasts-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "forecasts-june.date"
+       }
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "select": [
+     {
+      "as": "forecast_units_june",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "forecasts-june.forecast_units_per_day"
+       }
+      }
+     },
+     {
+      "as": "avg_forecast_units_per_day",
+      "expr": {
+       "agg": "avg",
+       "arg": {
+        "col": "forecasts-june.forecast_units_per_day"
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Sums the June daily forecasts for 5 kg atta as a labelled stand-in for demand; a forecast predicts demand, which is not recorded, so forecast minus sales is only an estimate of units not bought."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "select": [
+     {
+      "as": "june_bills",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-payments-june.bill_id"
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Counts June approved bills as the nearest stand-in for shopper traffic, so the estimated unmet 5 kg atta units can be expressed as a ballpark share of shoppers; a bill is not a shopper and no customer identity exists."
+   }
+  ]
+ },
+ "Q281": {
+  "plans": [
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.rrn"
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "psp-upi-report-june.rrn"
+      }
+     },
+     {
+      "as": "provider_amount_inr",
+      "expr": {
+       "col": "psp-upi-report-june.amount_inr"
+      }
+     },
+     {
+      "as": "provider_status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     },
+     {
+      "as": "approved_till_payments",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "pos-payments-june.till_status"
+         },
+         {
+          "lit": "approved"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "ref": "approved_till_payments"
+       },
+       {
+        "lit": 0
+       }
+      ]
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Checks the stated count of 26 using the Extra debit definition: provider successes whose rrn has no approved till payment; it identifies the payments to refund but does not execute refunds."
+   },
+   {
+    "from": "upi-refunds-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "upi-refunds-june.rrn"
+        },
+        {
+         "col": "psp-upi-report-june.rrn"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "upi-refunds-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "upi-refunds-june.rrn"
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "upi-refunds-june.rrn"
+      }
+     },
+     {
+      "as": "already_refunded",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "upi-refunds-june.refund_id"
+       }
+      }
+     },
+     {
+      "as": "approved_till_payments",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "pos-payments-june.till_status"
+         },
+         {
+          "lit": "approved"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "ref": "approved_till_payments"
+       },
+       {
+        "lit": 0
+       }
+      ]
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Checks which of those extra debits already have a recorded UPI refund, so the plan does not treat an existing refund as a new refund to issue."
+   }
+  ]
+ },
+ "Q282": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "fn": "day",
+     "arg": {
+      "col": "daily-sales-june.date"
+     }
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "bags_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Recorded June 2026 unit sales of Whole wheat atta 5 kg (ATTA-WW-5KG), treating each unit as one 5 kg bag; the table covers 2026-06-01 to 2026-06-28."
+ },
+ "Q283": {
+  "from": "upi-refunds-june",
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "fn": "day",
+     "arg": {
+      "col": "upi-refunds-june.completed_ts"
+     }
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "upi_refunds",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts UPI refunds completed in June 2026; the table covers 2026-06-05 to 2026-06-26."
+ },
+ "Q284": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "SUGAR-1KG"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "daily-sales-june.date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "select": [
+   {
+    "as": "packets_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Total recorded units of Sugar 1 kg sold in June 2026 (data covers June 1-28); packets are interpreted as units."
+ },
+ "Q285": {
+  "from": "pos-payments-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed: no response"
+     }
+    ]
+   },
+   {
+    "op": "is_null",
+    "arg": {
+     "col": "pos-payments-june.rrn"
+    }
+   },
+   {
+    "op": ">=",
+    "args": [
+     {
+      "col": "pos-payments-june.ts"
+     },
+     {
+      "lit": "2026-06-01"
+     }
+    ]
+   },
+   {
+    "op": "<",
+    "args": [
+     {
+      "col": "pos-payments-june.ts"
+     },
+     {
+      "lit": "2026-07-01"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "timed_out_upi_payments_without_rrn",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Counts June 2026 UPI till payment attempts with status 'failed: no response' and no RRN recorded."
+ },
+ "Q286": {
+  "plans": [
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "daily-sales-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-14"
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 14,
+    "layer": "schema",
+    "covers": "Checks the stated 59% week-2 fall using recorded daily sales for 5 kg atta in week 1 (2026-06-01 to 2026-06-07) and week 2 (2026-06-08 to 2026-06-14)."
+   },
+   {
+    "from": "inventory-book-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "inventory-book-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-5KG"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "inventory-book-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-14"
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "inventory-book-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "inventory-book-june.date"
+       }
+      }
+     },
+     {
+      "as": "book_on_hand_close",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "inventory-book-june.book_on_hand_close"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 14,
+    "layer": "schema",
+    "covers": "Checks the premise that 5 kg atta book stock was fine during weeks 1 and 2; book stock is a belief, not shelf availability."
+   },
+   {
+    "from": "shelf-audits-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "shelf-audits-june.sku"
+      },
+      "values": [
+       "ATTA-WW-5KG",
+       "ATTA-WW-1KG"
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "shelf-audits-june.audit_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-14"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "shelf-audits-june.sku"
+     },
+     {
+      "col": "shelf-audits-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "shelf-audits-june.sku"
+      }
+     },
+     {
+      "as": "status",
+      "expr": {
+       "col": "shelf-audits-june.status"
+      }
+     },
+     {
+      "as": "audits",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "sku",
+      "dir": "asc"
+     },
+     {
+      "by": "status",
+      "dir": "asc"
+     }
+    ],
+    "limit": 20,
+    "layer": "ontology",
+    "covers": "Uses the On-shelf availability definition to compare recorded 11:00 shelf-audit evidence for 5 kg and 1 kg atta; these snapshots do not measure hours off shelf."
+   },
+   {
+    "from": "daily-sales-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "daily-sales-june.sku"
+      },
+      "values": [
+       "ATTA-WW-5KG",
+       "ATTA-WW-1KG"
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "daily-sales-june.date"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-14"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "fn": "day",
+      "arg": {
+       "col": "daily-sales-june.date"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "sku",
+      "expr": {
+       "col": "daily-sales-june.sku"
+      }
+     },
+     {
+      "as": "date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "daily-sales-june.date"
+       }
+      }
+     },
+     {
+      "as": "units_sold",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.units_sold"
+       }
+      }
+     },
+     {
+      "as": "revenue_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "daily-sales-june.revenue_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "sku",
+      "dir": "asc"
+     },
+     {
+      "by": "date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 28,
+    "layer": "knowledge",
+    "covers": "Provides the recorded sales comparison for 5 kg and 1 kg atta, but no record holds shelf-space allocation, the cause of the sales change, unmet demand, or lost sales, so the amount of space to move cannot be determined."
+   }
+  ]
+ },
+ "Q287": {
+  "cannot": "UPI timeouts ('failed: no response') have no rrn, so they cannot be joined to the provider report; the premise of 48 timeouts also cannot be checked by that join. A possible stand-in is to count June UPI attempts with till_status 'failed: no response' and report that their final provider status is not recorded."
+ },
+ "Q288": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "approved_payments",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": "!=",
+      "args": [
+       {
+        "ref": "approved_payments"
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    ],
+    "limit": 200,
+    "layer": "schema",
+    "covers": "Checks the premise directly: lists June bills whose approved-payment count is not exactly one, so an empty result supports one approved payment per recorded bill but does not by itself prove the stated total of 30077 or rule out extra provider debits."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "left",
+      "on": [
+       [
+        {
+         "col": "psp-upi-report-june.rrn"
+        },
+        {
+         "col": "pos-payments-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "or",
+      "args": [
+       {
+        "op": "is_null",
+        "arg": {
+         "col": "pos-payments-june.rrn"
+        }
+       },
+       {
+        "op": "!=",
+        "args": [
+         {
+          "col": "pos-payments-june.till_status"
+         },
+         {
+          "lit": "approved"
+         }
+        ]
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "provider_rrn",
+      "expr": {
+       "col": "psp-upi-report-june.rrn"
+      }
+     },
+     {
+      "as": "provider_amount_inr",
+      "expr": {
+       "col": "psp-upi-report-june.amount_inr"
+      }
+     },
+     {
+      "as": "provider_status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     },
+     {
+      "as": "till_status",
+      "expr": {
+       "col": "pos-payments-june.till_status"
+      }
+     }
+    ],
+    "limit": 200,
+    "layer": "ontology",
+    "covers": "Uses the Extra debit definition to look for provider successes without an approved till payment on the same rrn; this is the recorded evidence that can contradict the claim that nobody was double charged, while bank-side activity and debits without a usable rrn are not recorded."
+   }
+  ]
+ },
+ "Q289": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "fn": "day",
+     "arg": {
+      "col": "daily-sales-june.date"
+     }
+    },
+    "low": "2023-06-01",
+    "high": "2023-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "bags_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Checks the requested June 2023 sales of Whole wheat atta 5 kg (ATTA-WW-5KG) against daily-sales-june; the table covers only 2026-06-01 to 2026-06-28, so no June 2023 sales are recorded."
+ },
+ "Q290": {
+  "cannot": "Net profit after rent and staff salaries cannot be calculated: the records contain no rent, staff salary, or other operating-expense figures, and no complete store-wide cost of goods sold. Sales and payments also cover only June 2026, with product costs limited to the eleven followed items, so recorded revenue minus those costs would be a partial list margin, not net profit."
+ },
+ "Q291": {
+  "from": "daily-sales-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "daily-sales-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "fn": "day",
+     "arg": {
+      "col": "daily-sales-june.date"
+     }
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "select": [
+   {
+    "as": "bags_sold",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "daily-sales-june.units_sold"
+     }
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "June 2026 mein Whole wheat atta 5 kg (ATTA-WW-5KG) ke recorded units_sold ka total; yeh sirf is followed item ki recorded sales hain."
+ }
+}
