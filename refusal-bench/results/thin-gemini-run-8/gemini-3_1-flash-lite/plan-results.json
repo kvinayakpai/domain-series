@@ -1,0 +1,980 @@
+[
+ {
+  "id": "S8N01",
+  "question": "How many bags of 5 kg atta were sold in June 2026 (or in the week of 8 June)?",
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "I can't answer this from Store 014's records: the ontology layer refused the plan (the question names day 8 of month 6 but the plan has no such date).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N02",
+  "question": "Which shelf audits found an item empty while the hourly book showed stock above zero?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "2 row(s).",
+  "columns": [
+   "audit_ts",
+   "sku",
+   "book_stock"
+  ],
+  "rows": [
+   [
+    "2026-06-05T11:00",
+    "SUGAR-1KG",
+    55.0
+   ],
+   [
+    "2026-06-12T11:00",
+    "ATTA-WW-5KG",
+    55.0
+   ]
+  ],
+  "row_count": 2,
+  "plan": "From shelf-audit row records; inner-join book-stock row records on shelf audits.sku = inventory book.sku and day(shelf audits.audit_ts) = inventory book.date; keep rows where shelf audits.status = 'empty' and inventory book.book_on_hand_close > 0; report audit_ts = shelf audits.audit_ts, sku = shelf audits.sku, book_stock = inventory book.book_on_hand_close.",
+  "error": null
+ },
+ {
+  "id": "S8N03",
+  "question": "On which days did any item's closing book stock go below zero?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "6 row(s).",
+  "columns": [
+   "date"
+  ],
+  "rows": [
+   [
+    "2026-06-02"
+   ],
+   [
+    "2026-06-09"
+   ],
+   [
+    "2026-06-11"
+   ],
+   [
+    "2026-06-12"
+   ],
+   [
+    "2026-06-13"
+   ],
+   [
+    "2026-06-20"
+   ]
+  ],
+  "row_count": 6,
+  "plan": "From book-stock row records; keep rows where inventory book.book_on_hand_close < 0; report date = day(inventory book.date).",
+  "error": null
+ },
+ {
+  "id": "S8N04",
+  "question": "Which stock counts disagreed with the book stock by more than 2%?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "19 row(s).",
+  "columns": [
+   "sku",
+   "count_ts",
+   "counted",
+   "book_stock"
+  ],
+  "rows": [
+   [
+    "ATTA-WW-5KG",
+    "2026-06-01T05:45",
+    36.0,
+    58.0
+   ],
+   [
+    "ATTA-WW-1KG",
+    "2026-06-01T05:45",
+    87.0,
+    65.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "2026-06-01T05:45",
+    29.0,
+    19.0
+   ],
+   [
+    "RICE-SM-5KG",
+    "2026-06-01T05:45",
+    64.0,
+    42.0
+   ],
+   [
+    "DAL-TOOR-1KG",
+    "2026-06-01T05:45",
+    13.0,
+    47.0
+   ],
+   [
+    "OIL-SUN-1L",
+    "2026-06-01T05:45",
+    77.0,
+    50.0
+   ]
+  ],
+  "row_count": 19,
+  "plan": "From stock count records; inner-join book-stock row records on stock counts.sku = inventory book.sku and day(stock counts.count_ts) = inventory book.date; keep rows where abs(stock counts.counted - inventory book.book_on_hand_close) > 0.02 * inventory book.book_on_hand_close; report sku = stock counts.sku, count_ts = stock counts.count_ts, counted = stock counts.counted, book_stock = inventory book.book_on_hand_close.",
+  "error": null
+ },
+ {
+  "id": "S8N05",
+  "question": "Which warehouse items saw their weekly sales drop by more than half from week 1 to week 2?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: no usable plan was returned.",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N06",
+  "question": "What time did toned milk record its last sale each day, and how many pouches were written off?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "15 row(s).",
+  "columns": [
+   "day",
+   "last_sale_time",
+   "total_write_offs"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    "2026-06-01T21:59",
+    226.0
+   ],
+   [
+    "2026-06-08",
+    "2026-06-08T21:50",
+    960.0
+   ],
+   [
+    "2026-06-09",
+    "2026-06-09T21:54",
+    293.0
+   ],
+   [
+    "2026-06-10",
+    "2026-06-10T21:37",
+    246.0
+   ],
+   [
+    "2026-06-11",
+    "2026-06-11T21:57",
+    236.0
+   ],
+   [
+    "2026-06-12",
+    "2026-06-12T21:55",
+    9408.0
+   ]
+  ],
+  "row_count": 15,
+  "plan": "From till line records; left-join write-off records on day(pos lines may.bill_ts) = write offs.date and pos lines may.sku_scanned = write offs.sku; keep rows where pos lines may.sku_scanned = 'MILK-TONED-500ML' and write offs.sku = 'MILK-TONED-500ML'; group by day(pos lines may.bill_ts); report day = day(pos lines may.bill_ts), last_sale_time = max of pos lines may.bill_ts, total_write_offs = sum of write offs.units.",
+  "error": null
+ },
+ {
+  "id": "S8N07",
+  "question": "Why did 5 kg atta sales fall in the week of 8 June?",
+  "decision": "no_record",
+  "failed_layer": "registry",
+  "message": "I can't answer this from Store 014's records: the knowledge layer says cause (why): no table records the reason or cause of an event [rule-5]",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N08",
+  "question": "Was 5 kg atta in stock on Thursday 11 June?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "stock"
+  ],
+  "rows": [
+   [
+    55.0
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From book-stock row records; keep rows where inventory book.sku = 'ATTA-WW-5KG' and inventory book.date = '2026-06-11'; report stock = inventory book.book_on_hand_close.",
+  "error": null
+ },
+ {
+  "id": "S8N09",
+  "question": "Are shoppers switching from 5 kg to 1 kg atta?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "56 row(s).",
+  "columns": [
+   "day",
+   "sku",
+   "total_units"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    "ATTA-WW-1KG",
+    22.0
+   ],
+   [
+    "2026-06-01",
+    "ATTA-WW-5KG",
+    30.0
+   ],
+   [
+    "2026-06-02",
+    "ATTA-WW-1KG",
+    35.0
+   ],
+   [
+    "2026-06-02",
+    "ATTA-WW-5KG",
+    36.0
+   ],
+   [
+    "2026-06-03",
+    "ATTA-WW-1KG",
+    41.0
+   ],
+   [
+    "2026-06-03",
+    "ATTA-WW-5KG",
+    22.0
+   ]
+  ],
+  "row_count": 56,
+  "plan": "From daily sales row records; keep rows where daily sales.sku in ['ATTA-WW-5KG', 'ATTA-WW-1KG']; group by day(daily sales.date), daily sales.sku; report day = day(daily sales.date), sku = daily sales.sku, total_units = sum of daily sales.units_sold; sorted by day asc.",
+  "error": null
+ },
+ {
+  "id": "S8N10",
+  "question": "What was 5 kg atta's on-shelf availability in June (from book stock vs. shelf audits vs. books and tills)?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "8 row(s).",
+  "columns": [
+   "audit_date",
+   "shelf_status",
+   "book_stock"
+  ],
+  "rows": [
+   [
+    "2026-06-02",
+    "on shelf",
+    22.0
+   ],
+   [
+    "2026-06-05",
+    "on shelf",
+    52.0
+   ],
+   [
+    "2026-06-09",
+    "on shelf",
+    78.0
+   ],
+   [
+    "2026-06-12",
+    "empty",
+    55.0
+   ],
+   [
+    "2026-06-16",
+    "on shelf",
+    27.0
+   ],
+   [
+    "2026-06-19",
+    "on shelf",
+    17.0
+   ]
+  ],
+  "row_count": 8,
+  "plan": "From shelf-audit row records; inner-join book-stock row records on shelf audits.sku = inventory book.sku and day(shelf audits.audit_ts) = inventory book.date; keep rows where shelf audits.sku = 'ATTA-WW-5KG' and day(shelf audits.audit_ts) >= '2026-06-01' and day(shelf audits.audit_ts) <= '2026-06-28'; report audit_date = day(shelf audits.audit_ts), shelf_status = shelf audits.status, book_stock = inventory book.book_on_hand_close.",
+  "error": null
+ },
+ {
+  "id": "S8N11",
+  "question": "What has daily demand for 5 kg atta been in June so far?",
+  "decision": "no_record",
+  "failed_layer": "registry",
+  "message": "I can't answer this from Store 014's records: the knowledge layer says needs a longer period than the records cover",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N12",
+  "question": "How many shoppers left without 5 kg atta, and what were the lost sales in June?",
+  "decision": "no_record",
+  "failed_layer": "registry",
+  "message": "I can't answer this from Store 014's records: the knowledge layer says absent_event (not_happen): nothing records a shopper who did not buy, a product not on the shelf, a payment not retried [rule-3]",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8E13",
+  "question": "How many of June's deliveries arrived inside their 06:00–06:30 slot?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "count"
+  ],
+  "rows": [
+   [
+    23
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From shipment records; keep rows where hour(shipments.arrived_ts) >= 6 and hour(shipments.arrived_ts) < 7 and shipments.arrived_ts >= shipments.slot_start and shipments.arrived_ts <= shipments.slot_end; report count = count of shipments.shipment_id.",
+  "error": null
+ },
+ {
+  "id": "S8N14",
+  "question": "How many of June's 30 pallets were weighed at dispatch or case-scanned at receipt?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "count"
+  ],
+  "rows": [
+   [
+    70
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From pallet records; left-join goods-receipt line records on pallets.sscc = goods receipts.sscc; keep rows where (pallets.weight_check != 'not weighed' or goods receipts.receipt_method = 'pallet label (SSCC) scan against the shipping notice'); report count = count of pallets.sscc.",
+  "error": null
+ },
+ {
+  "id": "S8N15",
+  "question": "What was the case fill rate across June's store orders according to the shipping notices?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "case_fill_rate"
+  ],
+  "rows": [
+   [
+    0.9956458635703919
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From store order line records; inner-join shipping-notice line records on store orders.order_id = shipping notice lines.order_id and store orders.sku = shipping notice lines.sku; report case_fill_rate = sum of shipping notice lines.cases / sum of store orders.cases.",
+  "error": null
+ },
+ {
+  "id": "S8N16",
+  "question": "What is the net vs. gross value (at cost) of atta stock corrections across the warehouse and the store?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "gross_dc_cost",
+   "net_store_cost"
+  ],
+  "rows": [
+   [
+    null,
+    null
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From warehouse carry carried marked across settled one stock adjustment records; inner-join stock count records on dc stock adjustments.sku = stock counts.sku and day(dc stock adjustments.adjusted_ts) = day(stock counts.count_ts); inner-join product records on dc stock adjustments.sku = products.sku; keep rows where products.name in ['Whole wheat atta 10 kg', 'Whole wheat atta 1 kg', 'Whole wheat atta 5 kg']; report gross_dc_cost = sum of dc stock adjustments.value_at_cost_inr, net_store_cost = sum of stock counts.adjustment * products.cost_inr.",
+  "error": null
+ },
+ {
+  "id": "S8N17",
+  "question": "Which count corrections in the warehouse and store form mirror-image pairs (same product family, opposite signs, within 15% in cases, within 7 days)?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N18",
+  "question": "Which goods receipts did not survive the next stock count within a week?",
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "I can't answer this from Store 014's records: the ontology layer refused the plan (cannot compare packs with units).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N19",
+  "question": "Was the 22 June delivery on time and in full?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"<=\", \"args\": [{\"col\": \"shipments-june.arrived_ts\"}, {\"col\": \"shipments-j is not in the plan form).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N20",
+  "question": "What was Store 014's OTIF from the warehouse in June?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N21",
+  "question": "Why was 5 kg atta off the shelf from 23 to 26 June?",
+  "decision": "no_record",
+  "failed_layer": "registry",
+  "message": "I can't answer this from Store 014's records: the knowledge layer says cause (why): no table records the reason or cause of an event [rule-5]",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N22",
+  "question": "Is the 5 kg atta missing at the store theft?",
+  "decision": "no_record",
+  "failed_layer": "registry",
+  "message": "I can't answer this from Store 014's records: the knowledge layer says external (else): nothing about competitors, weather, other stores, costs beyond one per product, or anything outside these 11 products",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N23",
+  "question": "Which delivery, pallet (SSCC), and line should the store raise a claim against?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N24",
+  "question": "How many bags of 5 kg atta did shoppers want and not find between 23 and 26 June?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: no usable plan was returned.",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8A25",
+  "question": "How many UPI payments did the tills attempt in June?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "upi_attempts"
+  ],
+  "rows": [
+   [
+    19166
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From payment attempt records; keep rows where pos payments.tender = 'UPI'; report upi_attempts = count of pos payments.attempt.",
+  "error": null
+ },
+ {
+  "id": "S8E26",
+  "question": "How many UPI attempts timed out (failed: no response) without receiving an RRN?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "count"
+  ],
+  "rows": [
+   [
+    48
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From payment attempt records; keep rows where pos payments.till_status = 'failed: no response' and pos payments.rrn is empty; report count = count of pos payments.attempt.",
+  "error": null
+ },
+ {
+  "id": "S8N27",
+  "question": "Which successes in the provider's UPI report have no matching approved payment at the till?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "26 row(s).",
+  "columns": [
+   "rrn",
+   "initiated_ts"
+  ],
+  "rows": [
+   [
+    "615521002766",
+    "2026-06-04T21:32:26"
+   ],
+   [
+    "615619003319",
+    "2026-06-05T19:58:33"
+   ],
+   [
+    "615908004963",
+    "2026-06-08T08:39:27"
+   ],
+   [
+    "615909004985",
+    "2026-06-08T09:08:34"
+   ],
+   [
+    "616011005544",
+    "2026-06-09T11:22:07"
+   ],
+   [
+    "616517008996",
+    "2026-06-14T17:00:31"
+   ]
+  ],
+  "row_count": 26,
+  "plan": "From UPI service provider's transaction records; left-join payment attempt records on psp upi report.rrn = pos payments.rrn; keep rows where psp upi report.status = 'success' and pos payments.attempt is empty and (pos payments.till_status != 'approved' or pos payments.till_status is empty); report rrn = psp upi report.rrn, initiated_ts = psp upi report.initiated_ts.",
+  "error": null
+ },
+ {
+  "id": "S8N28",
+  "question": "Which hours in June had a burst of UPI timeouts (3+ timeouts and >10× the monthly rate)?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer refused the plan (table 'pos-payments-june' appears twice (a self-join is not allowed)).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N29",
+  "question": "How many UPI bills in June were above ₹2,000, and what would a 0.4% MDR fee (capped at ₹300) cost?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer refused the plan (node {\"op\": \"round\", \"args\": [{\"op\": \"case\", \"args\": [{\"op\": \"<\", \"args\": [{\"op\": \"*\" is not in the plan form).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N30",
+  "question": "Which customers were charged three times for a single bill?",
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "I can't answer this from Store 014's records: the ontology layer refused the plan (group_by without an aggregate).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N31",
+  "question": "Did any customer pay twice in June, and how many?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+  "columns": [
+   "bill_id",
+   "payment_count",
+   "total_customers"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "plan": "From payment attempt records; keep rows where pos payments.till_status = 'approved'; group by pos payments.bill_id; keep groups where count of * > 1; report bill_id = pos payments.bill_id, payment_count = count of *, total_customers = count distinct of pos payments.bill_id.",
+  "error": null
+ },
+ {
+  "id": "S8N32",
+  "question": "What happened to the UPI payments the tills gave up on between 18:20 and 19:50 on Saturday 20 June (late credit vs. debited and returned vs. never debited)?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the plan could not be checked (TypeError).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N33",
+  "question": "Why are 17 UPI credits from 20 and 21 June sitting in suspense?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N34",
+  "question": "How long did customers who paid twice wait for their money (from the extra debit vs. from the complaint), and how many were still unrefunded at month end?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer refused the plan (column 'complaint' is not in table 'customer-complaints-june').",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N35",
+  "question": "Was the store's UPI technical decline rate acceptable in June?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N36",
+  "question": "Which customers (by RRN) should the store refund now, without waiting for a complaint?",
+  "decision": "no_record",
+  "failed_layer": "registry",
+  "message": "I can't answer this from Store 014's records: the knowledge layer says person_identity (who): no table identifies a customer, cashier, supplier, driver or household",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N37",
+  "question": "At 20:00 on Tuesday 23 June, why has 5 kg atta stopped selling at Store 014 this evening—and if a delivery is to blame, which shipment and line, and what was really on it?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S8N38",
+  "question": "Across all 12 joins between Store 014's tables, which pairs agree on 100% of rows (copies) and which ones disagree (observations)?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N01",
+  "question": "Since 5 kg atta sales dropped 59% in the week of 8 June while the books showed stock on hand all week, how much shelf space should we reallocate from 5 kg to 1 kg atta?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N02",
+  "question": "Which table records the exact number of shoppers who walked out without 5 kg atta in June 2026, and how many were there?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N03",
+  "question": "How many bags of 5 kg atta were sold in June 2023?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N04",
+  "question": "Our 28-day forecast for 5 kg atta ran 13% too high in June—by how much should we tune it down to match shopper demand?",
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "I can't answer this from Store 014's records: the ontology layer refused the plan (column forecast_units_per_day is not additive and cannot be summed).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N05",
+  "question": "Given that we had 2.3 days of supply of 5 kg atta on Thursday 11 June, why did the store fail to sell any bags that afternoon?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+  "columns": [
+   "sku",
+   "units_sold"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "plan": "From daily sales row records; keep rows where daily sales.sku = 'ATTA-WW-5KG' and day(daily sales.date) = '2026-06-11' and hour(daily sales.date) = 14 and daily sales.units_sold = 0; report sku = daily sales.sku, units_sold = daily sales.units_sold.",
+  "error": null
+ },
+ {
+  "id": "S9N06",
+  "question": "Which cashier or shoplifter caused the 55 missing pouches of toned milk at the month-end count?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N07",
+  "question": "If we cut our toned milk standing order by 5% to lift margin after waste from ₹4,121 to ₹10,810, how many extra shoppers will leave without milk according to the till records?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N08",
+  "question": "Since the 22 June delivery arrived inside its slot with zero discrepancies on the goods receipt, who in the store stole the 63 missing bags of 5 kg atta?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N09",
+  "question": "Why should we investigate June's atta stock adjustments if they only net out to ₹80 across the company?",
+  "decision": "no_record",
+  "failed_layer": "registry",
+  "message": "I can't answer this from Store 014's records: the knowledge layer says cause (why): no table records the reason or cause of an event [rule-5]",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N10",
+  "question": "Which pallet on the 22 June shipment failed its dispatch weight check?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "2 row(s).",
+  "columns": [
+   "sscc"
+  ],
+  "rows": [
+   [
+    "029000010000010542"
+   ],
+   [
+    "029000010000010559"
+   ]
+  ],
+  "row_count": 2,
+  "plan": "From pallet records; inner-join shipment records on pallets.shipment_id = shipments.shipment_id; keep rows where day(shipments.dispatched_ts) = '2026-06-22' and pallets.weight_check = 'not weighed'; report sscc = pallets.sscc.",
+  "error": null
+ },
+ {
+  "id": "S9N11",
+  "question": "If we start weighing every pallet at dispatch or scanning every case at the store, how much will our OTIF scorecard improve?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N12",
+  "question": "What was Store 014's OTIF in June—92%, 90%, 88%, or 84%?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N13",
+  "question": "Since all 30,077 bills in June have exactly one approved payment, can we confirm that zero customers were charged twice?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+  "columns": [
+   "bill_id",
+   "payment_count"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "plan": "From payment attempt records; keep rows where pos payments.till_status = 'approved'; group by pos payments.bill_id; keep groups where count of pos payments.attempt > 1; report bill_id = pos payments.bill_id, payment_count = count of pos payments.attempt.",
+  "error": null
+ },
+ {
+  "id": "S9N14",
+  "question": "Join pos_payments to psp_upi_report on rrn to report the final bank status of all 48 UPI timeouts in June.",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+  "columns": [
+   "rrn",
+   "bank_status"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "plan": "From payment attempt records; inner-join UPI service provider's transaction records on pos payments.rrn = psp upi report.rrn; keep rows where pos payments.tender = 'UPI' and pos payments.till_status = 'failed: no response'; report rrn = pos payments.rrn, bank_status = psp upi report.status.",
+  "error": null
+ },
+ {
+  "id": "S9N15",
+  "question": "Our UPI technical decline rate in June was 0.76%, well under 1%—so did we have any UPI reliability incidents?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "200 row(s).",
+  "columns": [
+   "incident_time",
+   "rrn",
+   "status"
+  ],
+  "rows": [
+   [
+    "2026-06-01T07:02:37",
+    "615207000005",
+    "failed"
+   ],
+   [
+    "2026-06-01T07:20:13",
+    "615207000030",
+    "failed"
+   ],
+   [
+    "2026-06-01T08:48:11",
+    "615208000107",
+    "failed"
+   ],
+   [
+    "2026-06-01T11:05:48",
+    "615211000236",
+    "failed"
+   ],
+   [
+    "2026-06-01T11:34:27",
+    "615211000261",
+    "failed"
+   ],
+   [
+    "2026-06-01T11:57:39",
+    "615211000276",
+    "failed"
+   ]
+  ],
+  "row_count": 200,
+  "plan": "From payment attempt records; inner-join UPI service provider's transaction records on pos payments.rrn = psp upi report.rrn; keep rows where pos payments.tender = 'UPI' and psp upi report.status != 'success'; report incident_time = psp upi report.initiated_ts, rrn = psp upi report.rrn, status = psp upi report.status.",
+  "error": null
+ },
+ {
+  "id": "S9N16",
+  "question": "Why are 17 UPI credits from 20–21 June sitting in suspense, and when can finance recognize them as unclaimed store revenue?",
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "I can't answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists).",
+  "columns": null,
+  "rows": [],
+  "row_count": null,
+  "plan": null,
+  "error": null
+ },
+ {
+  "id": "S9N17",
+  "question": "Did Store 014 meet RBI's 5-day turnaround on all June refunds, given that the median wait was 3 days?",
+  "decision": "answer",
+  "failed_layer": null,
+  "message": "1 row(s).",
+  "columns": [
+   "max_wait"
+  ],
+  "rows": [
+   [
+    -2.0
+   ]
+  ],
+  "row_count": 1,
+  "plan": "From UPI refund records; report max_wait = max of days_between(upi refunds.requested_ts, upi refunds.completed_ts).",
+  "error": null
+ }
+]
