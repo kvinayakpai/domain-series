@@ -1,0 +1,2869 @@
+{
+ "Q151": {
+  "from": "fresh-deliveries-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "in",
+    "arg": {
+     "col": "fresh-deliveries-june.sku"
+    },
+    "values": [
+     "MILK-FC-500ML",
+     "MILK-TONED-500ML",
+     "CURD-500G",
+     "BREAD-WHITE-400G"
+    ]
+   }
+  ],
+  "group_by": [
+   {
+    "col": "fresh-deliveries-june.sku"
+   }
+  ],
+  "select": [
+   {
+    "as": "sku",
+    "expr": {
+     "col": "fresh-deliveries-june.sku"
+    }
+   },
+   {
+    "as": "avg_shelf_life_days",
+    "expr": {
+     "op": "/",
+     "args": [
+      {
+       "agg": "avg",
+       "arg": {
+        "op": "-",
+        "args": [
+         {
+          "fn": "day",
+          "arg": {
+           "col": "fresh-deliveries-june.use_by"
+          }
+         },
+         {
+          "fn": "day",
+          "arg": {
+           "col": "fresh-deliveries-june.delivery_ts"
+          }
+         }
+        ]
+       }
+      },
+      {
+       "lit": 1
+      }
+     ]
+    }
+   }
+  ],
+  "order_by": [
+   {
+    "by": "sku",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "layer": "ontology",
+  "covers": "Reports the average shelf life in days on arrival for each milk, curd and bread SKU, computed as use_by minus the date of delivery_ts."
+ },
+ "Q152": {
+  "from": "shipping-notice-lines-june",
+  "joins": [],
+  "where": [],
+  "group_by": [
+   {
+    "col": "shipping-notice-lines-june.sscc"
+   }
+  ],
+  "select": [
+   {
+    "as": "sscc",
+    "expr": {
+     "col": "shipping-notice-lines-june.sscc"
+    }
+   },
+   {
+    "as": "distinct_sku_count",
+    "expr": {
+     "agg": "count_distinct",
+     "arg": {
+      "col": "shipping-notice-lines-june.sku"
+     }
+    }
+   }
+  ],
+  "having": [
+   {
+    "op": ">",
+    "args": [
+     {
+      "ref": "distinct_sku_count"
+     },
+     {
+      "lit": 1
+     }
+    ]
+   }
+  ],
+  "order_by": [],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Counts distinct SSCC pallet labels on shipping-notice lines that carry more than one distinct SKU."
+ },
+ "Q153": {
+  "from": "store-orders-june",
+  "joins": [
+   {
+    "table": "goods-receipts-june",
+    "type": "inner",
+    "on": [
+     [
+      {
+       "col": "store-orders-june.sku"
+      },
+      {
+       "col": "goods-receipts-june.sku_booked"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "store-orders-june.created_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "avg_lead_time_hours",
+    "expr": {
+     "fn": "avg",
+     "arg": {
+      "fn": "hours_between",
+      "args": [
+       {
+        "col": "store-orders-june.created_ts"
+       },
+       {
+        "col": "goods-receipts-june.received_ts"
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "ontology",
+  "covers": "Average hours from June 2026 store-order creation to goods receipt, joining order lines to receipt lines on SKU; this is a receipt-to-order lead time and does not verify that the receipt corresponds to that specific order."
+ },
+ "Q154": {
+  "from": "goods-receipts-june",
+  "joins": [],
+  "where": [],
+  "group_by": [],
+  "select": [
+   {
+    "as": "total_lines",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   },
+   {
+    "as": "lines_with_matching_units",
+    "expr": {
+     "agg": "count",
+     "arg": {
+      "op": "=",
+      "args": [
+       {
+        "col": "goods-receipts-june.asn_units"
+       },
+       {
+        "col": "goods-receipts-june.units_booked"
+       }
+      ]
+     }
+    }
+   },
+   {
+    "as": "lines_with_matching_sku",
+    "expr": {
+     "agg": "count",
+     "arg": {
+      "op": "=",
+      "args": [
+       {
+        "col": "goods-receipts-june.asn_sku"
+       },
+       {
+        "col": "goods-receipts-june.sku_booked"
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Checks the stated premise directly against all June goods-receipt lines by counting lines where asn_units equals units_booked and asn_sku equals sku_booked, confirming whether the warehouse shipped 100% of the right items in units and SKU."
+ },
+ "Q155": {
+  "from": "pallets-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pallets-june.notice_kg"
+     },
+     {
+      "lit": 160
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "sscc",
+    "expr": {
+     "col": "pallets-june.sscc"
+    }
+   },
+   {
+    "as": "shipment_id",
+    "expr": {
+     "col": "pallets-june.shipment_id"
+    }
+   },
+   {
+    "as": "notice_kg",
+    "expr": {
+     "col": "pallets-june.notice_kg"
+    }
+   },
+   {
+    "as": "weight_check",
+    "expr": {
+     "col": "pallets-june.weight_check"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "knowledge",
+  "covers": "Identifies the pallet whose notice weight is 160 kg; the records do not hold the actual weighed weight, so the shortfall is inferred from the notice weight alone and the pallet's true underweight cannot be confirmed."
+ },
+ "Q156": {
+  "from": "dc-pick-confirmations-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "dc-pick-confirmations-june.pick_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "confirmations",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts every warehouse pick-confirmation line in June 2026, where each row is one product line confirmed by a picker via the 'slot label scan' method."
+ },
+ "Q157": {
+  "from": "dc-pick-confirmations-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "dc-pick-confirmations-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-1KG"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "fn": "day",
+     "arg": {
+      "col": "dc-pick-confirmations-june.pick_ts"
+     }
+    },
+    "low": "2026-06-22",
+    "high": "2026-06-22"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "cases_actually_loaded",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "dc-pick-confirmations-june.cases_confirmed"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "knowledge",
+  "covers": "Sums cases_confirmed for ATTA-WW-1KG picks on 22 June 2026 as the recorded evidence of cases actually loaded onto that day's truck; the records do not explicitly link pick confirmations to a specific truck shipment, so the truck identity is inferred from the 22 June pick date."
+ },
+ "Q158": {
+  "cannot": "shipments-june records only truck-level arrival and slot times; it has no SKU, pallet, or shelf-on-hand information, so it cannot establish whether the 5 kg atta was on the shelf at 07:00. That requires a separate stock/on-shelf record, which the required single-table schema layer cannot use."
+ },
+ "Q159": {
+  "plans": [
+   {
+    "from": "dc-stock-adjustments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "dc-stock-adjustments-june.sku"
+       },
+       {
+        "lit": "ATTA-WW-1KG"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "dc-stock-adjustments-june.slot"
+       },
+       {
+        "lit": "A-07-04"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "dc-stock-adjustments-june.adjusted_ts"
+       }
+      },
+      "low": "2026-06-21",
+      "high": "2026-06-21"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "units",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "dc-stock-adjustments-june.units"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Records only the warehouse (DC) stock adjustments for ATTA-WW-1KG in slot A-07-04 on 2026-06-21; the actual on-hand units in that slot on that date are not recorded, so this is adjustment evidence, not a stock level."
+   }
+  ]
+ },
+ "Q160": {
+  "from": "fresh-deliveries-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "fresh-deliveries-june.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "fn": "day",
+     "arg": {
+      "col": "fresh-deliveries-june.delivery_ts"
+     }
+    },
+    "low": "2026-06-22",
+    "high": "2026-06-22"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "use_by",
+    "expr": {
+     "col": "fresh-deliveries-june.use_by"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Reports the recorded use_by date for ATTA-WW-5KG fresh-route deliveries made on 2026-06-22."
+ },
+ "Q161": {
+  "cannot": "No record captures whether a shopper gave up and left without paying after a declined or failed UPI attempt; the records contain payment attempts and their statuses, but no shopper identity or subsequent abandonment event."
+ },
+ "Q162": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "col": "pos-payments-june.tender"
+      },
+      "values": [
+       "cash",
+       "UPI",
+       "card"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.tender"
+     }
+    ],
+    "select": [
+     {
+      "as": "tender",
+      "expr": {
+       "col": "pos-payments-june.tender"
+      }
+     },
+     {
+      "as": "approved_payments",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "pos-payments-june.attempt"
+       }
+      }
+     },
+     {
+      "as": "approved_amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "order_by": [
+     {
+      "by": "tender",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Recorded approved till payment amounts by tender (cash, UPI, card) as the only direct cost-to-serve evidence; the records do not hold processing fees, MDR per transaction, staff time, fraud/chargeback costs or any other cost of serving a tender, so this is payment volume by tender, not the true cost to serve."
+   },
+   {
+    "from": "upi-settlements-june",
+    "joins": [],
+    "where": [],
+    "group_by": [],
+    "select": [
+     {
+      "as": "settlement_days",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      }
+     },
+     {
+      "as": "gross_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-settlements-june.gross_inr"
+       }
+      }
+     },
+     {
+      "as": "mdr_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-settlements-june.mdr_inr"
+       }
+      }
+     },
+     {
+      "as": "refunds_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-settlements-june.refunds_inr"
+       }
+      }
+     },
+     {
+      "as": "net_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-settlements-june.net_inr"
+       }
+      }
+     },
+     {
+      "as": "upi_credits",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-settlements-june.upi_credits"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Recorded UPI settlement-level MDR and refunds as the only recorded UPI-specific cost items; no comparable fee, cost or handling-cost records exist for cash or card, and the records do not hold per-transaction processing costs, staff time or chargebacks, so this cannot be turned into a like-for-like cost-to-serve comparison across the three tenders."
+   }
+  ]
+ },
+ "Q163": {
+  "plans": [
+   {
+    "from": "customer-complaints-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "customer-complaints-june.kind"
+       },
+       {
+        "lit": "charged twice"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "customer-complaints-june.complaint_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "customer-complaints-june.resolution"
+     }
+    ],
+    "select": [
+     {
+      "as": "complaints",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "customer-complaints-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "complaints",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Records the recorded resolution of double-charge complaints (bank return vs manual refund after matching the credit) and complaint amounts, but no table records the inside-till or staff behaviour that caused the double charges."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "pos-payments-june.till_status"
+      },
+      "values": [
+       "approved",
+       "declined",
+       "failed",
+       "failed: no response"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "col": "pos-payments-june.tender"
+     }
+    ],
+    "select": [
+     {
+      "as": "attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "attempts",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Till-side evidence of payment attempts by tender and status (including timeouts and declines) in June 2026, which can show retry/failure patterns, but the records do not state the staff or till behaviour that caused the double charges."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "psp-upi-report-june.initiated_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "psp-upi-report-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "transactions",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Provider-side UPI transaction outcomes (success, failed, returned) in June 2026 as corroborating evidence, but no record identifies the inside-till or staff behaviour that caused the double charges."
+   }
+  ]
+ },
+ "Q164": {
+  "plans": [
+   {
+    "from": "customer-complaints-june",
+    "joins": [
+     {
+      "table": "pos-payments-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "customer-complaints-june.bill_id"
+        },
+        {
+         "col": "pos-payments-june.bill_id"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "customer-complaints-june.kind"
+       },
+       {
+        "lit": "charged twice"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "customer-complaints-june.complaint_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "customer-complaints-june.bill_id"
+     },
+     {
+      "col": "customer-complaints-june.rrn"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "customer-complaints-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "customer-complaints-june.rrn"
+      }
+     },
+     {
+      "as": "complaint_ts",
+      "expr": {
+       "col": "customer-complaints-june.complaint_ts"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "customer-complaints-june.amount_inr"
+      }
+     },
+     {
+      "as": "resolution",
+      "expr": {
+       "col": "customer-complaints-june.resolution"
+      }
+     },
+     {
+      "as": "resolved_ts",
+      "expr": {
+       "col": "customer-complaints-june.resolved_ts"
+      }
+     },
+     {
+      "as": "approved_payment_count",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "pos-payments-june.attempt"
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "approved_payment_count"
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    ],
+    "order_by": [
+     {
+      "by": "complaint_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Uses complaints of kind 'charged twice' in June 2026 as the recorded evidence of double charges and counts approved till payments per bill to check the premise; customer identity is not recorded, so bills (and their RRNs) stand in for customers, and whether a customer returned is not recorded except as a later bill at the store."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [
+     {
+      "table": "pos-lines-may-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "pos-payments-june.bill_id"
+        },
+        {
+         "col": "pos-lines-may-june.bill_id"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "first_paid_ts",
+      "expr": {
+       "agg": "min",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "last_paid_ts",
+      "expr": {
+       "agg": "max",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "paid_amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     },
+     {
+      "as": "till_line_count",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "pos-lines-may-june.line"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "first_paid_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Lists June 2026 bills with approved payments and their timestamps so a later bill can be checked as a return visit; a bill is only a proxy for a shopper because no customer identity is recorded, and till lines cover only the eleven followed items."
+   }
+  ]
+ },
+ "Q165": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "approved_payment_volume_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     },
+     {
+      "as": "approved_payment_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Total June 2026 approved payment volume (the recorded payment base); fraud itself is not recorded, so this is only the denominator and no fraud amount can be stated."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "psp-upi-report-june.initiated_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "provider_success_volume_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "psp-upi-report-june.amount_inr"
+       }
+      }
+     },
+     {
+      "as": "provider_success_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "June 2026 UPI provider-reported successful transaction volume, a labelled stand-in for the UPI portion of payment volume; it is not a fraud measure."
+   },
+   {
+    "from": "customer-complaints-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "customer-complaints-june.complaint_ts"
+      },
+      "low": "2026-06-04",
+      "high": "2026-06-26"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "customer-complaints-june.kind"
+     }
+    ],
+    "select": [
+     {
+      "as": "complaint_kind",
+      "expr": {
+       "col": "customer-complaints-june.kind"
+      }
+     },
+     {
+      "as": "complaint_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "complaint_amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "customer-complaints-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "complaint_count",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Recorded complaint evidence (charged twice / debited but till said failed) with counts and rupee amounts as the nearest observable proxy for suspected payment fraud; complaints are not confirmed fraud and no cause or fraud determination is recorded."
+   }
+  ]
+ },
+ "Q166": {
+  "cannot": "No record captures shoppers' reasons or preferences for choosing cash, card, or UPI; the records contain only payment attempts and their tender types, not why a shopper selected one."
+ },
+ "Q167": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "cash"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "cash_collected_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     },
+     {
+      "as": "approved_cash_payments",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Records the cash taken at the tills (approved cash payment attempts in June 2026); it does not record cash counted in the tills, cash drops, or cash banked/deposited, so a match between till cash and banked cash cannot be established from the records."
+   }
+  ]
+ },
+ "Q168": {
+  "cannot": "The customer's bank statement is not recorded; the records contain only the store's till attempts, the UPI provider's transaction view, and settlement/refund records, with no bank-side statement or customer identity."
+ },
+ "Q169": {
+  "from": "upi-refunds-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-refunds-june.completed_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "refund_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Counts UPI refunds completed in June 2026 from the upi-refunds-june table."
+ },
+ "Q170": {
+  "from": "upi-settlements-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-settlements-june.settlement_date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "total_net_upi_inr",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "upi-settlements-june.net_inr"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Sum of the daily net_inr credited to Store 014 across all UPI settlement dates in June 2026."
+ },
+ "Q171": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "payment_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts every till payment attempt recorded in pos-payments-june during June 2026."
+ },
+ "Q172": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "customer_count",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-payments-june.bill_id"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Counts distinct bills with an approved UPI payment in June 2026 as a stand-in for different customers, since no customer identity is recorded; a bill stands in for a shopper."
+   }
+  ]
+ },
+ "Q173": {
+  "plans": [
+   {
+    "from": "customer-complaints-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "customer-complaints-june.complaint_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "customer-complaints-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "customer-complaints-june.bill_id"
+      }
+     },
+     {
+      "as": "complaint_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "complaint_count"
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    ],
+    "order_by": [
+     {
+      "by": "complaint_count",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Counts complaints per bill_id as the only available stand-in for a customer, since no customer identity is recorded; the records cannot establish which distinct customers complained more than once."
+   }
+  ]
+ },
+ "Q174": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.till_status"
+     }
+    ],
+    "select": [
+     {
+      "as": "till_status",
+      "expr": {
+       "col": "pos-payments-june.till_status"
+      }
+     },
+     {
+      "as": "failed_attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "failed_attempts",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Records the till's own failure status and amount for failed UPI attempts in June 2026, but no table records the underlying cause (customer's bank, network, or customer), so the main reason cannot be determined; the provider's final status is only a corroborating witness, not a cause."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "psp-upi-report-june.initiated_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "provider_status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "psp-upi-report-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "transactions",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Records the UPI provider's final status (failed, returned, success) for June 2026 transactions as a labelled stand-in for the till's failure witness, but the provider status does not record whether the cause was the customer's bank, the network, or the customer."
+   }
+  ]
+ },
+ "Q175": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "day",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "total_payment_attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "upi_attempts",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "pos-payments-june.attempt"
+       }
+      },
+      "where": {
+       "op": "=",
+       "args": [
+        {
+         "col": "pos-payments-june.tender"
+        },
+        {
+         "lit": "UPI"
+        }
+       ]
+      }
+     },
+     {
+      "as": "upi_share",
+      "expr": {
+       "op": "/",
+       "args": [
+        {
+         "ref": "upi_attempts"
+        },
+        {
+         "ref": "total_payment_attempts"
+        }
+       ]
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "day",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Daily UPI share of payment attempts (UPI attempts divided by all payment attempts) from the till records for 2026-06-01 to 2026-06-28; the records do not identify unique shoppers or customers, so this is a transaction-attempt share, not a shopper-level or value-based UPI share."
+   }
+  ]
+ },
+ "Q176": {
+  "from": "upi-refunds-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-refunds-june.completed_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "total_refund_amount_inr",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "upi-refunds-june.amount_inr"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Total rupees of UPI refunds completed in June 2026, using the refund completion date."
+ },
+ "Q177": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "declined"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "declined_payment_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts till payment attempts in June 2026 whose till_status is 'declined'."
+ },
+ "Q178": {
+  "from": "psp-upi-report-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "psp-upi-report-june.initiated_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "failed_transactions",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Counts UPI provider transactions initiated in June 2026 whose status is 'failed'."
+ },
+ "Q179": {
+  "from": "upi-refunds-june",
+  "joins": [],
+  "where": [
+   {
+    "op": ">=",
+    "args": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "lit": "2026-01-01"
+     }
+    ]
+   },
+   {
+    "op": "<",
+    "args": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "lit": "2027-01-01"
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "refund_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "knowledge",
+  "covers": "Counts refunds recorded as completed in 2026 in upi-refunds-june; the records do not include any refunds not captured in this table, and the table covers 2026-06-05 to 2026-06-26."
+ },
+ "Q180": {
+  "plans": [
+   {
+    "from": "upi-refunds-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "upi-refunds-june.rrn"
+        },
+        {
+         "col": "psp-upi-report-june.rrn"
+        }
+       ]
+      ]
+     },
+     {
+      "table": "customer-complaints-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "upi-refunds-june.rrn"
+        },
+        {
+         "col": "customer-complaints-june.rrn"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "upi-refunds-june.completed_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "psp-upi-report-june.status"
+      },
+      "values": [
+       "success",
+       "returned"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "upi-refunds-june.refund_id"
+     },
+     {
+      "col": "upi-refunds-june.rrn"
+     },
+     {
+      "col": "upi-refunds-june.bill_id"
+     },
+     {
+      "col": "upi-refunds-june.amount_inr"
+     },
+     {
+      "col": "upi-refunds-june.requested_ts"
+     },
+     {
+      "col": "upi-refunds-june.completed_ts"
+     },
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "col": "psp-upi-report-june.status_ts"
+     },
+     {
+      "col": "psp-upi-report-june.initiated_ts"
+     },
+     {
+      "col": "customer-complaints-june.complaint_ts"
+     },
+     {
+      "col": "customer-complaints-june.kind"
+     },
+     {
+      "col": "customer-complaints-june.resolution"
+     }
+    ],
+    "select": [
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "upi-refunds-june.rrn"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "upi-refunds-june.bill_id"
+      }
+     },
+     {
+      "as": "refund_amount_inr",
+      "expr": {
+       "col": "upi-refunds-june.amount_inr"
+      }
+     },
+     {
+      "as": "refund_requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "refund_completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "as": "provider_status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "provider_status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     },
+     {
+      "as": "provider_initiated_ts",
+      "expr": {
+       "col": "psp-upi-report-june.initiated_ts"
+      }
+     },
+     {
+      "as": "complaint_ts",
+      "expr": {
+       "col": "customer-complaints-june.complaint_ts"
+      }
+     },
+     {
+      "as": "complaint_kind",
+      "expr": {
+       "col": "customer-complaints-june.kind"
+      }
+     },
+     {
+      "as": "complaint_resolution",
+      "expr": {
+       "col": "customer-complaints-june.resolution"
+      }
+     },
+     {
+      "as": "refund_wait_hours_from_extra_debit",
+      "expr": {
+       "fn": "hours_between",
+       "args": [
+        {
+         "col": "psp-upi-report-june.status_ts"
+        },
+        {
+         "col": "upi-refunds-june.completed_ts"
+        }
+       ]
+      }
+     },
+     {
+      "as": "refund_wait_hours_from_complaint",
+      "expr": {
+       "fn": "hours_between",
+       "args": [
+        {
+         "col": "customer-complaints-june.complaint_ts"
+        },
+        {
+         "col": "upi-refunds-june.completed_ts"
+        }
+       ]
+      }
+     },
+     {
+      "as": "refund_wait_hours_from_request",
+      "expr": {
+       "fn": "hours_between",
+       "args": [
+        {
+         "col": "upi-refunds-june.requested_ts"
+        },
+        {
+         "col": "upi-refunds-june.completed_ts"
+        }
+       ]
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "refund_wait_hours_from_extra_debit",
+      "dir": "desc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Records the refund wait for each June 2026 UPI refund using both the extra-debit clock (provider status_ts to refund completed_ts) and the complaint clock (complaint_ts to completed_ts), alongside the recorded complaint kind and resolution, so slower refunds can be compared by their recorded handling path; the underlying cause of each delay (bank-side processing, customer behaviour, or any other reason) is not recorded, so no causal explanation is asserted."
+   }
+  ]
+ },
+ "Q181": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "distinct_tender_count",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-payments-june.tender"
+       }
+      }
+     },
+     {
+      "as": "approved_payment_count",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "col": "pos-payments-june.attempt"
+       }
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">=",
+      "args": [
+       {
+        "ref": "distinct_tender_count"
+       },
+       {
+        "lit": 2
+       }
+      ]
+     }
+    ],
+    "order_by": [
+     {
+      "by": "bill_id",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Counts June bills with payment attempts in two or more distinct tender types (UPI, card, cash) as a stand-in for shoppers who paid one bill with two different methods; no record identifies shoppers, and a bill is only a proxy for a shopper."
+   }
+  ]
+ },
+ "Q182": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "declined"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "retried_upi_payments",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts UPI payment attempts recorded with till_status 'declined' in June 2026 as the recorded stand-in for declined UPI payments that shoppers retried; the records do not explicitly flag a retry."
+ },
+ "Q183": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "distinct_bills",
+    "expr": {
+     "agg": "count_distinct",
+     "arg": {
+      "col": "pos-payments-june.bill_id"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts distinct bill IDs with at least one UPI payment attempt recorded in June 2026."
+ },
+ "Q184": {
+  "cannot": "No record captures complaints customers decided not to file; only filed complaints are recorded, so the number of unfiled complaints cannot be determined."
+ },
+ "Q185": {
+  "plans": [
+   {
+    "from": "upi-settlements-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "upi-settlements-june.settlement_date"
+      },
+      "low": "2026-06-08",
+      "high": "2026-06-09"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "settlement_date",
+      "expr": {
+       "col": "upi-settlements-june.settlement_date"
+      }
+     },
+     {
+      "as": "gross_inr",
+      "expr": {
+       "col": "upi-settlements-june.gross_inr"
+      }
+     },
+     {
+      "as": "mdr_inr",
+      "expr": {
+       "col": "upi-settlements-june.mdr_inr"
+      }
+     },
+     {
+      "as": "refunds_inr",
+      "expr": {
+       "col": "upi-settlements-june.refunds_inr"
+      }
+     },
+     {
+      "as": "net_inr",
+      "expr": {
+       "col": "upi-settlements-june.net_inr"
+      }
+     },
+     {
+      "as": "upi_credits",
+      "expr": {
+       "col": "upi-settlements-june.upi_credits"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "settlement_date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 2,
+    "layer": "knowledge",
+    "covers": "Compares the recorded 8 and 9 June 2026 settlement components (gross, MDR, refunds, net, credits) to check the premise that 9 June net was lower; the records do not state why the settlement was lower, so any cause is not recorded and only the recorded components can be shown."
+   },
+   {
+    "from": "upi-refunds-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "upi-refunds-june.completed_ts"
+      },
+      "low": "2026-06-08",
+      "high": "2026-06-09"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "upi-refunds-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "upi-refunds-june.rrn"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "upi-refunds-june.amount_inr"
+      }
+     },
+     {
+      "as": "requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "as": "trigger",
+      "expr": {
+       "col": "upi-refunds-june.trigger"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "completed_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Lists refunds completed on 8 and 9 June 2026 as recorded evidence for a refunds-driven reduction in that day's settlement; the underlying cause of each refund is not recorded beyond the trigger label."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-08",
+      "high": "2026-06-09"
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.till_status"
+     }
+    ],
+    "select": [
+     {
+      "as": "till_status",
+      "expr": {
+       "col": "pos-payments-june.till_status"
+      }
+     },
+     {
+      "as": "attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "till_status",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Summarises UPI till attempts and amounts by till status on 8 and 9 June 2026 as recorded evidence of failed or declined payments affecting that day's credits; the reason for each failure is not recorded."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "psp-upi-report-june.initiated_ts"
+      },
+      "low": "2026-06-08",
+      "high": "2026-06-09"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "psp-upi-report-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "status",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Summarises provider-side UPI transaction counts and amounts by final status for transactions initiated on 8 and 9 June 2026 as recorded evidence of returned or failed payments; the cause of each status is not recorded."
+   }
+  ]
+ },
+ "Q186": {
+  "from": "upi-refunds-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-refunds-june.completed_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "max_refund_inr",
+    "expr": {
+     "agg": "max",
+     "arg": {
+      "col": "upi-refunds-june.amount_inr"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Reports the largest single UPI refund amount completed in June 2026 from the upi-refunds-june table."
+ },
+ "Q187": {
+  "from": "customer-complaints-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "customer-complaints-june.kind"
+     },
+     {
+      "lit": "charged twice"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "customer-complaints-june.complaint_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "complaint_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts complaint records dated in June 2026 whose kind is 'charged twice'."
+ },
+ "Q188": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [
+   {
+    "col": "pos-payments-june.bill_id"
+   }
+  ],
+  "select": [
+   {
+    "as": "bill_id",
+    "expr": {
+     "col": "pos-payments-june.bill_id"
+    }
+   },
+   {
+    "as": "payment_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [
+   {
+    "op": ">=",
+    "args": [
+     {
+      "ref": "payment_attempts"
+     },
+     {
+      "lit": 2
+     }
+    ]
+   }
+  ],
+  "order_by": [
+   {
+    "by": "payment_attempts",
+    "dir": "desc"
+   }
+  ],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Counts bills in June 2026 that have two or more payment-attempt rows in pos-payments-june."
+ },
+ "Q189": {
+  "from": "upi-settlements-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-settlements-june.settlement_date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "days_with_settlement",
+    "expr": {
+     "agg": "count_distinct",
+     "arg": {
+      "col": "upi-settlements-june.settlement_date"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts the distinct June 2026 settlement dates on which Store 014 received a UPI settlement."
+ },
+ "Q190": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-28"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "started_not_finished_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Counts UPI payment attempts in June 2026 whose till_status is 'failed' or 'failed: no response' (started but not finished, including timeouts); the records do not show whether a customer later retried or completed payment elsewhere, so this is the recorded evidence of non-finished attempts, not a count of permanently abandoned payments."
+   }
+  ]
+ },
+ "Q191": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "fn": "day",
+     "arg": {
+      "col": "pos-payments-june.ts"
+     }
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "failed_payment_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts till payment attempts with till_status 'failed' in June 2026, excluding other failure labels such as 'failed: no response'."
+ },
+ "Q192": {
+  "plans": [
+   {
+    "from": "upi-refunds-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "upi-refunds-june.completed_ts"
+      },
+      "low": "2026-06-01",
+      "high": "2026-06-30"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "refund_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "upi-refunds-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "upi-refunds-june.rrn"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "upi-refunds-june.amount_inr"
+      }
+     },
+     {
+      "as": "requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "completed_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Counts each UPI refund completed in June 2026 and lists its recorded identifiers, amount and timestamps; the approver's identity is not recorded, so the recorded trigger ('customer complaint') and the linked bill/rrn are the available evidence."
+   }
+  ]
+ },
+ "Q193": {
+  "from": "upi-settlements-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-settlements-june.settlement_date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "min_net_inr",
+    "expr": {
+     "agg": "min",
+     "arg": {
+      "col": "upi-settlements-june.net_inr"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Reports the minimum daily net UPI settlement amount recorded for June 2026 from the upi-settlements-june table."
+ },
+ "Q194": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-28"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "failed_upi_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts UPI payment attempts recorded at the tills with till_status 'failed' in June 2026, excluding 'failed: no response' timeouts and 'declined' business declines."
+ },
+ "Q195": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "card"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "approved"
+     }
+    ]
+   },
+   {
+    "op": "between",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    },
+    "low": "2026-06-15",
+    "high": "2026-06-20"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "approved_card_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Counts card payment attempts with till_status 'approved' whose timestamp falls between 2026-06-15 and 2026-06-20 inclusive."
+ }
+}
