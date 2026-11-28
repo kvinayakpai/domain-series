@@ -627,7 +627,7 @@ def reason(msg):
     return msg[len(PREFIX):] if msg.startswith(PREFIX) else msg
 
 
-def model_plan_raw(question):
+def model_plan_raw(question, layer=None):
     """Ask an OpenAI-compatible endpoint (NVIDIA or Gemini, chosen by BASE_URL, MODEL, KEY_ENV) for a plan. Returns the raw reply text or None."""
     global LAST_ERROR
     import os, time, requests
@@ -635,7 +635,7 @@ def model_plan_raw(question):
     think_off = "nvidia" in base
     for attempt in range(int(os.environ.get("TRIES", "4"))):
         try:
-            content = prompt_v3(question) if os.environ.get("INSTR_V3") else prompt_v2(question) if os.environ.get("INSTR_V2") else prompt_for(question)
+            content = prompt_v3(question, layer) if os.environ.get("INSTR_V3") else prompt_v2(question) if os.environ.get("INSTR_V2") else prompt_for(question)
             body = {"model": model, "messages": [{"role": "user", "content": content}], "temperature": 0, "max_tokens": 16000}
             if think_off: body["chat_template_kwargs"] = {"enable_thinking": False}
             r = requests.post(f"{base}/chat/completions", timeout=int(os.environ.get("TIMEOUT", "240")), headers={"Authorization": "Bearer " + os.environ[os.environ.get("KEY_ENV", "NVIDIA_API_KEY")]}, json=body)
@@ -719,7 +719,8 @@ def prompt_v2(question):
     return Path(__file__).with_name("planner_instructions_v2.txt").read_text() + "\nQUESTION: " + question + "\nReply with JSON only."
 
 
-def prompt_v3(question):
-    """The version 3 instructions (planner_instructions_v3.txt) followed by the question."""
+def prompt_v3(question, layer=None):
+    """The version 3 instructions (planner_instructions_v3.txt) followed by the question. `layer` (step 2) adds the layer the panel assigned."""
     from pathlib import Path
-    return Path(__file__).with_name("planner_instructions_v3.txt").read_text() + "\nQUESTION: " + question + "\nReply with JSON only."
+    note = ("\n" + __import__("step2").LAYER_NOTES[layer] + "\n") if layer else ""
+    return Path(__file__).with_name("planner_instructions_v3.txt").read_text() + note + "\nQUESTION: " + question + "\nReply with JSON only."

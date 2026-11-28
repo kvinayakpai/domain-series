@@ -1,0 +1,53 @@
+name: Benchmark step 2, NVIDIA models run each question at its assigned layer
+
+# Step 1 (panel of Opus, Sonnet, Haiku) assigned each question a layer. Here each NVIDIA model plans the 269 questions that were not refused,
+# told the assigned layer; code refuses any plan that goes beyond it, then checks and runs the rest.
+# Questions: refusal-bench/questions-step2-v1.json. Starts on a push that changes this file.
+on:
+  push:
+    branches: [refusal-bench-v2]
+    paths:
+      - ".github/workflows/planner-benchmark-step2-nvidia.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RESULTS: refusal-bench/results/benchmark-v3-step2-nvidia-run-${{ github.run_number }}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 15
+      matrix:
+        model: ["moonshotai/kimi-k3.1-pro", "minimaxai/minimax-m3.1-flash", "nvidia/nemotron-3-ultra-550b-a55b", "nvidia/nemotron-3.5-super-vl-120b-a12b", "mistralai/mistral-large-4-1t-a52b"]
+        batch: [1, 2, 3, 4, 5, 6]
+    env:
+      MODEL: ${{ matrix.model }}
+      NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+      INSTR_V3: "1"
+      TIMEOUT: "300"
+      TRIES: "8"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: pip install --quiet requests rdflib pyshacl owlrl
+      - name: Checks that need no model
+        run: python3 refusal-bench/ontology/planner_tests.py
+      - name: Run this batch at the assigned layers
+        run: |
+          if [ -z "$NVIDIA_API_KEY" ]; then echo "::error::needs the NVIDIA_API_KEY secret"; exit 1; fi
+          name=$(echo "$MODEL" | tr '/.' '__')
+          python3 refusal-bench/ontology/plan_eval3.py "$RESULTS/$name/batch-${{ matrix.batch }}" refusal-bench/questions-step2-v1.json ${{ matrix.batch }} 6
+      - name: Take the key out and commit the results
+        if: always()
+        run: |
+          python3 auto-ontology-demo/scrub.py "$RESULTS" || true
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add "$RESULTS" || true
+          git commit -m "Benchmark step 2: $MODEL batch ${{ matrix.batch }}" || true
+          for i in 1 2 3 4 5 6 7 8 9 10; do git pull --no-rebase -q && git push -q && break || sleep $((RANDOM % 20 + 5)); done
