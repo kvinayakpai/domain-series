@@ -1,0 +1,2789 @@
+{
+ "Q196": {
+  "from": "upi-refunds-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-refunds-june.completed_ts"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "upi_refunds_completed",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Count of UPI refunds with completed_ts in June 2026"
+ },
+ "Q197": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "upi_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Count of UPI payment attempts recorded at the tills in June"
+ },
+ "Q198": {
+  "from": "pos-payments-june",
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed: no response"
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "timeout_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "layer": "schema",
+  "covers": "Count of UPI payment attempts with till_status 'failed: no response' (these have no RRN)."
+ },
+ "Q199": {
+  "from": "psp-upi-report-june",
+  "joins": [
+   {
+    "table": "pos-payments-june",
+    "type": "left",
+    "on": [
+     [
+      {
+       "col": "psp-upi-report-june.rrn"
+      },
+      {
+       "col": "pos-payments-june.rrn"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "lit": "success"
+     }
+    ]
+   },
+   {
+    "op": "and",
+    "args": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     },
+     {
+      "op": "is_null",
+      "arg": {
+       "col": "pos-payments-june.rrn"
+      }
+     }
+    ]
+   }
+  ],
+  "select": [
+   {
+    "as": "rrn",
+    "expr": {
+     "col": "psp-upi-report-june.rrn"
+    }
+   },
+   {
+    "as": "amount_inr",
+    "expr": {
+     "col": "psp-upi-report-june.amount_inr"
+    }
+   },
+   {
+    "as": "initiated_ts",
+    "expr": {
+     "col": "psp-upi-report-june.initiated_ts"
+    }
+   },
+   {
+    "as": "status_ts",
+    "expr": {
+     "col": "psp-upi-report-june.status_ts"
+    }
+   }
+  ],
+  "layer": "ontology",
+  "covers": "Extra debits per Rule 10: provider successes whose rrn has no approved till payment; timeouts (failed: no response) have no rrn and are excluded by the join."
+ },
+ "Q200": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed: no response"
+     }
+    ]
+   }
+  ],
+  "group_by": [
+   {
+    "fn": "hour",
+    "arg": {
+     "col": "pos-payments-june.ts"
+    }
+   }
+  ],
+  "select": [
+   {
+    "as": "hour",
+    "expr": {
+     "fn": "hour",
+     "arg": {
+      "col": "pos-payments-june.ts"
+     }
+    }
+   },
+   {
+    "as": "timeout_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [
+   {
+    "op": ">=",
+    "args": [
+     {
+      "ref": "timeout_count"
+     },
+     {
+      "lit": 3
+     }
+    ]
+   },
+   {
+    "op": ">",
+    "args": [
+     {
+      "ref": "timeout_count"
+     },
+     {
+      "op": "*",
+      "args": [
+       {
+        "lit": 10
+       },
+       {
+        "op": "/",
+        "args": [
+         {
+          "agg": "count",
+          "arg": "*"
+         },
+         {
+          "lit": 720
+         }
+        ]
+       }
+      ]
+     }
+    ]
+   }
+  ],
+  "order_by": [
+   {
+    "by": "hour",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Hours in June with 3+ UPI timeouts and count exceeding 10x the average hourly timeout rate for the month"
+ },
+ "Q201": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     },
+     {
+      "op": ">",
+      "args": [
+       {
+        "col": "pos-payments-june.amount_inr"
+       },
+       {
+        "lit": 2000
+       }
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "upi_bills_above_2000",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "total_mdr_cost",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "op": "min",
+        "args": [
+         {
+          "op": "*",
+          "args": [
+           {
+            "col": "pos-payments-june.amount_inr"
+           },
+           {
+            "lit": 0.004
+           }
+          ]
+         },
+         {
+          "lit": 300
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "order_by": [],
+    "limit": 1,
+    "layer": "ontology",
+    "covers": "Count of UPI bills above ₹2,000 and sum of 0.4% MDR fee capped at ₹300 per bill, using approved UPI payments from pos-payments-june."
+   }
+  ]
+ },
+ "Q202": {
+  "cannot": "No table identifies a customer; bills are the nearest stand-in (shopper_count proxy)."
+ },
+ "Q203": {
+  "from": "pos-payments-june",
+  "joins": [
+   {
+    "table": "psp-upi-report-june",
+    "type": "inner",
+    "on": [
+     {
+      "col": "pos-payments-june.rrn"
+     },
+     {
+      "col": "psp-upi-report-june.rrn"
+     }
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "lit": "success"
+     }
+    ]
+   },
+   {
+    "op": "!=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "approved"
+     }
+    ]
+   }
+  ],
+  "group_by": [
+   {
+    "col": "pos-payments-june.bill_id"
+   }
+  ],
+  "select": [
+   {
+    "as": "bill_id",
+    "expr": {
+     "col": "pos-payments-june.bill_id"
+    }
+   },
+   {
+    "as": "extra_debits",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [
+   {
+    "op": ">=",
+    "args": [
+     {
+      "ref": "extra_debits"
+     },
+     {
+      "lit": 1
+     }
+    ]
+   }
+  ],
+  "order_by": [
+   {
+    "by": "extra_debits",
+    "dir": "desc"
+   }
+  ],
+  "limit": 200,
+  "layer": "ontology",
+  "covers": "Extra debits per bill: UPI provider success with no approved till payment (Rule 10). Count of bills with >=1 extra debit answers 'how many customers paid twice'."
+ },
+ "Q204": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "failed: no response"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     },
+     {
+      "op": ">=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       },
+       {
+        "lit": 18
+       }
+      ]
+     },
+     {
+      "op": "<=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "pos-payments-june.ts"
+        }
+       },
+       {
+        "lit": 19
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "attempt",
+      "expr": {
+       "col": "pos-payments-june.attempt"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "pos-payments-june.amount_inr"
+      }
+     },
+     {
+      "as": "ts",
+      "expr": {
+       "col": "pos-payments-june.ts"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "pos-payments-june.rrn"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Recorded UPI attempts the till timed out on (failed: no response) between 18:20 and 19:50 on 2026-06-20. Provider outcome (success/returned/failed), whether a debit posted, and any later refund are not in this table; they require joining to psp-upi-report-june (by rrn) and upi-refunds-june (by bill_id), which have empty or non-matching keys for these timeouts."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "psp-upi-report-june.initiated_ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     },
+     {
+      "op": ">=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "psp-upi-report-june.initiated_ts"
+        }
+       },
+       {
+        "lit": 18
+       }
+      ]
+     },
+     {
+      "op": "<=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "psp-upi-report-june.initiated_ts"
+        }
+       },
+       {
+        "lit": 19
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "psp-upi-report-june.rrn"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "psp-upi-report-june.amount_inr"
+      }
+     },
+     {
+      "as": "initiated_ts",
+      "expr": {
+       "col": "psp-upi-report-june.initiated_ts"
+      }
+     },
+     {
+      "as": "status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "initiated_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Provider-side successful UPI transactions initiated between 18:20 and 19:50 on 2026-06-20. Whether the till approved them (approved payment in pos-payments-june) or timed out (failed: no response) is not in this table; bill_ref is empty so we cannot link to a bill. Extra debits (provider success with no approved till payment) are defined in the ontology but cannot be fully verified without a reliable join."
+   },
+   {
+    "from": "upi-refunds-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "upi-refunds-june.requested_ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     },
+     {
+      "op": ">=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "upi-refunds-june.requested_ts"
+        }
+       },
+       {
+        "lit": 18
+       }
+      ]
+     },
+     {
+      "op": "<=",
+      "args": [
+       {
+        "fn": "hour",
+        "arg": {
+         "col": "upi-refunds-june.requested_ts"
+        }
+       },
+       {
+        "lit": 19
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "refund_id",
+      "expr": {
+       "col": "upi-refunds-june.refund_id"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "upi-refunds-june.bill_id"
+      }
+     },
+     {
+      "as": "amount_inr",
+      "expr": {
+       "col": "upi-refunds-june.amount_inr"
+      }
+     },
+     {
+      "as": "requested_ts",
+      "expr": {
+       "col": "upi-refunds-june.requested_ts"
+      }
+     },
+     {
+      "as": "completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "upi-refunds-june.rrn"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "requested_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Refunds requested between 18:20 and 19:50 on 2026-06-20 (triggered by customer complaint). The ontology defines refund wait from the extra debit (provider status_ts) to completed_ts; complaint_ts is the support view. Whether these refunds correspond to the timed-out attempts or to provider successes with no approved payment cannot be determined from this table alone."
+   }
+  ]
+ },
+ "Q205": {
+  "plans": [
+   {
+    "from": "upi-settlements-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      },
+      "values": [
+       "2026-06-20",
+       "2026-06-21"
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "settlement_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "upi-settlements-june.settlement_date"
+       }
+      }
+     },
+     {
+      "as": "upi_credits",
+      "expr": {
+       "col": "upi-settlements-june.upi_credits"
+      }
+     },
+     {
+      "as": "gross_inr",
+      "expr": {
+       "col": "upi-settlements-june.gross_inr"
+      }
+     },
+     {
+      "as": "net_inr",
+      "expr": {
+       "col": "upi-settlements-june.net_inr"
+      }
+     },
+     {
+      "as": "refunds_inr",
+      "expr": {
+       "col": "upi-settlements-june.refunds_inr"
+      }
+     },
+     {
+      "as": "mdr_inr",
+      "expr": {
+       "col": "upi-settlements-june.mdr_inr"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "settlement_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Shows UPI settlement credits and amounts for 20 and 21 June; why credits sit in suspense is not recorded (bank-side hold, reconciliation delay, or dispute are external causes)."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "in",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      },
+      "values": [
+       "2026-06-20",
+       "2026-06-21"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "pos-payments-june.ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "payment_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      }
+     },
+     {
+      "as": "upi_attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "approved",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "pos-payments-june.till_status"
+         },
+         {
+          "lit": "approved"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "as": "failed_or_timeout",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "in",
+        "arg": {
+         "col": "pos-payments-june.till_status"
+        },
+        "values": [
+         "failed",
+         "failed: no response"
+        ]
+       }
+      }
+     },
+     {
+      "as": "declined",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "pos-payments-june.till_status"
+         },
+         {
+          "lit": "declined"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "payment_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Counts UPI payment attempts and till outcomes on 20 and 21 June; why credits sit in suspense is not recorded (bank-side hold, reconciliation delay, or dispute are external causes)."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "in",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.initiated_ts"
+       }
+      },
+      "values": [
+       "2026-06-20",
+       "2026-06-21"
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "fn": "day",
+      "arg": {
+       "col": "psp-upi-report-june.initiated_ts"
+      }
+     }
+    ],
+    "select": [
+     {
+      "as": "initiated_date",
+      "expr": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.initiated_ts"
+       }
+      }
+     },
+     {
+      "as": "provider_transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "success",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "psp-upi-report-june.status"
+         },
+         {
+          "lit": "success"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "as": "failed",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "psp-upi-report-june.status"
+         },
+         {
+          "lit": "failed"
+         }
+        ]
+       }
+      }
+     },
+     {
+      "as": "returned",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "=",
+        "args": [
+         {
+          "col": "psp-upi-report-june.status"
+         },
+         {
+          "lit": "returned"
+         }
+        ]
+       }
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "initiated_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Shows UPI provider transaction counts and statuses for 20 and 21 June; why credits sit in suspense is not recorded (bank-side hold, reconciliation delay, or dispute are external causes)."
+   }
+  ]
+ },
+ "Q206": {
+  "plans": [
+   {
+    "from": "customer-complaints-june",
+    "joins": [
+     {
+      "table": "upi-refunds-june",
+      "type": "left",
+      "on": [
+       [
+        "customer-complaints-june.bill_id",
+        "upi-refunds-june.bill_id"
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "customer-complaints-june.kind"
+       },
+       {
+        "lit": "charged twice"
+       }
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "complaint_ts",
+      "expr": {
+       "col": "customer-complaints-june.complaint_ts"
+      }
+     },
+     {
+      "as": "resolved_ts",
+      "expr": {
+       "col": "customer-complaints-june.resolved_ts"
+      }
+     },
+     {
+      "as": "refund_completed_ts",
+      "expr": {
+       "col": "upi-refunds-june.completed_ts"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "customer-complaints-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "customer-complaints-june.rrn"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "complaint_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Recorded complaints of type 'charged twice' with their complaint timestamp, resolution timestamp, and any linked UPI refund completion timestamp. The extra debit timestamp (provider status_ts) is not recorded in these tables; only the complaint clock and refund clock are available. Unrefunded at month end means no refund completed_ts on or before 2026-06-30."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "inner",
+      "on": [
+       [
+        "pos-payments-june.rrn",
+        "psp-upi-report-june.rrn"
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "!=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "provider_status_ts",
+      "expr": {
+       "col": "psp-upi-report-june.status_ts"
+      }
+     },
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "pos-payments-june.rrn"
+      }
+     },
+     {
+      "as": "till_status",
+      "expr": {
+       "col": "pos-payments-june.till_status"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "provider_status_ts",
+      "dir": "asc"
+     }
+    ],
+    "limit": 200,
+    "layer": "knowledge",
+    "covers": "Extra debits: UPI provider successes whose RRN has no approved till payment (till_status != 'approved'). This captures the extra debit clock (provider status_ts). These are not linked to complaints or refunds in this plan; they are the provider-side evidence of double charges."
+   }
+  ]
+ },
+ "Q207": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "total_upi_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   },
+   {
+    "as": "technical_failures",
+    "expr": {
+     "agg": "count",
+     "arg": {
+      "op": "in",
+      "arg": {
+       "col": "pos-payments-june.till_status"
+      },
+      "values": [
+       "failed",
+       "failed: no response"
+      ]
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "UPI technical failure rate = attempts with till_status 'failed' or 'failed: no response' divided by all UPI attempts in June"
+ },
+ "Q208": {
+  "from": "pos-payments-june",
+  "joins": [
+   {
+    "table": "psp-upi-report-june",
+    "type": "inner",
+    "on": [
+     [
+      "pos-payments-june.rrn",
+      "psp-upi-report-june.rrn"
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "lit": "success"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed: no response"
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "rrn",
+    "expr": {
+     "col": "pos-payments-june.rrn"
+    }
+   },
+   {
+    "as": "bill_id",
+    "expr": {
+     "col": "pos-payments-june.bill_id"
+    }
+   },
+   {
+    "as": "amount_inr",
+    "expr": {
+     "col": "pos-payments-june.amount_inr"
+    }
+   },
+   {
+    "as": "debit_ts",
+    "expr": {
+     "col": "psp-upi-report-june.status_ts"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [
+   {
+    "by": "debit_ts",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "layer": "knowledge",
+  "covers": "Extra debits: UPI provider success with no approved till payment (timeout 'failed: no response' has no RRN, so it cannot be joined). The store should refund these RRNs now per Rule 10/11. Complaints not yet filed are not recorded."
+ },
+ "Q209": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.bill_id"
+     }
+    ],
+    "select": [
+     {
+      "as": "bill_id",
+      "expr": {
+       "col": "pos-payments-june.bill_id"
+      }
+     },
+     {
+      "as": "approved_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "approved_count"
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Check if any bill has more than one approved payment, which would indicate a potential double charge per Rule 10."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.rrn"
+     }
+    ],
+    "select": [
+     {
+      "as": "rrn",
+      "expr": {
+       "col": "pos-payments-june.rrn"
+      }
+     },
+     {
+      "as": "approved_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "having": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "ref": "approved_count"
+       },
+       {
+        "lit": 1
+       }
+      ]
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Check if any RRN appears on more than one approved payment, which would indicate the same debit linked to multiple bills."
+   },
+   {
+    "from": "customer-complaints-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "customer-complaints-june.kind"
+       },
+       {
+        "lit": "charged twice"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "complaint_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Count complaints of kind 'charged twice' as direct evidence of double charging per Rule 11."
+   },
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.till_status"
+       },
+       {
+        "lit": "approved"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "approved_bill_count",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-payments-june.bill_id"
+       }
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Count distinct bills with an approved payment to verify the premise of 30,077 bills."
+   }
+  ]
+ },
+ "Q210": {
+  "from": "pos-payments-june",
+  "joins": [
+   {
+    "table": "psp-upi-report-june",
+    "type": "left",
+    "on": [
+     [
+      {
+       "col": "pos-payments-june.rrn"
+      },
+      {
+       "col": "psp-upi-report-june.rrn"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "failed: no response"
+     }
+    ]
+   }
+  ],
+  "group_by": [
+   {
+    "col": "psp-upi-report-june.status"
+   }
+  ],
+  "select": [
+   {
+    "as": "psp_final_status",
+    "expr": {
+     "col": "psp-upi-report-june.status"
+    }
+   },
+   {
+    "as": "count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "order_by": [
+   {
+    "by": "count",
+    "dir": "desc"
+   }
+  ],
+  "limit": 200,
+  "layer": "ontology",
+  "covers": "Final bank status from PSP UPI report for all UPI timeouts (till_status 'failed: no response') in June, joined on rrn."
+ },
+ "Q211": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.tender"
+     },
+     {
+      "lit": "UPI"
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "total_upi_attempts",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   },
+   {
+    "as": "technical_failures",
+    "expr": {
+     "agg": "count",
+     "arg": {
+      "op": "in",
+      "arg": {
+       "col": "pos-payments-june.till_status"
+      },
+      "values": [
+       "failed",
+       "failed: no response"
+      ]
+     }
+    }
+   },
+   {
+    "as": "technical_failure_rate_pct",
+    "expr": {
+     "op": "*",
+     "args": [
+      {
+       "op": "/",
+       "args": [
+        {
+         "ref": "technical_failures"
+        },
+        {
+         "ref": "total_upi_attempts"
+        }
+       ]
+      },
+      {
+       "lit": 100
+      }
+     ]
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "UPI technical failure rate (till_status failed or failed: no response) for June from pos-payments-june"
+ },
+ "Q212": {
+  "plans": [
+   {
+    "from": "upi-settlements-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "col": "upi-settlements-june.settlement_date"
+      },
+      "low": "2026-06-20",
+      "high": "2026-06-21"
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "settlement_date",
+      "expr": {
+       "col": "upi-settlements-june.settlement_date"
+      }
+     },
+     {
+      "as": "upi_credits",
+      "expr": {
+       "col": "upi-settlements-june.upi_credits"
+      }
+     },
+     {
+      "as": "gross_inr",
+      "expr": {
+       "col": "upi-settlements-june.gross_inr"
+      }
+     },
+     {
+      "as": "net_inr",
+      "expr": {
+       "col": "upi-settlements-june.net_inr"
+      }
+     },
+     {
+      "as": "refunds_inr",
+      "expr": {
+       "col": "upi-settlements-june.refunds_inr"
+      }
+     },
+     {
+      "as": "mdr_inr",
+      "expr": {
+       "col": "upi-settlements-june.mdr_inr"
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "settlement_date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 10,
+    "layer": "knowledge",
+    "covers": "Shows UPI settlement credits and amounts for 20–21 June; why credits sit in suspense and when finance can recognize them as unclaimed revenue is not recorded (bank-side hold reasons, claim windows, and accounting policy are external)."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "pos-payments-june.ts"
+       }
+      },
+      "low": "2026-06-20",
+      "high": "2026-06-21"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "pos-payments-june.till_status"
+     }
+    ],
+    "select": [
+     {
+      "as": "till_status",
+      "expr": {
+       "col": "pos-payments-june.till_status"
+      }
+     },
+     {
+      "as": "attempts",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "total_amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "pos-payments-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "attempts",
+      "dir": "desc"
+     }
+    ],
+    "limit": 20,
+    "layer": "knowledge",
+    "covers": "Shows till-side UPI payment outcomes for 20–21 June; the reason credits are held in suspense (bank-side holds, chargebacks, reconciliation mismatches) and the date finance can recognize them as unclaimed revenue are not recorded."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "joins": [],
+    "where": [
+     {
+      "op": "between",
+      "arg": {
+       "fn": "day",
+       "arg": {
+        "col": "psp-upi-report-june.initiated_ts"
+       }
+      },
+      "low": "2026-06-20",
+      "high": "2026-06-21"
+     }
+    ],
+    "group_by": [
+     {
+      "col": "psp-upi-report-june.status"
+     }
+    ],
+    "select": [
+     {
+      "as": "status",
+      "expr": {
+       "col": "psp-upi-report-june.status"
+      }
+     },
+     {
+      "as": "transactions",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "total_amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "psp-upi-report-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "having": [],
+    "order_by": [
+     {
+      "by": "transactions",
+      "dir": "desc"
+     }
+    ],
+    "limit": 20,
+    "layer": "knowledge",
+    "covers": "Shows PSP UPI transaction statuses for 20–21 June; why credits are in suspense and when they become recognizable as unclaimed store revenue is not recorded (bank-side hold reasons, claim periods, and accounting policy are external)."
+   }
+  ]
+ },
+ "Q213": {
+  "raw": "{\n  \"plans\": [\n    {\n      \"from\": \"upi-refunds-june\",\n      \"joins\": [\n        {\n          \"table\": \"customer-complaints-june\",\n          \"type\": \"inner\",\n          \"on\": [\n            [\"upi-refunds-june.rrn\", \"customer-complaints-june.rrn\"]\n          ]\n        }\n      ],\n      \"where\": [\n        {\n          \"op\": \"=\",\n          \"args\": [\n            {\"col\": \"upi-refunds-june.trigger\"},\n         ",
+  "error": "unparsable"
+ },
+ "Q214": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "pos-payments-june.till_status"
+     },
+     {
+      "lit": "approved"
+     }
+    ]
+   },
+   {
+    "op": ">",
+    "args": [
+     {
+      "col": "pos-payments-june.attempt"
+     },
+     {
+      "lit": 1
+     }
+    ]
+   }
+  ],
+  "group_by": [
+   {
+    "col": "pos-payments-june.tender"
+   }
+  ],
+  "select": [
+   {
+    "as": "tender",
+    "expr": {
+     "col": "pos-payments-june.tender"
+    }
+   },
+   {
+    "as": "count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [
+   {
+    "by": "count",
+    "dir": "desc"
+   }
+  ],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Most common tender on the final approved attempt for bills that required more than one payment attempt"
+ },
+ "Q215": {
+  "cannot": "bill_ref is EMPTY in every row of psp-upi-report-june, so no row has a non-null bill_ref"
+ },
+ "Q216": {
+  "plans": [
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "psp-upi-report-june.initiated_ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "delay_seconds",
+      "expr": {
+       "op": "*",
+       "args": [
+        {
+         "fn": "hours_between",
+         "args": [
+          {
+           "col": "psp-upi-report-june.initiated_ts"
+          },
+          {
+           "col": "psp-upi-report-june.status_ts"
+          }
+         ]
+        },
+        {
+         "lit": 3600
+        }
+       ]
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Confirmation delays in seconds for successful UPI transactions on 20 June 2026"
+   },
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "!=",
+      "args": [
+       {
+        "fn": "day",
+        "arg": {
+         "col": "psp-upi-report-june.initiated_ts"
+        }
+       },
+       {
+        "lit": "2026-06-20"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "delay_seconds",
+      "expr": {
+       "op": "*",
+       "args": [
+        {
+         "fn": "hours_between",
+         "args": [
+          {
+           "col": "psp-upi-report-june.initiated_ts"
+          },
+          {
+           "col": "psp-upi-report-june.status_ts"
+          }
+         ]
+        },
+        {
+         "lit": 3600
+        }
+       ]
+      }
+     }
+    ],
+    "layer": "ontology",
+    "covers": "Confirmation delays in seconds for successful UPI transactions on all other days in June 2026"
+   }
+  ]
+ },
+ "Q217": {
+  "from": "upi-settlements-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "between",
+    "arg": {
+     "col": "upi-settlements-june.settlement_date"
+    },
+    "low": "2026-06-01",
+    "high": "2026-06-30"
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "total_mdr_inr",
+    "expr": {
+     "agg": "sum",
+     "arg": {
+      "col": "upi-settlements-june.mdr_inr"
+     }
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Sum of mdr_inr for all UPI settlement rows in June 2026"
+ },
+ "Q218": {
+  "raw": "{\"from\": \"upi-refunds-june\", \"joins\": [], \"where\": [], \"group_by\": [], \"select\": [{\"as\": \"median_wait_hours\", \"expr\": {\"agg\": \"avg\", \"arg\": {\"op\": \"+\", \"args\": [{\"ref\": \"p50\"}, {\"ref\": \"p51\"}]}}}, {\"as\": \"p50\", \"expr\": {\"agg\": \"max\", \"arg\": {\"op\": \"*\", \"args\": [{\"lit\": 0.5}, {\"agg\": \"count\", \"arg\": \"*\"}]}}}, {\"as\": \"p51\", \"expr\": {\"agg\": \"min\", \"arg\": {\"op\": \"+\", \"args\": [{\"lit\": 1}, {\"op\": \"*\", \"",
+  "error": "unparsable"
+ },
+ "Q219": {
+  "from": "customer-complaints-june",
+  "where": [
+   {
+    "op": "not_null",
+    "arg": {
+     "col": "customer-complaints-june.resolved_ts"
+    }
+   }
+  ],
+  "select": [
+   {
+    "as": "resolved_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   },
+   {
+    "as": "median_resolution_hours",
+    "expr": {
+     "agg": "median",
+     "arg": {
+      "fn": "hours_between",
+      "args": [
+       {
+        "col": "customer-complaints-june.complaint_ts"
+       },
+       {
+        "col": "customer-complaints-june.resolved_ts"
+       }
+      ]
+     }
+    }
+   }
+  ],
+  "layer": "ontology",
+  "covers": "Counts resolved complaints and computes median resolution time in hours using the ontology definition of refund wait from extra debit to refund completion."
+ },
+ "Q220": {
+  "from": "customer-complaints-june",
+  "joins": [
+   {
+    "table": "upi-refunds-june",
+    "type": "left",
+    "on": [
+     [
+      {
+       "col": "customer-complaints-june.rrn"
+      },
+      {
+       "col": "upi-refunds-june.rrn"
+      }
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "is_null",
+    "arg": {
+     "col": "upi-refunds-june.rrn"
+    }
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "complaint",
+    "expr": {
+     "col": "customer-complaints-june.complaint"
+    }
+   },
+   {
+    "as": "rrn",
+    "expr": {
+     "col": "customer-complaints-june.rrn"
+    }
+   },
+   {
+    "as": "complaint_ts",
+    "expr": {
+     "col": "customer-complaints-june.complaint_ts"
+    }
+   },
+   {
+    "as": "kind",
+    "expr": {
+     "col": "customer-complaints-june.kind"
+    }
+   },
+   {
+    "as": "amount_inr",
+    "expr": {
+     "col": "customer-complaints-june.amount_inr"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [
+   {
+    "by": "complaint_ts",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "layer": "ontology",
+  "covers": "Complaints whose rrn has no matching refund in upi-refunds-june (left join on rrn, filter where refund rrn is null)."
+ },
+ "Q221": {
+  "plans": [
+   {
+    "from": "upi-settlements-june",
+    "where": [
+     {
+      "op": ">",
+      "args": [
+       {
+        "col": "upi-settlements-june.refunds_inr"
+       },
+       {
+        "lit": 0
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "settlement_date",
+      "expr": {
+       "col": "upi-settlements-june.settlement_date"
+      }
+     },
+     {
+      "as": "refunds_inr",
+      "expr": {
+       "col": "upi-settlements-june.refunds_inr"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "settlement_date",
+      "dir": "asc"
+     }
+    ],
+    "layer": "schema",
+    "covers": "Settlement dates where refunds_inr > 0 and the refund amount per settlement"
+   },
+   {
+    "from": "upi-settlements-june",
+    "select": [
+     {
+      "as": "total_refunds_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-settlements-june.refunds_inr"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Sum of refunds_inr across all settlements"
+   },
+   {
+    "from": "upi-refunds-june",
+    "select": [
+     {
+      "as": "total_amount_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-refunds-june.amount_inr"
+       }
+      }
+     }
+    ],
+    "layer": "schema",
+    "covers": "Sum of amount_inr across all UPI refunds"
+   }
+  ]
+ },
+ "Q222": {
+  "cannot": "pos-lines-may-june does not have a date column; only bill_ts (time). A day grouping requires a date column or a function to extract the date part, which is not allowed in the schema layer."
+ },
+ "Q223": {
+  "cannot": "pos-lines-may-june covers only the eleven followed items; a bill's other items are not in this table, so the sum of line_amount is not the full bill total and cannot be compared to the approved payment amount"
+ },
+ "Q225": {
+  "from": "pos-payments-june",
+  "joins": [],
+  "where": [
+   {
+    "op": "in",
+    "arg": {
+     "col": "pos-payments-june.bill_id"
+    },
+    "values": {
+     "select": "bill_id",
+     "from": "pos-payments-june",
+     "group_by": [
+      "bill_id"
+     ],
+     "having": [
+      {
+       "op": ">=",
+       "args": [
+        {
+         "agg": "count",
+         "arg": "*"
+        },
+        {
+         "lit": 3
+        }
+       ]
+      }
+     ]
+    }
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "bill_id",
+    "expr": {
+     "col": "pos-payments-june.bill_id"
+    }
+   },
+   {
+    "as": "attempt",
+    "expr": {
+     "col": "pos-payments-june.attempt"
+    }
+   },
+   {
+    "as": "tender",
+    "expr": {
+     "col": "pos-payments-june.tender"
+    }
+   },
+   {
+    "as": "till_status",
+    "expr": {
+     "col": "pos-payments-june.till_status"
+    }
+   },
+   {
+    "as": "ts",
+    "expr": {
+     "col": "pos-payments-june.ts"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [
+   {
+    "by": "bill_id",
+    "dir": "asc"
+   },
+   {
+    "by": "attempt",
+    "dir": "asc"
+   }
+  ],
+  "limit": 200,
+  "layer": "schema",
+  "covers": "Bills with three or more payment attempts and the sequence of tender and till_status for each attempt, ordered by bill and attempt number."
+ },
+ "Q226": {
+  "cannot": "psp-upi-report-june.bill_ref is EMPTY in every row; cannot join on it"
+ },
+ "Q227": {
+  "plans": [
+   {
+    "from": "upi-settlements-june",
+    "where": [
+     {
+      "op": ">=",
+      "args": [
+       {
+        "col": "upi-settlements-june.settlement_date"
+       },
+       {
+        "lit": "2026-06-01"
+       }
+      ]
+     },
+     {
+      "op": "<=",
+      "args": [
+       {
+        "col": "upi-settlements-june.settlement_date"
+       },
+       {
+        "lit": "2026-06-30"
+       }
+      ]
+     }
+    ],
+    "group_by": [],
+    "select": [
+     {
+      "as": "total_mdr_inr",
+      "expr": {
+       "agg": "sum",
+       "arg": {
+        "col": "upi-settlements-june.mdr_inr"
+       }
+      }
+     }
+    ],
+    "order_by": [],
+    "limit": 1,
+    "layer": "schema",
+    "covers": "Sum of UPI merchant discount rate (mdr_inr) for all settlement days in June 2026."
+   },
+   {
+    "from": "upi-settlements-june",
+    "where": [
+     {
+      "op": ">=",
+      "args": [
+       {
+        "col": "upi-settlements-june.settlement_date"
+       },
+       {
+        "lit": "2026-06-01"
+       }
+      ]
+     },
+     {
+      "op": "<=",
+      "args": [
+       {
+        "col": "upi-settlements-june.settlement_date"
+       },
+       {
+        "lit": "2026-06-30"
+       }
+      ]
+     }
+    ],
+    "group_by": [
+     {
+      "col": "upi-settlements-june.settlement_date"
+     }
+    ],
+    "select": [
+     {
+      "as": "settlement_date",
+      "expr": {
+       "col": "upi-settlements-june.settlement_date"
+      }
+     },
+     {
+      "as": "gross_inr",
+      "expr": {
+       "col": "upi-settlements-june.gross_inr"
+      }
+     },
+     {
+      "as": "mdr_inr",
+      "expr": {
+       "col": "upi-settlements-june.mdr_inr"
+      }
+     },
+     {
+      "as": "net_inr",
+      "expr": {
+       "col": "upi-settlements-june.net_inr"
+      }
+     },
+     {
+      "as": "refunds_inr",
+      "expr": {
+       "col": "upi-settlements-june.refunds_inr"
+      }
+     },
+     {
+      "as": "upi_credits",
+      "expr": {
+       "col": "upi-settlements-june.upi_credits"
+      }
+     }
+    ],
+    "order_by": [
+     {
+      "by": "settlement_date",
+      "dir": "asc"
+     }
+    ],
+    "limit": 30,
+    "layer": "schema",
+    "covers": "Daily UPI settlement breakdown for June 2026 to explain the total MDR composition."
+   }
+  ]
+ },
+ "Q228": {
+  "plans": [
+   {
+    "from": "pos-payments-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "pos-payments-june.till_status"
+      },
+      "values": [
+       "failed",
+       "failed: no response"
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "timeout_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "with_rrn",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "not_null",
+        "arg": {
+         "col": "pos-payments-june.rrn"
+        }
+       }
+      }
+     },
+     {
+      "as": "without_rrn",
+      "expr": {
+       "agg": "count",
+       "arg": {
+        "op": "is_null",
+        "arg": {
+         "col": "pos-payments-june.rrn"
+        }
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Counts UPI timeouts at the till and how many carry an RRN; timeouts with 'failed: no response' have no RRN and cannot be joined to the PSP report, so a one-to-one match via RRN is impossible for those rows."
+   },
+   {
+    "from": "psp-upi-report-june",
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "provider_success_count",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "distinct_rrn",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "psp-upi-report-june.rrn"
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Counts provider-side successful UPI transactions and distinct RRNs; the PSP report has no bill_ref (always empty), so matching to till timeouts can only use RRN and amount within a 60-second window, which the records do not guarantee as unique."
+   },
+   {
+    "from": "pos-payments-june",
+    "joins": [
+     {
+      "table": "psp-upi-report-june",
+      "type": "inner",
+      "on": [
+       [
+        {
+         "col": "pos-payments-june.rrn"
+        },
+        {
+         "col": "psp-upi-report-june.rrn"
+        }
+       ],
+       [
+        {
+         "col": "pos-payments-june.amount_inr"
+        },
+        {
+         "col": "psp-upi-report-june.amount_inr"
+        }
+       ]
+      ]
+     }
+    ],
+    "where": [
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "pos-payments-june.tender"
+       },
+       {
+        "lit": "UPI"
+       }
+      ]
+     },
+     {
+      "op": "in",
+      "arg": {
+       "col": "pos-payments-june.till_status"
+      },
+      "values": [
+       "failed",
+       "failed: no response"
+      ]
+     },
+     {
+      "op": "=",
+      "args": [
+       {
+        "col": "psp-upi-report-june.status"
+       },
+       {
+        "lit": "success"
+       }
+      ]
+     },
+     {
+      "op": "<=",
+      "args": [
+       {
+        "fn": "abs",
+        "arg": {
+         "fn": "hours_between",
+         "args": [
+          {
+           "col": "pos-payments-june.ts"
+          },
+          {
+           "col": "psp-upi-report-june.initiated_ts"
+          }
+         ]
+        }
+       },
+       {
+        "lit": 0.0166667
+       }
+      ]
+     }
+    ],
+    "select": [
+     {
+      "as": "matched_pairs",
+      "expr": {
+       "agg": "count",
+       "arg": "*"
+      }
+     },
+     {
+      "as": "distinct_timeout_attempts",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "pos-payments-june.attempt"
+       }
+      }
+     },
+     {
+      "as": "distinct_provider_rrn",
+      "expr": {
+       "agg": "count_distinct",
+       "arg": {
+        "col": "psp-upi-report-june.rrn"
+       }
+      }
+     }
+    ],
+    "layer": "knowledge",
+    "covers": "Attempts to match till UPI timeouts to provider successes by RRN, amount and a 60-second window (0.0166667 hours); shows whether each timeout maps to exactly one provider row and vice versa, but timeouts without RRN ('failed: no response') are excluded from this join, so the match cannot be complete."
+   }
+  ]
+ },
+ "Q229": {
+  "from": "customer-complaints-june",
+  "joins": [
+   {
+    "table": "upi-refunds-june",
+    "type": "inner",
+    "on": [
+     [
+      "customer-complaints-june.bill_id",
+      "upi-refunds-june.bill_id"
+     ]
+    ]
+   },
+   {
+    "table": "psp-upi-report-june",
+    "type": "inner",
+    "on": [
+     [
+      "customer-complaints-june.rrn",
+      "psp-upi-report-june.rrn"
+     ]
+    ]
+   }
+  ],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "customer-complaints-june.kind"
+     },
+     {
+      "lit": "charged twice"
+     }
+    ]
+   },
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "psp-upi-report-june.status"
+     },
+     {
+      "lit": "returned"
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "complaint_count",
+    "expr": {
+     "agg": "count",
+     "arg": "*"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "ontology",
+  "covers": "Checks if any 'charged twice' complaint has a UPI provider status of 'returned' (bank refund) and a store refund record, per ontology Rule 11 (refund answers debit) and Rule 9 (three witnesses)."
+ },
+ "Q230": {
+  "cannot": "The question asks whether the store's bank account reconciles cleanly with the tills. The upi-settlements-june table only records UPI settlement amounts (gross, refunds, MDR, net) per day. It does not contain any information about the store's bank account balance, bank statements, or total till takings (which include cash and card payments from pos-payments-june). Reconciling the bank account with the tills requires comparing the bank's record of all credits (UPI + card + cash deposits) against the sum of all approved payments at the tills. Since the bank account data and the full set of approved payments across all tenders are not available in a single table, no one table can answer this."
+ },
+ "Q231": {
+  "cannot": "No column in psp-upi-report-june or upi-settlements-june links a UPI transaction (rrn) to a daily settlement row. Settlements are per-day aggregates (gross, mdr, net, refunds, credits) without rrn, so we cannot tell which individual rrn failed to settle."
+ },
+ "Q232": {
+  "cannot": "The records do not contain the payment app (Google Pay, PhonePe, Paytm) used for UPI transactions. pos-payments-june records only the tender 'UPI' and psp-upi-report-june records provider status but not the app. Therefore timeout rate by app cannot be computed."
+ },
+ "Q233": {
+  "cannot": "No table records a customer's phone number or UPI VPA. The payment tables (pos-payments-june, psp-upi-report-june) contain rrn, amount, bill_id and status, but no customer identity or VPA. The complaints table (customer-complaints-june) has rrn and bill_id but no contact details. The ontology states: 'A bill stands in for a shopper. There is no customer identity.'"
+ },
+ "Q234": {
+  "cannot": "Demand is not recorded; only sales of the eleven followed items are recorded. Price elasticity requires demand data, which is not available in the records."
+ },
+ "Q235": {
+  "cannot": "No table records promotions, discounts, or their attribution to sales. The records hold only sales, stock, payments, and operations for eleven followed items; there is no promotion code, discount flag, or campaign identifier to evaluate."
+ },
+ "Q236": {
+  "cannot": "Profitability requires total revenue and total cost for the store. Records cover only 11 followed products (daily-sales-june, pos-lines-may-june) and their per-unit cost (products.cost_inr). Revenue and cost for all other products, plus overheads (rent, labour, utilities, etc.), are not recorded."
+ },
+ "Q237": {
+  "cannot": "Real purchase costs, rebates and freight per unit are not recorded. Only a single cost_inr per product exists in products, which is a list cost, not the actual landed cost with rebates and freight."
+ },
+ "Q238": {
+  "cannot": "Shelf space per product (square feet) is not recorded in any table. Products table has pack size and case dimensions but not shelf allocation. Sales and revenue data exist for the 11 followed items, but without shelf area per SKU, revenue per square foot cannot be computed."
+ },
+ "Q239": {
+  "cannot": "No record of shelf camera cost, installation cost, maintenance cost, or any revenue or cost saving attributed to a shelf camera. Lost sales (demand at an empty shelf) are not recorded. The records hold only 11 followed items, twice-weekly 11:00 shelf audits, and sales for those items. A business case for a shelf camera cannot be built from these records."
+ },
+ "Q240": {
+  "from": "products",
+  "joins": [],
+  "where": [
+   {
+    "op": "=",
+    "args": [
+     {
+      "col": "products.sku"
+     },
+     {
+      "lit": "ATTA-WW-5KG"
+     }
+    ]
+   }
+  ],
+  "group_by": [],
+  "select": [
+   {
+    "as": "selling_price_inr",
+    "expr": {
+     "col": "products.price_inr"
+    }
+   }
+  ],
+  "having": [],
+  "order_by": [],
+  "limit": 1,
+  "layer": "schema",
+  "covers": "Selling price of ATTA-WW-5KG from products table"
+ },
+ "Q242": {
+  "cannot": "wholesale price paid by the store on a specific date is not recorded; products.cost_inr is a single per-product cost, not a dated purchase price, and no goods-receipt or invoice table captures the price paid on 12 June 2026"
+ }
+}
