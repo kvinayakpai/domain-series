@@ -1,0 +1,1615 @@
+{
+ "Q243": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "product_count"
+  ],
+  "rows": [
+   [
+    5
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q244": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (each row of products can match several earlier rows, so sum over products would count rows more than once)."
+ },
+ "Q245": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "cost_inr"
+  ],
+  "rows": [
+   [
+    42.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q246": {
+  "decision": "answer",
+  "layer": "ontology",
+  "declared_layer": "knowledge",
+  "columns": [
+   "sku",
+   "product_name",
+   "price_inr",
+   "cost_inr",
+   "gross_margin_pct"
+  ],
+  "rows": [
+   [
+    "ATTA-WW-1KG",
+    "Whole wheat atta 1 kg",
+    58.0,
+    49.5,
+    15.0
+   ],
+   [
+    "ATTA-WW-5KG",
+    "Whole wheat atta 5 kg",
+    265.0,
+    228.0,
+    14.0
+   ],
+   [
+    "ATTA-WW-10KG",
+    "Whole wheat atta 10 kg",
+    499.0,
+    431.0,
+    14.0
+   ],
+   [
+    "RICE-SM-5KG",
+    "Sona masoori rice 5 kg",
+    349.0,
+    301.0,
+    14.0
+   ],
+   [
+    "DAL-TOOR-1KG",
+    "Toor dal 1 kg",
+    168.0,
+    146.0,
+    13.0
+   ],
+   [
+    "SUGAR-1KG",
+    "Sugar 1 kg",
+    48.0,
+    42.0,
+    13.0
+   ],
+   [
+    "BREAD-WHITE-400G",
+    "White bread 400 g",
+    45.0,
+    39.0,
+    13.0
+   ],
+   [
+    "OIL-SUN-1L",
+    "Sunflower oil 1 L pouch",
+    152.0,
+    134.0,
+    12.0
+   ],
+   [
+    "CURD-500G",
+    "Curd 500 g pouch",
+    32.0,
+    29.5,
+    8.0
+   ],
+   [
+    "MILK-TONED-500ML",
+    "Toned milk 500 ml pouch",
+    26.0,
+    24.7,
+    5.0
+   ],
+   [
+    "MILK-FC-500ML",
+    "Full cream milk 500 ml pouch",
+    34.0,
+    32.3,
+    5.0
+   ]
+  ],
+  "row_count": 11,
+  "message": "11 row(s)."
+ },
+ "Q247": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "ontology",
+    "covers": "Checks the stated line_amount = qty * unit_price premise on June till lines; this arithmetic identity alone cannot establish whether unit_price was discounted, so the second plan compares it with the product list price.",
+    "columns": [
+     "june_lines",
+     "lines_not_qty_times_price"
+    ],
+    "rows": [
+     [
+      17509,
+      0.0
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(*) as \"june_lines\", sum((\"pos-lines-may-june\".\"line_amount\" - (\"pos-lines-may-june\".\"qty\" * \"pos-lines-may-june\".\"unit_price\"))) as \"lines_not_qty_times_price\" from \"pos-lines-may-june\"  where (substr(\"pos-lines-may-june\".\"bill_ts\",1,10) >= ?) and (substr(\"pos-lines-may-june\".\"bill_ts\",1,10) < ?) limit 200",
+    "params": [
+     "2026-06-01",
+     "2026-07-01"
+    ],
+    "plan_in_words": "From till line records; keep rows where pos lines may.bill_ts >= '2026-06-01' and pos lines may.bill_ts < '2026-07-01'; report june_lines = count of *, lines_not_qty_times_price = sum of pos lines may.line_amount - pos lines may.qty * pos lines may.unit_price.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "ontology",
+    "covers": "Finds June lines for the eleven followed items whose unit price is below products.price_inr, using a below-list charged price as the recorded evidence of a discount; no rows means no such discount is recorded.",
+    "columns": [
+     "sku",
+     "product",
+     "list_price_inr",
+     "charged_unit_price_inr",
+     "lines_below_list",
+     "units_below_list",
+     "first_seen",
+     "last_seen"
+    ],
+    "rows": [],
+    "row_count": 0,
+    "sql": "select \"pos-lines-may-june\".\"sku_scanned\" as \"sku\", \"products\".\"name\" as \"product\", \"products\".\"price_inr\" as \"list_price_inr\", \"pos-lines-may-june\".\"unit_price\" as \"charged_unit_price_inr\", count(*) as \"lines_below_list\", sum(\"pos-lines-may-june\".\"qty\") as \"units_below_list\", min(\"pos-lines-may-june\".\"bill_ts\") as \"first_seen\", max(\"pos-lines-may-june\".\"bill_ts\") as \"last_seen\" from \"pos-lines-may-june\" inner join \"products\" on \"pos-lines-may-june\".\"sku_scanned\" = \"products\".\"sku\" where (substr(\"pos-lines-may-june\".\"bill_ts\",1,10) >= ?) and (substr(\"pos-lines-may-june\".\"bill_ts\",1,10) < ?) and (\"pos-lines-may-june\".\"unit_price\" < \"products\".\"price_inr\") group by \"pos-lines-may-june\".\"sku_scanned\", \"products\".\"name\", \"products\".\"price_inr\", \"pos-lines-may-june\".\"unit_price\" order by \"sku\" asc, \"charged_unit_price_inr\" asc limit 200",
+    "params": [
+     "2026-06-01",
+     "2026-07-01"
+    ],
+    "plan_in_words": "From till line records; inner-join product records on pos lines may.sku_scanned = products.sku; keep rows where pos lines may.bill_ts >= '2026-06-01' and pos lines may.bill_ts < '2026-07-01' and pos lines may.unit_price < products.price_inr; group by pos lines may.sku_scanned, products.name, products.price_inr, pos lines may.unit_price; report sku = pos lines may.sku_scanned, product = products.name, list_price_inr = products.price_inr, charged_unit_price_inr = pos lines may.unit_price, lines_below_list = count of *, units_below_list = sum of pos lines may.qty, first_seen = min of pos lines may.bill_ts, last_seen = max of pos lines may.bill_ts; sorted by sku asc, charged_unit_price_inr asc.",
+    "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'.",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 2,
+  "columns": [
+   "june_lines",
+   "lines_not_qty_times_price"
+  ],
+  "rows": [
+   [
+    17509,
+    0.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "2 of 2 part(s) answered."
+ },
+ "Q248": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q249": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q251": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q252": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q253": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q255": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q256": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q257": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q258": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q259": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q260": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "knowledge",
+  "columns": [
+   "date",
+   "units_sold",
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    685.0,
+    46285.0
+   ],
+   [
+    "2026-06-02",
+    768.0,
+    49259.0
+   ],
+   [
+    "2026-06-03",
+    666.0,
+    47526.0
+   ],
+   [
+    "2026-06-04",
+    587.0,
+    40931.0
+   ],
+   [
+    "2026-06-05",
+    672.0,
+    54183.0
+   ],
+   [
+    "2026-06-06",
+    846.0,
+    60629.0
+   ],
+   [
+    "2026-06-07",
+    744.0,
+    57355.0
+   ],
+   [
+    "2026-06-08",
+    605.0,
+    34615.0
+   ],
+   [
+    "2026-06-09",
+    763.0,
+    39685.0
+   ],
+   [
+    "2026-06-10",
+    691.0,
+    46180.0
+   ],
+   [
+    "2026-06-11",
+    675.0,
+    38379.0
+   ],
+   [
+    "2026-06-12",
+    607.0,
+    41784.0
+   ],
+   [
+    "2026-06-13",
+    747.0,
+    47117.0
+   ],
+   [
+    "2026-06-14",
+    660.0,
+    46233.0
+   ],
+   [
+    "2026-06-15",
+    614.0,
+    39029.0
+   ],
+   [
+    "2026-06-16",
+    643.0,
+    35205.0
+   ],
+   [
+    "2026-06-17",
+    685.0,
+    39468.0
+   ],
+   [
+    "2026-06-18",
+    583.0,
+    41697.0
+   ],
+   [
+    "2026-06-19",
+    727.0,
+    47456.0
+   ],
+   [
+    "2026-06-20",
+    908.0,
+    50831.0
+   ],
+   [
+    "2026-06-21",
+    756.0,
+    52133.0
+   ],
+   [
+    "2026-06-22",
+    649.0,
+    41199.0
+   ],
+   [
+    "2026-06-23",
+    585.0,
+    32167.0
+   ],
+   [
+    "2026-06-24",
+    672.0,
+    43098.0
+   ],
+   [
+    "2026-06-25",
+    505.0,
+    31958.0
+   ],
+   [
+    "2026-06-26",
+    508.0,
+    38395.0
+   ],
+   [
+    "2026-06-27",
+    770.0,
+    49375.0
+   ],
+   [
+    "2026-06-28",
+    944.0,
+    51765.0
+   ]
+  ],
+  "row_count": 28,
+  "message": "28 row(s)."
+ },
+ "Q261": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q262": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q263": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q264": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q265": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Ranks June 2026 days by recorded sales of the eleven followed items to locate the spike; no table records festivals, causes, or outside events, so the festival cannot be identified from these records.",
+    "columns": [
+     "date",
+     "units_sold",
+     "revenue_inr"
+    ],
+    "rows": [
+     [
+      "2026-06-06",
+      846.0,
+      60629.0
+     ],
+     [
+      "2026-06-07",
+      744.0,
+      57355.0
+     ],
+     [
+      "2026-06-05",
+      672.0,
+      54183.0
+     ],
+     [
+      "2026-06-21",
+      756.0,
+      52133.0
+     ],
+     [
+      "2026-06-28",
+      944.0,
+      51765.0
+     ],
+     [
+      "2026-06-20",
+      908.0,
+      50831.0
+     ],
+     [
+      "2026-06-27",
+      770.0,
+      49375.0
+     ],
+     [
+      "2026-06-02",
+      768.0,
+      49259.0
+     ],
+     [
+      "2026-06-03",
+      666.0,
+      47526.0
+     ],
+     [
+      "2026-06-19",
+      727.0,
+      47456.0
+     ],
+     [
+      "2026-06-13",
+      747.0,
+      47117.0
+     ],
+     [
+      "2026-06-01",
+      685.0,
+      46285.0
+     ],
+     [
+      "2026-06-14",
+      660.0,
+      46233.0
+     ],
+     [
+      "2026-06-10",
+      691.0,
+      46180.0
+     ],
+     [
+      "2026-06-24",
+      672.0,
+      43098.0
+     ],
+     [
+      "2026-06-12",
+      607.0,
+      41784.0
+     ],
+     [
+      "2026-06-18",
+      583.0,
+      41697.0
+     ],
+     [
+      "2026-06-22",
+      649.0,
+      41199.0
+     ],
+     [
+      "2026-06-04",
+      587.0,
+      40931.0
+     ],
+     [
+      "2026-06-09",
+      763.0,
+      39685.0
+     ],
+     [
+      "2026-06-17",
+      685.0,
+      39468.0
+     ],
+     [
+      "2026-06-15",
+      614.0,
+      39029.0
+     ],
+     [
+      "2026-06-26",
+      508.0,
+      38395.0
+     ],
+     [
+      "2026-06-11",
+      675.0,
+      38379.0
+     ],
+     [
+      "2026-06-16",
+      643.0,
+      35205.0
+     ],
+     [
+      "2026-06-08",
+      605.0,
+      34615.0
+     ],
+     [
+      "2026-06-23",
+      585.0,
+      32167.0
+     ],
+     [
+      "2026-06-25",
+      505.0,
+      31958.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"daily-sales-june\".\"date\" as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\", sum(\"daily-sales-june\".\"revenue_inr\") as \"revenue_inr\" from \"daily-sales-june\"  where (substr(\"daily-sales-june\".\"date\",1,10) between ? and ?) group by \"daily-sales-june\".\"date\" order by \"revenue_inr\" desc limit 200",
+    "params": [
+     "2026-06-01",
+     "2026-06-28"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.date between 2026-06-01 and 2026-06-28; group by daily sales.date; report date = daily sales.date, units_sold = sum of daily sales.units_sold, revenue_inr = sum of daily sales.revenue_inr; sorted by revenue_inr desc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 1,
+  "columns": [
+   "date",
+   "units_sold",
+   "revenue_inr"
+  ],
+  "rows": [
+   [
+    "2026-06-06",
+    846.0,
+    60629.0
+   ],
+   [
+    "2026-06-07",
+    744.0,
+    57355.0
+   ],
+   [
+    "2026-06-05",
+    672.0,
+    54183.0
+   ],
+   [
+    "2026-06-21",
+    756.0,
+    52133.0
+   ],
+   [
+    "2026-06-28",
+    944.0,
+    51765.0
+   ],
+   [
+    "2026-06-20",
+    908.0,
+    50831.0
+   ],
+   [
+    "2026-06-27",
+    770.0,
+    49375.0
+   ],
+   [
+    "2026-06-02",
+    768.0,
+    49259.0
+   ],
+   [
+    "2026-06-03",
+    666.0,
+    47526.0
+   ],
+   [
+    "2026-06-19",
+    727.0,
+    47456.0
+   ],
+   [
+    "2026-06-13",
+    747.0,
+    47117.0
+   ],
+   [
+    "2026-06-01",
+    685.0,
+    46285.0
+   ],
+   [
+    "2026-06-14",
+    660.0,
+    46233.0
+   ],
+   [
+    "2026-06-10",
+    691.0,
+    46180.0
+   ],
+   [
+    "2026-06-24",
+    672.0,
+    43098.0
+   ],
+   [
+    "2026-06-12",
+    607.0,
+    41784.0
+   ],
+   [
+    "2026-06-18",
+    583.0,
+    41697.0
+   ],
+   [
+    "2026-06-22",
+    649.0,
+    41199.0
+   ],
+   [
+    "2026-06-04",
+    587.0,
+    40931.0
+   ],
+   [
+    "2026-06-09",
+    763.0,
+    39685.0
+   ],
+   [
+    "2026-06-17",
+    685.0,
+    39468.0
+   ],
+   [
+    "2026-06-15",
+    614.0,
+    39029.0
+   ],
+   [
+    "2026-06-26",
+    508.0,
+    38395.0
+   ],
+   [
+    "2026-06-11",
+    675.0,
+    38379.0
+   ],
+   [
+    "2026-06-16",
+    643.0,
+    35205.0
+   ],
+   [
+    "2026-06-08",
+    605.0,
+    34615.0
+   ],
+   [
+    "2026-06-23",
+    585.0,
+    32167.0
+   ],
+   [
+    "2026-06-25",
+    505.0,
+    31958.0
+   ]
+  ],
+  "row_count": 28,
+  "message": "1 of 1 part(s) answered."
+ },
+ "Q266": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q267": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "product_count"
+  ],
+  "rows": [
+   [
+    11
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q268": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q269": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Checks the 30-versus-28 premise using approved June payments: the first and last billing dates and how many distinct dates have bills; actual opening days and any open day with no recorded payment are not recorded.",
+    "columns": [
+     "first_bill_day",
+     "last_bill_day",
+     "days_with_approved_bills"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      "2026-06-28",
+      28
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select substr(min(\"pos-payments-june\".\"ts\"),1,10) as \"first_bill_day\", substr(max(\"pos-payments-june\".\"ts\"),1,10) as \"last_bill_day\", count(distinct substr(\"pos-payments-june\".\"ts\",1,10)) as \"days_with_approved_bills\" from \"pos-payments-june\"  where (\"pos-payments-june\".\"till_status\" = ?) limit 200",
+    "params": [
+     "approved"
+    ],
+    "plan_in_words": "From payment attempt records; keep rows where pos payments.till_status = 'approved'; report first_bill_day = day(min of pos payments.ts), last_bill_day = day(max of pos payments.ts), days_with_approved_bills = count distinct of day(pos payments.ts).",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Checks the later end of June using recorded UPI settlement dates through 2026-06-30; settlements are evidence of activity, not a store opening calendar, so they cannot prove the store stayed open for 30 days.",
+    "columns": [
+     "first_settlement_date",
+     "last_settlement_date",
+     "settlement_dates_recorded"
+    ],
+    "rows": [
+     [
+      "2026-06-02",
+      "2026-06-30",
+      29
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select min(\"upi-settlements-june\".\"settlement_date\") as \"first_settlement_date\", max(\"upi-settlements-june\".\"settlement_date\") as \"last_settlement_date\", count(distinct \"upi-settlements-june\".\"settlement_date\") as \"settlement_dates_recorded\" from \"upi-settlements-june\"  limit 200",
+    "params": [],
+    "plan_in_words": "From UPI settlement records; report first_settlement_date = min of upi settlements.settlement_date, last_settlement_date = max of upi settlements.settlement_date, settlement_dates_recorded = count distinct of upi settlements.settlement_date.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 2,
+  "columns": [
+   "first_bill_day",
+   "last_bill_day",
+   "days_with_approved_bills"
+  ],
+  "rows": [
+   [
+    "2026-06-01",
+    "2026-06-28",
+    28
+   ]
+  ],
+  "row_count": 1,
+  "message": "2 of 2 part(s) answered."
+ },
+ "Q271": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "atta_units_sold"
+  ],
+  "rows": [
+   [
+    1680.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q272": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "write_off_count"
+  ],
+  "rows": [
+   [
+    34
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q274": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "pouches_sold"
+  ],
+  "rows": [
+   [
+    8649.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q275": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (each row of products can match several earlier rows, so sum over products would count rows more than once)."
+ },
+ "Q276": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "days_above_4_lakh"
+  ],
+  "rows": [
+   [
+    10
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q277": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "bags_sold"
+  ],
+  "rows": [
+   [
+    32.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q278": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "bags_sold"
+  ],
+  "rows": [
+   [
+    1.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q279": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "pallets"
+  ],
+  "rows": [],
+  "row_count": 0,
+  "message": "No rows matched this plan. That is the records' answer to it, but check the plan in words below: an empty result is not the same as 'no'."
+ },
+ "Q280": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Recorded evidence only: the June 11:00 shelf audits where 5 kg atta was empty; shoppers who walked out without buying are not recorded, and audits are twice-weekly snapshots, not hours empty.",
+    "columns": [
+     "empty_audits",
+     "first_empty_audit",
+     "last_empty_audit"
+    ],
+    "rows": [
+     [
+      2,
+      "2026-06-12T11:00",
+      "2026-06-26T11:00"
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(*) as \"empty_audits\", min(\"shelf-audits-june\".\"audit_ts\") as \"first_empty_audit\", max(\"shelf-audits-june\".\"audit_ts\") as \"last_empty_audit\" from \"shelf-audits-june\"  where (\"shelf-audits-june\".\"sku\" = ?) and (\"shelf-audits-june\".\"status\" = ?) and (substr(substr(\"shelf-audits-june\".\"audit_ts\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "empty",
+     "2026-06-01",
+     "2026-06-30"
+    ],
+    "plan_in_words": "From shelf-audit row records; keep rows where shelf audits.sku = 'ATTA-WW-5KG' and shelf audits.status = 'empty' and day(shelf audits.audit_ts) between 2026-06-01 and 2026-06-30; report empty_audits = count of *, first_empty_audit = min of shelf audits.audit_ts, last_empty_audit = max of shelf audits.audit_ts.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "Recorded June daily sales of 5 kg atta, including zero-sale days, as evidence for a labelled lost-sale estimate; actual demand and shoppers who did not buy are not recorded.",
+    "columns": [
+     "date",
+     "units_sold"
+    ],
+    "rows": [
+     [
+      "2026-06-01",
+      30.0
+     ],
+     [
+      "2026-06-02",
+      36.0
+     ],
+     [
+      "2026-06-03",
+      22.0
+     ],
+     [
+      "2026-06-04",
+      28.0
+     ],
+     [
+      "2026-06-05",
+      32.0
+     ],
+     [
+      "2026-06-06",
+      25.0
+     ],
+     [
+      "2026-06-07",
+      44.0
+     ],
+     [
+      "2026-06-08",
+      9.0
+     ],
+     [
+      "2026-06-09",
+      11.0
+     ],
+     [
+      "2026-06-10",
+      22.0
+     ],
+     [
+      "2026-06-11",
+      1.0
+     ],
+     [
+      "2026-06-12",
+      0.0
+     ],
+     [
+      "2026-06-13",
+      22.0
+     ],
+     [
+      "2026-06-14",
+      23.0
+     ],
+     [
+      "2026-06-15",
+      22.0
+     ],
+     [
+      "2026-06-16",
+      17.0
+     ],
+     [
+      "2026-06-17",
+      11.0
+     ],
+     [
+      "2026-06-18",
+      31.0
+     ],
+     [
+      "2026-06-19",
+      27.0
+     ],
+     [
+      "2026-06-20",
+      21.0
+     ],
+     [
+      "2026-06-21",
+      43.0
+     ],
+     [
+      "2026-06-22",
+      20.0
+     ],
+     [
+      "2026-06-23",
+      5.0
+     ],
+     [
+      "2026-06-24",
+      0.0
+     ],
+     [
+      "2026-06-25",
+      0.0
+     ],
+     [
+      "2026-06-26",
+      0.0
+     ],
+     [
+      "2026-06-27",
+      44.0
+     ],
+     [
+      "2026-06-28",
+      21.0
+     ]
+    ],
+    "row_count": 28,
+    "sql": "select \"daily-sales-june\".\"date\" as \"date\", sum(\"daily-sales-june\".\"units_sold\") as \"units_sold\" from \"daily-sales-june\"  where (\"daily-sales-june\".\"sku\" = ?) and (substr(substr(\"daily-sales-june\".\"date\",1,10),1,10) between ? and ?) group by \"daily-sales-june\".\"date\" order by \"date\" asc limit 30",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-30"
+    ],
+    "plan_in_words": "From daily sales row records; keep rows where daily sales.sku = 'ATTA-WW-5KG' and day(daily sales.date) between 2026-06-01 and 2026-06-30; group by daily sales.date; report date = daily sales.date, units_sold = sum of daily sales.units_sold; sorted by date asc.",
+    "message": "28 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "The 28-day-mean sales forecast is a labelled stand-in for June demand for 5 kg atta; true demand, lost sales and the number of shoppers are not recorded, and one unit need not equal one shopper.",
+    "columns": [
+     "forecast_units_june",
+     "avg_daily_forecast_units",
+     "forecast_days"
+    ],
+    "rows": [
+     [
+      637.32,
+      22.761428571428574,
+      28
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select sum(\"forecasts-june\".\"forecast_units_per_day\") as \"forecast_units_june\", avg(\"forecasts-june\".\"forecast_units_per_day\") as \"avg_daily_forecast_units\", count(*) as \"forecast_days\" from \"forecasts-june\"  where (\"forecasts-june\".\"sku\" = ?) and (substr(substr(\"forecasts-june\".\"date\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "ATTA-WW-5KG",
+     "2026-06-01",
+     "2026-06-30"
+    ],
+    "plan_in_words": "From forecast row records; keep rows where forecasts.sku = 'ATTA-WW-5KG' and day(forecasts.date) between 2026-06-01 and 2026-06-30; report forecast_units_june = sum of forecasts.forecast_units_per_day, avg_daily_forecast_units = avg of forecasts.forecast_units_per_day, forecast_days = count of *.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "knowledge",
+    "covers": "June approved bills are a labelled stand-in for shopper traffic; no customer identity exists, a bill is not necessarily one shopper, and shoppers who left without 5 kg atta are not recorded.",
+    "columns": [
+     "june_bills"
+    ],
+    "rows": [
+     [
+      30077
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(distinct \"pos-payments-june\".\"bill_id\") as \"june_bills\" from \"pos-payments-june\"  where (\"pos-payments-june\".\"till_status\" = ?) and (substr(substr(\"pos-payments-june\".\"ts\",1,10),1,10) between ? and ?) limit 200",
+    "params": [
+     "approved",
+     "2026-06-01",
+     "2026-06-30"
+    ],
+    "plan_in_words": "From payment attempt records; keep rows where pos payments.till_status = 'approved' and day(pos payments.ts) between 2026-06-01 and 2026-06-30; report june_bills = count distinct of pos payments.bill_id.",
+    "message": "1 row(s).",
+    "value": 30077,
+    "trace": []
+   }
+  ],
+  "answered_parts": 4,
+  "total_parts": 4,
+  "columns": [
+   "empty_audits",
+   "first_empty_audit",
+   "last_empty_audit"
+  ],
+  "rows": [
+   [
+    2,
+    "2026-06-12T11:00",
+    "2026-06-26T11:00"
+   ]
+  ],
+  "row_count": 1,
+  "message": "4 of 4 part(s) answered."
+ },
+ "Q281": {
+  "decision": "answer",
+  "layer": "ontology",
+  "parts": [
+   {
+    "decision": "no_record",
+    "layers": [
+     "schema"
+    ],
+    "failed_layer": "schema",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer refused the plan (node {\"max\": {\"col\": \"psp-upi-report-june.amount_inr\"}} is not in the plan form).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "Checks the premise that there are 26 extra debits and totals their recorded provider amount; no approved till payment is matched by rrn.",
+    "columns": [
+     "extra_debits",
+     "amount_inr"
+    ],
+    "rows": [
+     [
+      26,
+      13366.06
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(distinct \"psp-upi-report-june\".\"rrn\") as \"extra_debits\", sum(\"psp-upi-report-june\".\"amount_inr\") as \"amount_inr\" from \"psp-upi-report-june\" left join \"pos-payments-june\" on \"psp-upi-report-june\".\"rrn\" = \"pos-payments-june\".\"rrn\" where (\"psp-upi-report-june\".\"status\" = ?) and (\"pos-payments-june\".\"rrn\" is null) limit 200",
+    "params": [
+     "success"
+    ],
+    "plan_in_words": "From UPI service provider's transaction records; left-join payment attempt records on psp upi report.rrn = pos payments.rrn; keep rows where psp upi report.status = 'success' and pos payments.rrn is empty; report extra_debits = count distinct of psp upi report.rrn, amount_inr = sum of psp upi report.amount_inr.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "ontology"
+    ],
+    "layer": "ontology",
+    "declared_layer": "knowledge",
+    "covers": "Shows which candidate extra debits already have a recorded completed refund so the plan does not treat them as still unpaid; bank-side receipt is not recorded.",
+    "columns": [
+     "refund_id",
+     "rrn",
+     "bill_id",
+     "amount_inr",
+     "completed_ts"
+    ],
+    "rows": [
+     [
+      "RF-003319",
+      "615619003319",
+      "B260605-120088",
+      224.51,
+      "2026-06-08T13:00:00"
+     ],
+     [
+      "RF-002766",
+      "615521002766",
+      "B260604-140026",
+      143.11,
+      "2026-06-10T12:00:00"
+     ],
+     [
+      "RF-005544",
+      "616011005544",
+      "B260609-040018",
+      532.71,
+      "2026-06-14T10:00:00"
+     ],
+     [
+      "RF-008996",
+      "616517008996",
+      "B260614-100001",
+      362.94,
+      "2026-06-18T19:00:00"
+     ],
+     [
+      "RF-011772",
+      "616918011772",
+      "B260618-110082",
+      963.27,
+      "2026-06-22T11:00:00"
+     ],
+     [
+      "RF-013363",
+      "617119013363",
+      "B260620-120019",
+      592.94,
+      "2026-06-24T18:00:00"
+     ],
+     [
+      "RF-013379",
+      "617119013379",
+      "B260620-120047",
+      662.52,
+      "2026-06-24T19:00:00"
+     ],
+     [
+      "RF-013342",
+      "617118013342",
+      "B260620-110055",
+      168.21,
+      "2026-06-25T10:00:00"
+     ],
+     [
+      "RF-013372",
+      "617119013372",
+      "B260620-120037",
+      398.2,
+      "2026-06-25T11:00:00"
+     ],
+     [
+      "RF-013400",
+      "617119013400",
+      "B260620-120072",
+      646.9,
+      "2026-06-25T12:00:00"
+     ],
+     [
+      "RF-013375",
+      "617119013375",
+      "B260620-120041",
+      1608.98,
+      "2026-06-25T15:00:00"
+     ],
+     [
+      "RF-013318",
+      "617118013318",
+      "B260620-110022",
+      438.73,
+      "2026-06-25T17:00:00"
+     ],
+     [
+      "RF-013343",
+      "617118013343",
+      "B260620-110055",
+      168.21,
+      "2026-06-26T10:00:00"
+     ],
+     [
+      "RF-013361",
+      "617119013361",
+      "B260620-120016",
+      171.7,
+      "2026-06-26T12:00:00"
+     ],
+     [
+      "RF-013377",
+      "617119013377",
+      "B260620-120042",
+      216.89,
+      "2026-06-26T18:00:00"
+     ],
+     [
+      "RF-013351",
+      "617119013351",
+      "B260620-120002",
+      372.15,
+      "2026-06-27T10:00:00"
+     ],
+     [
+      "RF-013326",
+      "617118013326",
+      "B260620-110032",
+      342.13,
+      "2026-06-27T14:00:00"
+     ],
+     [
+      "RF-013389",
+      "617119013389",
+      "B260620-120058",
+      167.25,
+      "2026-06-27T18:00:00"
+     ],
+     [
+      "RF-014922",
+      "617321014922",
+      "B260622-140016",
+      642.19,
+      "2026-06-27T18:00:00"
+     ],
+     [
+      "RF-013378",
+      "617119013378",
+      "B260620-120045",
+      289.86,
+      "2026-06-28T11:00:00"
+     ],
+     [
+      "RF-013325",
+      "617118013325",
+      "B260620-110032",
+      342.13,
+      "2026-06-28T14:00:00"
+     ],
+     [
+      "RF-013344",
+      "617118013344",
+      "B260620-110056",
+      1064.47,
+      "2026-06-28T14:00:00"
+     ],
+     [
+      "RF-015950",
+      "617516015950",
+      "B260624-090007",
+      781.86,
+      "2026-06-29T17:00:00"
+     ]
+    ],
+    "row_count": 23,
+    "sql": "select \"upi-refunds-june\".\"refund_id\" as \"refund_id\", \"upi-refunds-june\".\"rrn\" as \"rrn\", \"upi-refunds-june\".\"bill_id\" as \"bill_id\", \"upi-refunds-june\".\"amount_inr\" as \"amount_inr\", \"upi-refunds-june\".\"completed_ts\" as \"completed_ts\" from \"upi-refunds-june\" inner join \"psp-upi-report-june\" on \"upi-refunds-june\".\"rrn\" = \"psp-upi-report-june\".\"rrn\" left join \"pos-payments-june\" on \"upi-refunds-june\".\"rrn\" = \"pos-payments-june\".\"rrn\" where (\"psp-upi-report-june\".\"status\" = ?) and (\"pos-payments-june\".\"rrn\" is null) order by \"completed_ts\" asc limit 200",
+    "params": [
+     "success"
+    ],
+    "plan_in_words": "From UPI refund records; inner-join UPI service provider's transaction records on upi refunds.rrn = psp upi report.rrn; left-join payment attempt records on upi refunds.rrn = pos payments.rrn; keep rows where psp upi report.status = 'success' and pos payments.rrn is empty; report refund_id = upi refunds.refund_id, rrn = upi refunds.rrn, bill_id = upi refunds.bill_id, amount_inr = upi refunds.amount_inr, completed_ts = upi refunds.completed_ts; sorted by completed_ts asc.",
+    "message": "23 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 2,
+  "total_parts": 3,
+  "columns": [
+   "extra_debits",
+   "amount_inr"
+  ],
+  "rows": [
+   [
+    26,
+    13366.06
+   ]
+  ],
+  "row_count": 1,
+  "message": "2 of 3 part(s) answered."
+ },
+ "Q282": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "bags_sold"
+  ],
+  "rows": [
+   [
+    567.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q283": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "upi_refunds"
+  ],
+  "rows": [
+   [
+    23
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q284": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "packets_sold"
+  ],
+  "rows": [
+   [
+    509.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ },
+ "Q285": {
+  "decision": "no_record",
+  "failed_layer": "ontology",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (a select item needs 'as' (a lowercase name) and 'expr')."
+ },
+ "Q286": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q287": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q288": {
+  "decision": "answer",
+  "layer": "schema",
+  "parts": [
+   {
+    "decision": "no_record",
+    "layers": [
+     "ontology"
+    ],
+    "failed_layer": "ontology",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (a select item needs 'as' (a lowercase name) and 'expr').",
+    "trace": []
+   },
+   {
+    "decision": "no_record",
+    "layers": [
+     "ontology"
+    ],
+    "failed_layer": "ontology",
+    "message": "Sorry, I'm not in a position to answer this from Store 014's records: the ontology layer refused the plan (cannot join {\"col\": \"pos-payments-june.till_status\"} to {\"lit\": \"approved\"}: not the same kind of key).",
+    "trace": []
+   },
+   {
+    "decision": "answer",
+    "layers": [
+     "schema"
+    ],
+    "layer": "schema",
+    "declared_layer": "ontology",
+    "covers": "Checks recorded charged-twice complaints as independent evidence that one approved payment per bill does not prove nobody was double charged.",
+    "columns": [
+     "double_charge_complaints",
+     "complained_bills",
+     "complained_amount_inr"
+    ],
+    "rows": [
+     [
+      23,
+      21,
+      11301.86
+     ]
+    ],
+    "row_count": 1,
+    "sql": "select count(*) as \"double_charge_complaints\", count(distinct \"customer-complaints-june\".\"bill_id\") as \"complained_bills\", sum(\"customer-complaints-june\".\"amount_inr\") as \"complained_amount_inr\" from \"customer-complaints-june\"  where (\"customer-complaints-june\".\"kind\" = ?) limit 200",
+    "params": [
+     "charged twice"
+    ],
+    "plan_in_words": "From complaint records; keep rows where customer complaints.kind = 'charged twice'; report double_charge_complaints = count of *, complained_bills = count distinct of customer complaints.bill_id, complained_amount_inr = sum of customer complaints.amount_inr.",
+    "message": "1 row(s).",
+    "value": null,
+    "trace": []
+   }
+  ],
+  "answered_parts": 1,
+  "total_parts": 3,
+  "columns": [
+   "double_charge_complaints",
+   "complained_bills",
+   "complained_amount_inr"
+  ],
+  "rows": [
+   [
+    23,
+    21,
+    11301.86
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 of 3 part(s) answered."
+ },
+ "Q290": {
+  "decision": "no_record",
+  "failed_layer": "schema",
+  "message": "Sorry, I'm not in a position to answer this from Store 014's records: the schema layer found no way to answer it (no valid query plan exists)."
+ },
+ "Q291": {
+  "decision": "answer",
+  "layer": "schema",
+  "declared_layer": "schema",
+  "columns": [
+   "bags_sold"
+  ],
+  "rows": [
+   [
+    567.0
+   ]
+  ],
+  "row_count": 1,
+  "message": "1 row(s)."
+ }
+}
